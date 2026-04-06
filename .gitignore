@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual Environment
+venv/
+.venv*
+env/
+ENV/
+
+# Ortam Değişkenleri (GİZLİ)
+.env
+.env.local
+.env.*.local
+
+# Firebase Config (GİZLİ - ASLA COMMIT YAPMA!)
+firebase-config.js
+firebase-credentials.json
+app/static/js/firebase-config.js
+
+# Flask / Instance
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Logging
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+~*
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Pytest
+.pytest_cache/
+.tox/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+
+# Build
+*.spec
+
+# Development
+.ipynb_checkpoints/
+*.ipynb
+.mypy_cache/
+.dmypy.json
+dmypy.json
