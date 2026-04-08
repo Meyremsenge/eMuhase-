@@ -4,12 +4,13 @@ Küçük ve orta ölçekli işletmeler için geliştirilmiş **ön muhasebe web 
 
 ## Özellikler
 
-- **Müşteri/Tedarikçi Yönetimi** – Kayıt, düzenleme, arama
-- **Ürün/Hizmet Yönetimi** – Stok takibi, fiyatlandırma
-- **Fatura Yönetimi** – Alış, satış ve iade faturaları
+- **Müşteri/Tedarikçi Yönetimi** – Kayıt, düzenleme, gelişmiş arama ve filtreleme
+- **Ürün/Hizmet Yönetimi** – Stok takibi, dinamik fiyatlandırma, kategorilendirme
+- **Fatura Yönetimi** – Alış, satış ve iade faturaları, özet raporlar
 - **Yapay Zeka Modülü** – Nakit akışı tahmini, anomali tespiti, akıllı ürün önerisi
 - **REST API** – Tam CRUD desteği (`/api/musteriler`, `/api/urunler`, `/api/faturalar`)
 - **Karanlık/Aydınlık Tema** – Kullanıcı tercihine göre geçiş
+- **Gelişmiş Raporlama** – Özet istatistikler ve veri analizi
 
 ## Mimari
 
@@ -41,16 +42,38 @@ Route → Service → Repository → ORM (SQLAlchemy)
 
 ## Kurulum
 
+### Gereksinimler
+- Python 3.8+
+- pip (Python paket yöneticisi)
+- Git
+
+### Adım Adım
+
 ```bash
-# Bağımlılıkları yükle
+# 1. Repository'yi klonla
+git clone https://github.com/Meyremsenge/eMuhasebe.git
+cd eMuhasebe
+
+# 2. Sanal ortam oluştur ve aktifleştir
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+# source .venv/bin/activate  # Linux/Mac
+
+# 3. Bağımlılıkları yükle
 pip install -r requirements.txt
 
-# Veritabanı migration
+# 4. Veritabanı migration'ı çalıştır
 flask db upgrade
 
-# Uygulamayı çalıştır
+# 5. .env dosyasını konfigüre et (varsa)
+cp .env.example .env
+# İçeriğini kendi ayarlarına göre düzenle
+
+# 6. Uygulamayı başlat
 python run.py
 ```
+
+Uygulama **http://localhost:5000** adresinde çalışacaktır.
 
 ## Test
 
@@ -58,26 +81,37 @@ python run.py
 # Tüm testleri çalıştır
 python -m pytest tests/ -v
 
-# Lint kontrolü
+# Belirli test dosyasını çalıştır
+python -m pytest tests/test_musteri_service.py -v
+
+# Lint kontrolü ve kod kalitesi
 python -m flake8 app/ --max-line-length=120
+python -m pylint app/ --disable=all --enable=E,F
+
+# Test kapsama raporu
+python -m pytest tests/ --cov=app --cov-report=html
 ```
 
 ## API Kullanımı
 
+Detaylı API dokumentasyonu için [API.md](API.md) dosyasına bakınız.
+
+### Temel Örnekler
+
 ```bash
 # Müşterileri listele
-GET /api/musteriler
+curl -X GET http://localhost:5000/api/musteriler
 
 # Yeni müşteri oluştur
-POST /api/musteriler
-Content-Type: application/json
-{"unvan": "ABC Ltd", "vergi_no": "1234567890"}
+curl -X POST http://localhost:5000/api/musteriler \
+  -H "Content-Type: application/json" \
+  -d '{"unvan": "ABC Ltd", "vergi_no": "1234567890"}'
 
 # Ürünleri ara
-GET /api/urunler?q=laptop
+curl -X GET "http://localhost:5000/api/urunler?q=laptop"
 
 # Fatura özeti
-GET /api/faturalar/ozet
+curl -X GET http://localhost:5000/api/faturalar/ozet
 ```
 
 ## Proje Yapısı
