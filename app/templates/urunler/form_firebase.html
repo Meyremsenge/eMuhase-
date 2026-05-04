@@ -1,0 +1,180 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}{{ 'Düzenle' if urun_id else 'Yeni' }} Ürün/Hizmet - eMuhasebe Pro{% endblock %}
+
+{% block page_title %}{{ 'Ürün/Hizmet Düzenle' if urun_id else 'Yeni Ürün/Hizmet' }}{% endblock %}
+{% block page_subtitle %}{{ 'Ürün bilgilerini güncelleyin' if urun_id else 'Yeni ürün veya hizmet oluşturun' }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('urunler.liste') }}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i>
+    Geri Dön
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card fade-in">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-box u-text-primary-500 u-mr-0-5"></i>
+            Ürün/Hizmet Bilgileri
+        </h3>
+    </div>
+    <div class="card-body">
+        <form id="urunForm" onsubmit="kaydet(event)">
+            <input type="hidden" id="urunId" value="{{ urun_id or '' }}">
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Ürün Kodu *</label>
+                    <input type="text" id="kod" name="kod" class="form-control" 
+                        placeholder="Örn: URN001" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Ürün/Hizmet Adı *</label>
+                    <input type="text" id="ad" name="ad" class="form-control" 
+                        placeholder="Ürün veya hizmet adı" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Açıklama</label>
+                <textarea id="aciklama" name="aciklama" class="form-control" rows="2" 
+                    placeholder="Ürün açıklaması (opsiyonel)"></textarea>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Birim *</label>
+                    <select id="birim" name="birim" class="form-control form-select" required>
+                        <option value="">Seçiniz</option>
+                        <option value="Adet">Adet</option>
+                        <option value="Kg">Kg</option>
+                        <option value="Lt">Lt</option>
+                        <option value="Mt">Mt</option>
+                        <option value="M²">M²</option>
+                        <option value="Paket">Paket</option>
+                        <option value="Kutu">Kutu</option>
+                        <option value="Saat">Saat</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">KDV Oranı *</label>
+                    <select id="kdv_orani" name="kdv_orani" class="form-control form-select" required>
+                        <option value="0">%0</option>
+                        <option value="1">%1</option>
+                        <option value="8">%8</option>
+                        <option value="10">%10</option>
+                        <option value="18">%18</option>
+                        <option value="20" selected>%20</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Stok Miktarı</label>
+                    <input type="number" id="stok_miktari" name="stok_miktari" class="form-control" 
+                        step="0.01" min="0" value="0" placeholder="0">
+                </div>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Alış Fiyatı (₺)</label>
+                    <input type="number" id="alis_fiyat" name="alis_fiyat" class="form-control" 
+                        step="0.01" min="0.01" placeholder="Orn: 125.50" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Satış Fiyatı (₺)</label>
+                    <input type="number" id="satis_fiyat" name="satis_fiyat" class="form-control" 
+                        step="0.01" min="0.01" placeholder="Orn: 249.90" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label u-flex u-align-center u-gap-0-5">
+                    <input type="checkbox" id="aktif" name="aktif" checked>
+                    Aktif
+                </label>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="kaydetBtn">
+                    <i class="fas fa-save"></i>
+                    <span id="kaydetBtnText">Kaydet</span>
+                </button>
+                <a href="{{ url_for('urunler.liste') }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i>
+                    İptal
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+import { init, Urunler } from '{{ url_for("static", filename="js/db.js") }}';
+
+const urunId = document.getElementById('urunId').value;
+
+// Sayfa yüklendiğinde
+document.addEventListener('DOMContentLoaded', async () => {
+    if (urunId) {
+        // Düzenleme modu - mevcut veriyi yükle
+        try {
+            const urun = await Urunler.getir(urunId);
+            if (urun) {
+                document.getElementById('kod').value = urun.kod || '';
+                document.getElementById('ad').value = urun.ad || '';
+                document.getElementById('aciklama').value = urun.aciklama || '';
+                document.getElementById('birim').value = urun.birim || '';
+                document.getElementById('kdv_orani').value = urun.kdv_orani || '20';
+                document.getElementById('stok_miktari').value = urun.stok_miktari || 0;
+                document.getElementById('alis_fiyat').value = urun.alis_fiyat ?? '';
+                document.getElementById('satis_fiyat').value = urun.satis_fiyat ?? '';
+                document.getElementById('aktif').checked = urun.aktif !== false;
+            }
+        } catch (error) {
+            console.error('Veri yüklenirken hata:', error);
+        }
+    }
+});
+
+// Kaydetme
+window.kaydet = async function(e) {
+    e.preventDefault();
+    
+    const btn = document.getElementById('kaydetBtn');
+    const btnText = document.getElementById('kaydetBtnText');
+    btn.disabled = true;
+    btnText.textContent = 'Kaydediliyor...';
+    
+    const veri = {
+        kod: document.getElementById('kod').value,
+        ad: document.getElementById('ad').value,
+        aciklama: document.getElementById('aciklama').value,
+        birim: document.getElementById('birim').value,
+        kdv_orani: parseInt(document.getElementById('kdv_orani').value),
+        stok_miktari: parseFloat(document.getElementById('stok_miktari').value) || 0,
+        alis_fiyat: parseFloat(document.getElementById('alis_fiyat').value) || 0,
+        satis_fiyat: parseFloat(document.getElementById('satis_fiyat').value) || 0,
+        aktif: document.getElementById('aktif').checked
+    };
+    
+    try {
+        if (urunId) {
+            await Urunler.guncelle(urunId, veri);
+        } else {
+            await Urunler.ekle(veri);
+        }
+        
+        // Başarılı - listeye yönlendir
+        window.location.href = '/urunler/';
+    } catch (error) {
+        alert('Kaydetme hatası: ' + error.message);
+        btn.disabled = false;
+        btnText.textContent = 'Kaydet';
+    }
+};
+</script>
+{% endblock %}

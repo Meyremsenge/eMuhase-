@@ -66,3 +66,8 @@ htmlcov/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+.flask_limiter/
+eMuhase-/
+eMuhase-*.zip
+*.zip
+SUBMISSION_KOMUTLAR_VE_PLAN.md

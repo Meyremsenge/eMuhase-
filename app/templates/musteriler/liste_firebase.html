@@ -1,0 +1,201 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Müşteriler / Tedarikçiler - eMuhasebe Pro{% endblock %}
+
+{% block page_title %}Müşteriler / Tedarikçiler{% endblock %}
+{% block page_subtitle %}Müşteri ve tedarikçi kayıtları{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('musteriler.yeni') }}" class="btn btn-primary">
+    <i class="fas fa-plus"></i>
+    Yeni Kayıt
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtreler -->
+<div class="filter-bar">
+    <div class="u-flex u-flex-wrap u-gap-1 u-w-full u-align-end">
+        <div class="form-group">
+            <label class="form-label">Arama</label>
+            <input type="text" id="aramaInput" class="form-control" placeholder="Unvan veya vergi no...">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Tip</label>
+            <select id="tipSelect" class="form-control form-select">
+                <option value="">Tümü</option>
+                <option value="musteri">Müşteri</option>
+                <option value="tedarikci">Tedarikçi</option>
+                <option value="her_ikisi">Her İkisi</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <button type="button" onclick="filtrele()" class="btn btn-primary">
+                <i class="fas fa-search"></i>
+                Filtrele
+            </button>
+            <button type="button" onclick="temizle()" class="btn btn-secondary">
+                <i class="fas fa-times"></i>
+                Temizle
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Yükleniyor -->
+<div id="yukleniyorDiv" class="card is-hidden">
+    <div class="card-body u-text-center u-p-3">
+        <i class="fas fa-spinner fa-spin fa-2x u-text-primary-500"></i>
+        <p class="u-mt-1 u-text-muted">Veriler yükleniyor...</p>
+    </div>
+</div>
+
+<!-- Liste -->
+<div class="card" id="listeCard">
+    <div class="card-body u-p-0">
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Unvan</th>
+                        <th>Vergi No</th>
+                        <th>Telefon</th>
+                        <th>E-posta</th>
+                        <th>Tip</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody id="musteriListesi">
+                    <!-- Firebase'den dinamik olarak yüklenecek -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Boş durum -->
+        <div id="bosState" class="empty-state is-hidden">
+            <div class="empty-state-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <h3>Henüz kayıt yok</h3>
+            <p>İlk müşteri veya tedarikçinizi ekleyerek başlayın.</p>
+            <a href="{{ url_for('musteriler.yeni') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Yeni Kayıt Ekle
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Sayfa sayısı -->
+<div id="sonucSayisi" class="u-mt-1 u-text-center u-text-muted"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+import { init, Musteriler, Yardimci } from '{{ url_for("static", filename="js/db.js") }}';
+
+let tumMusteriler = [];
+
+// Sayfa yüklendiğinde
+document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('yukleniyorDiv').style.display = 'block';
+    document.getElementById('listeCard').style.display = 'none';
+    
+    // Veritabanını başlat
+    await init();
+    
+    // Realtime dinleme
+    await Musteriler.dinle((musteriler) => {
+        tumMusteriler = musteriler;
+        document.getElementById('yukleniyorDiv').style.display = 'none';
+        document.getElementById('listeCard').style.display = 'block';
+        listeyiGuncelle(musteriler);
+    });
+});
+
+// Listeyi güncelle
+function listeyiGuncelle(musteriler) {
+    const tbody = document.getElementById('musteriListesi');
+    const bosState = document.getElementById('bosState');
+    const sonucSayisi = document.getElementById('sonucSayisi');
+    
+    if (musteriler.length === 0) {
+        tbody.innerHTML = '';
+        bosState.style.display = 'block';
+        sonucSayisi.textContent = '';
+        return;
+    }
+    
+    bosState.style.display = 'none';
+    sonucSayisi.textContent = `Toplam ${musteriler.length} kayıt bulundu`;
+    
+    tbody.innerHTML = musteriler.map(musteri => `
+        <tr>
+            <td class="u-font-semibold">${musteri.unvan || '-'}</td>
+            <td>${musteri.vergi_no || '-'}</td>
+            <td>${musteri.telefon || '-'}</td>
+            <td>${musteri.email || '-'}</td>
+            <td>
+                ${musteri.tip === 'musteri' ? '<span class="badge badge-primary">Müşteri</span>' :
+                  musteri.tip === 'tedarikci' ? '<span class="badge badge-success">Tedarikçi</span>' :
+                  '<span class="badge badge-gray">Her İkisi</span>'}
+            </td>
+            <td>
+                ${musteri.aktif ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-danger">Pasif</span>'}
+            </td>
+            <td>
+                <div class="table-actions">
+                    <a href="/musteriler/duzenle/${musteri.id}" class="btn btn-sm btn-secondary" title="Düzenle">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <button type="button" onclick="musteriSil('${musteri.id}', '${musteri.unvan}')" class="btn btn-sm btn-danger" title="Sil">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// Filtreleme
+window.filtrele = function() {
+    const arama = document.getElementById('aramaInput').value.toLowerCase();
+    const tip = document.getElementById('tipSelect').value;
+    
+    let filtrelenmis = tumMusteriler;
+    
+    if (arama) {
+        filtrelenmis = filtrelenmis.filter(m => 
+            (m.unvan && m.unvan.toLowerCase().includes(arama)) ||
+            (m.vergi_no && m.vergi_no.toLowerCase().includes(arama))
+        );
+    }
+    
+    if (tip) {
+        filtrelenmis = filtrelenmis.filter(m => m.tip === tip);
+    }
+    
+    listeyiGuncelle(filtrelenmis);
+};
+
+// Temizle
+window.temizle = function() {
+    document.getElementById('aramaInput').value = '';
+    document.getElementById('tipSelect').value = '';
+    listeyiGuncelle(tumMusteriler);
+};
+
+// Silme
+window.musteriSil = async function(id, unvan) {
+    if (confirm(`"${unvan}" kaydını silmek istediğinizden emin misiniz?`)) {
+        try {
+            await Musteriler.sil(id);
+            // Realtime güncelleme otomatik olacak
+        } catch (error) {
+            alert('Silme işlemi başarısız: ' + error.message);
+        }
+    }
+};
+</script>
+{% endblock %}

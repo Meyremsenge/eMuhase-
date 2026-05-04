@@ -1,99 +1,40 @@
-# eMuhasebe Pro
+# eMuhasebe Pro (dev)
 
-Küçük ve orta ölçekli işletmeler için geliştirilmiş **ön muhasebe web uygulaması**.
+Basit ön muhasebe uygulaması - bu depo okul projesi amaçlıdır. README bu çalışma dizinindeki güncel durum ve hızlı çalışma talimatlarını içerir.
 
-## Özellikler
+Öne çıkan değişiklikler (kritik düzeltmeler):
+- `app/__init__.py` eklenerek `create_app()` factory oluşturuldu
+- Model audit log (AuditLog) için SQLAlchemy listener'ları eklendi
+- `app/repositories/base_repository.py` yeniden düzenlendi; repository class'ları çalışır durumda
+- `app/services/musteri_service.py` ve `app/repositories/musteri_repository.py` eklendi
+- `app/api_utils.py` içinde `fatura_to_dict` hatası düzeltildi (kalem iterasyonu) ve serializer alanları güncellendi
 
-- **Müşteri/Tedarikçi Yönetimi** – Kayıt, düzenleme, arama
-- **Ürün/Hizmet Yönetimi** – Stok takibi, fiyatlandırma
-- **Fatura Yönetimi** – Alış, satış ve iade faturaları
-- **Yapay Zeka Modülü** – Nakit akışı tahmini, anomali tespiti, akıllı ürün önerisi
-- **REST API** – Tam CRUD desteği (`/api/musteriler`, `/api/urunler`, `/api/faturalar`)
-- **Karanlık/Aydınlık Tema** – Kullanıcı tercihine göre geçiş
+Çalıştırma ortamı
+- Python 3.14 önerilir
 
-## Mimari
+Hızlı başlangıç
 
-```
-Route → Service → Repository → ORM (SQLAlchemy)
-```
-
-| Katman | Açıklama |
-|--------|----------|
-| **Route / API** | HTTP isteklerini karşılar |
-| **Service** | İş kurallarını uygular |
-| **Repository** | Veritabanı sorgularını yönetir (BaseRepository) |
-| **ORM** | SQLAlchemy modelleri (8 tablo, 6 ilişki) |
-
-### Tasarım Desenleri
-
-- **Factory Pattern** – `create_app()` ile uygulama oluşturma
-- **Repository Pattern** – Veri erişim katmanı soyutlaması
-- **Service Layer** – İş mantığı katmanı
-- **Blueprint** – Modüler route yapısı
-
-## Teknolojiler
-
-- **Backend:** Python 3.x, Flask 3.0, SQLAlchemy, Flask-Migrate
-- **Frontend:** HTML5, CSS3, JavaScript, Chart.js
-- **Veritabanı:** SQLite (geliştirme), Firebase Realtime DB (istemci tarafı)
-- **AI:** OpenRouter API (Mistral), yerel JS algoritmaları
-- **CI/CD:** GitHub Actions, Docker, Gunicorn
-
-## Kurulum
-
-```bash
-# Bağımlılıkları yükle
+```powershell
+# Windows (repo kökünde)
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# Veritabanı migration
-flask db upgrade
+# Ortam değişkenleri (örnek):
+set FLASK_APP=run.py
+set FLASK_ENV=development
 
-# Uygulamayı çalıştır
+# DB migration ve başlatma
+flask db upgrade
 python run.py
 ```
 
-## Test
+Testler
 
-```bash
-# Tüm testleri çalıştır
-python -m pytest tests/ -v
-
-# Lint kontrolü
-python -m flake8 app/ --max-line-length=120
+```powershell
+python -m pytest -q
 ```
 
-## API Kullanımı
-
-```bash
-# Müşterileri listele
-GET /api/musteriler
-
-# Yeni müşteri oluştur
-POST /api/musteriler
-Content-Type: application/json
-{"unvan": "ABC Ltd", "vergi_no": "1234567890"}
-
-# Ürünleri ara
-GET /api/urunler?q=laptop
-
-# Fatura özeti
-GET /api/faturalar/ozet
-```
-
-## Proje Yapısı
-
-```
-app/
-├── api/             # REST API endpoint'leri
-├── repositories/    # Veri erişim katmanı (Repository Pattern)
-├── services/        # İş mantığı katmanı (Service Layer)
-├── models.py        # ORM modelleri
-├── faturalar/       # Fatura blueprint'leri (alış, satış, iade)
-├── musteriler/      # Müşteri blueprint'i
-├── urunler/         # Ürün blueprint'i
-├── static/          # CSS, JS, görseller
-└── templates/       # Jinja2 şablonları
-tests/               # pytest birim testleri
-migrations/          # Flask-Migrate (Alembic)
-.github/workflows/   # CI/CD pipeline
-```
+Notlar
+- Projede eksik veya kısmi implementasyonlar bulunabilir (özellikle frontend ve bazı blueprint'ler).
+- Kritik olarak çalışmayan import hataları düzeltildi; testlere çalıştırıp doğrulamanız önerilir.

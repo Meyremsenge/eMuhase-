@@ -1,0 +1,601 @@
+﻿<!DOCTYPE html>
+<html lang="tr" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}eMuhasebe Pro{% endblock %}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Ana CSS (cache-bust) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 999999) | random }}">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    
+    <!-- Veritabanı Modülü (Firebase + LocalStorage Fallback) -->
+    <script type="module" src="{{ url_for('static', filename='js/db.js') }}"></script>
+    
+    {% block extra_css %}{% endblock %}
+    <script>
+        // Sayfa yüklenmeden önce temayı uygula (flash önleme)
+        (function(){
+            var t = localStorage.getItem('eMuhasebeTheme') || 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+
+    <script>
+        // One-time price backfill for LocalStorage data
+        (function() {
+            const MIGRATION_KEY = 'emuhasebe_price_fix_v1';
+            if (localStorage.getItem(MIGRATION_KEY) === 'done') return;
+            if (localStorage.getItem('emuhasebe_force_local') !== 'true') return;
+
+            const PRICE_TABLE = {
+                'ELK-001': { alis: 28500, satis: 34900 },
+                'ELK-002': { alis: 52000, satis: 62999 },
+                'ELK-003': { alis: 32000, satis: 39900 },
+                'ELK-004': { alis: 45000, satis: 54900 },
+                'ELK-005': { alis: 29000, satis: 35900 },
+                'ELK-006': { alis: 18000, satis: 22900 },
+                'ELK-007': { alis: 4500,  satis: 6299  },
+                'ELK-008': { alis: 22000, satis: 28900 },
+                'ELK-009': { alis: 7500,  satis: 9500  },
+                'ELK-010': { alis: 1100,  satis: 1599  },
+                'ELK-011': { alis: 850,   satis: 1199  },
+                'ELK-012': { alis: 1200,  satis: 1749  },
+                'ELK-013': { alis: 4800,  satis: 6200  },
+                'ELK-014': { alis: 2800,  satis: 3699  },
+                'ELK-015': { alis: 900,   satis: 1249  },
+                'OFS-001': { alis: 3200,  satis: 4500  },
+                'OFS-002': { alis: 2800,  satis: 3999  },
+                'OFS-003': { alis: 1800,  satis: 2599  },
+                'SFT-001': { alis: 250,   satis: 399   },
+                'SFT-002': { alis: 700,   satis: 999   },
+                'SFT-003': { alis: 120,   satis: 199   },
+                'TEK-001': { alis: 5500,  satis: 7200  },
+                'TEK-002': { alis: 3200,  satis: 4299  },
+                'TEK-003': { alis: 1500,  satis: 2099  },
+                'TEK-004': { alis: 1200,  satis: 1699  }
+            };
+
+            const load = (key) => {
+                try {
+                    const raw = localStorage.getItem(key);
+                    return raw ? JSON.parse(raw) : {};
+                } catch (e) {
+                    return {};
+                }
+            };
+
+            const save = (key, data) => {
+                localStorage.setItem(key, JSON.stringify(data));
+            };
+
+            const normalize = (val) => (val || '').toString().toLowerCase().replace(/\s+/g, ' ').trim();
+
+            const urunler = load('emuhasebe_urunler');
+            const urunIndexById = {};
+            const urunIndexByName = {};
+
+            Object.entries(urunler).forEach(([id, urun]) => {
+                const kod = (urun && urun.kod) ? urun.kod.toUpperCase() : null;
+                const fiyat = kod && PRICE_TABLE[kod] ? PRICE_TABLE[kod] : null;
+                const alis = urun.alis_fiyat ?? urun.alisFiyat ?? 0;
+                const satis = urun.satis_fiyat ?? urun.satisFiyat ?? 0;
+
+                if (fiyat) {
+                    if (!alis || alis <= 0) urun.alis_fiyat = fiyat.alis;
+                    if (!satis || satis <= 0) urun.satis_fiyat = fiyat.satis;
+                }
+
+                urunIndexById[id] = urun;
+                const nameKey = normalize(urun.ad || urun.urun_adi || urun.isim);
+                if (nameKey) urunIndexByName[nameKey] = urun;
+            });
+
+            const pickPrice = (urun, tip) => {
+                if (!urun) return 0;
+                if (tip === 'satis') return parseFloat(urun.satis_fiyat ?? urun.satisFiyat ?? urun.birim_fiyat ?? urun.fiyat) || 0;
+                if (tip === 'alis') return parseFloat(urun.alis_fiyat ?? urun.alisFiyat ?? urun.birim_fiyat ?? urun.fiyat) || 0;
+                return parseFloat(urun.satis_fiyat ?? urun.satisFiyat ?? urun.alis_fiyat ?? urun.alisFiyat ?? urun.birim_fiyat ?? urun.fiyat) || 0;
+            };
+
+            const updateFatura = (fatura, tip) => {
+                const kalemlerRaw = fatura.kalemler || fatura.urunler || {};
+                const isArray = Array.isArray(kalemlerRaw);
+                const kalemler = isArray ? kalemlerRaw : Object.values(kalemlerRaw);
+                let araToplam = 0;
+                let kdvToplam = 0;
+
+                kalemler.forEach((kalem) => {
+                    const urunId = kalem.urun_id || kalem.urunId;
+                    const urunAdi = normalize(kalem.urun_adi || kalem.ad || kalem.aciklama || kalem.isim);
+                    const urun = urunIndexById[urunId] || urunIndexByName[urunAdi];
+                    const fiyat = pickPrice(urun, tip);
+                    if (fiyat > 0) {
+                        kalem.birim_fiyat = fiyat;
+                        kalem.birimFiyat = fiyat;
+                    }
+
+                    const miktar = parseFloat(kalem.miktar || kalem.adet || 1) || 1;
+                    const birimFiyat = parseFloat(kalem.birim_fiyat || kalem.birimFiyat || 0) || 0;
+                    const kdvOrani = parseFloat(kalem.kdv_orani || kalem.kdv || 0) || 0;
+                    const tutar = miktar * birimFiyat;
+                    const kdvTutar = tutar * (kdvOrani / 100);
+
+                    kalem.toplam = tutar;
+                    kalem.kdv_tutar = kdvTutar;
+                    kalem.genel_toplam = tutar + kdvTutar;
+                    araToplam += tutar;
+                    kdvToplam += kdvTutar;
+                });
+
+                fatura.ara_toplam = Math.round(araToplam * 100) / 100;
+                fatura.kdv_toplam = Math.round(kdvToplam * 100) / 100;
+                fatura.genel_toplam = Math.round((araToplam + kdvToplam) * 100) / 100;
+            };
+
+            const alis = load('emuhasebe_alis_faturalari');
+            const satis = load('emuhasebe_satis_faturalari');
+            const iade = load('emuhasebe_iade_faturalari');
+
+            Object.values(alis).forEach((fatura) => updateFatura(fatura, 'alis'));
+            Object.values(satis).forEach((fatura) => updateFatura(fatura, 'satis'));
+            Object.values(iade).forEach((fatura) => {
+                const tip = (fatura.iade_tipi || '').toLowerCase() === 'satis_iade' ? 'satis' : 'alis';
+                updateFatura(fatura, tip);
+            });
+
+            save('emuhasebe_urunler', urunler);
+            save('emuhasebe_alis_faturalari', alis);
+            save('emuhasebe_satis_faturalari', satis);
+            save('emuhasebe_iade_faturalari', iade);
+
+            localStorage.setItem(MIGRATION_KEY, 'done');
+        })();
+    </script>
+
+    <script>
+        // Notify fallback (db.js yuklenemezse)
+        (function() {
+            if (window.notify) return;
+
+            function ensureContainer() {
+                let container = document.getElementById('flashNotificationArea');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.id = 'flashNotificationArea';
+                    container.className = 'flash-notification-area';
+                    container.setAttribute('aria-live', 'polite');
+                    container.setAttribute('aria-atomic', 'true');
+                    document.body.appendChild(container);
+                }
+                return container;
+            }
+
+            function getIcon(level) {
+                const icons = {
+                    success: 'check-circle',
+                    danger: 'circle-exclamation',
+                    error: 'circle-exclamation',
+                    warning: 'triangle-exclamation',
+                    info: 'circle-info'
+                };
+                return icons[level] || icons.info;
+            }
+
+            function show(message, level, duration) {
+                const container = ensureContainer();
+                const item = document.createElement('div');
+                const mapped = level === 'error' ? 'danger' : level;
+                item.className = `flash-notification flash-${mapped} fade-in`;
+                item.setAttribute('role', 'status');
+                item.innerHTML = `
+                    <i class="fas fa-${getIcon(mapped)}"></i>
+                    <span>${message}</span>
+                    <button type="button" class="flash-close" aria-label="Bildirimi kapat">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                container.appendChild(item);
+                const closeBtn = item.querySelector('.flash-close');
+                if (closeBtn) closeBtn.addEventListener('click', () => item.remove());
+                if (duration > 0) setTimeout(() => item.remove(), duration);
+                return item;
+            }
+
+            const notify = function(message, level, options) {
+                const opts = options || {};
+                const duration = typeof opts.duration === 'number' ? opts.duration : 5500;
+                return show(message, level || 'info', duration);
+            };
+
+            notify.success = (msg, duration, options) => notify(msg, 'success', { ...options, duration });
+            notify.error = (msg, duration, options) => notify(msg, 'error', { ...options, duration });
+            notify.warning = (msg, duration, options) => notify(msg, 'warning', { ...options, duration });
+            notify.info = (msg, duration, options) => notify(msg, 'info', { ...options, duration });
+            notify.setList = function() {};
+
+            window.notify = notify;
+            window.Toast = {
+                success: (msg, duration, options) => notify.success(msg, duration, options),
+                error: (msg, duration, options) => notify.error(msg, duration, options),
+                warning: (msg, duration, options) => notify.warning(msg, duration, options),
+                info: (msg, duration, options) => notify.info(msg, duration, options)
+            };
+        })();
+    </script>
+
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img src="{{ url_for('static', filename='img/logo1.png') }}" alt="eMuhasebe Logo" class="sidebar-logo-img">
+                    <div class="sidebar-logo-text">
+                        <h1>eMuhasebe</h1>
+                        <span>Muhasebe Sistemi</span>
+                    </div>
+                </div>
+                <button class="sidebar-toggle" id="sidebarToggle" title="Menüyü Daralt/Genişlet">
+                    <i class="fas fa-angles-left" id="toggleIcon"></i>
+                </button>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <!-- Ana Menü -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Ana Menü</div>
+                    <a href="{{ url_for('main.index') }}" class="nav-item {% if request.endpoint == 'main.index' %}active{% endif %}">
+                        <i class="fas fa-home"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </div>
+                
+                <!-- Faturalar -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Fatura Yönetimi</div>
+                    <a href="{{ url_for('alis.liste') }}" class="nav-item {% if 'alis' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Alış Faturaları</span>
+                    </a>
+                    <a href="{{ url_for('satis.liste') }}" class="nav-item {% if 'satis' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-cash-register"></i>
+                        <span>Satış Faturaları</span>
+                    </a>
+                    <a href="{{ url_for('iade.liste') }}" class="nav-item {% if 'iade' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-undo-alt"></i>
+                        <span>İade Faturaları</span>
+                    </a>
+                </div>
+                
+                <!-- Tanımlamalar -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Tanımlamalar</div>
+                    <a href="{{ url_for('musteriler.liste') }}" class="nav-item {% if 'musteriler' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-users"></i>
+                        <span>Müşteriler / Tedarikçiler</span>
+                    </a>
+                    <a href="{{ url_for('urunler.liste') }}" class="nav-item {% if 'urunler' in request.endpoint %}active{% endif %}">
+                        <i class="fas fa-boxes"></i>
+                        <span>Ürünler / Hizmetler</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer"></div>
+        </aside>
+        
+        <!-- Ana İçerik -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="main-header">
+                <div class="header-title">
+                    <h2>{% block page_title %}Dashboard{% endblock %}</h2>
+                    <p>{% block page_subtitle %}Hoş geldiniz{% endblock %}</p>
+                </div>
+                <div class="header-actions">
+                    <button class="demo-data-btn btn btn--ghost" id="demoDataBtn" type="button" title="Demo Veri Ekle" onclick="window.loadDemoData && window.loadDemoData()">
+                        <span class="demo-data-icon"><i class="fas fa-database"></i></span>
+                        <span class="demo-data-label">Demo Veri Ekle</span>
+                    </button>
+                    <button class="theme-toggle btn btn--ghost" id="themeToggle" type="button" title="Tema Değiştir">
+                        <span class="theme-toggle-icon"><i class="fas fa-moon" id="themeIcon"></i></span>
+                        <span class="theme-toggle-label" id="themeLabel">Açık Tema</span>
+                    </button>
+                    {% block header_actions %}{% endblock %}
+                </div>
+            </header>
+
+            <!-- İçerik Alanı -->
+            <div class="content-area">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Sabit Bildirim Alanı -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-notification-area" id="flashNotificationArea" aria-live="polite" aria-atomic="true">
+                {% for category, message in messages %}
+                    {% set mapped_category = 'danger' if category == 'error' else category %}
+                    <div class="flash-notification flash-{{ mapped_category }} fade-in" role="status">
+                        <i class="fas {% if mapped_category == 'success' %}fa-check-circle{% elif mapped_category == 'danger' %}fa-circle-exclamation{% elif mapped_category == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+                        <span>{{ message }}</span>
+                        <button type="button" class="flash-close" aria-label="Bildirimi kapat">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    <!-- Veritabanı Mod Toggle ve Sync Butonları -->
+    <div id="dbModeToggle" class="db-mode-toggle">
+        <!-- Manuel Sync Butonu -->
+        <button id="syncBtn" onclick="manualSync()" class="db-mode-sync-btn" title="Verileri Senkronize Et">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+        
+        <!-- Mod Butonu -->
+        <button id="dbModeBtn" onclick="showModePopup()" class="db-mode-btn">
+            <span id="dbModeIcon" class="db-mode-icon"></span>
+            <span id="dbModeText">Yükleniyor...</span>
+            <i class="fas fa-exchange-alt db-mode-switch-icon"></i>
+        </button>
+    </div>
+
+    <!-- Mod Değiştirme Popup Modal -->
+    <div id="modePopupOverlay" class="db-mode-overlay">
+        <div id="modePopupModal" class="db-mode-modal">
+            <div class="db-mode-modal-body">
+                <!-- Icon -->
+                <div id="popupIcon" class="db-mode-popup-icon"></div>
+                
+                <!-- Title -->
+                <h3 id="popupTitle" class="db-mode-popup-title"></h3>
+                
+                <!-- Message -->
+                <p id="popupMessage" class="db-mode-popup-message"></p>
+                
+                <!-- Buttons -->
+                <div class="db-mode-actions">
+                    <button onclick="closeModePopup()" class="db-mode-action-btn db-mode-action-cancel">
+                        <i class="fas fa-times db-mode-action-icon"></i>İptal
+                    </button>
+                    <button id="popupConfirmBtn" onclick="confirmModeChange()" class="db-mode-action-btn db-mode-action-confirm">
+                        <i class="fas fa-check db-mode-action-icon"></i>Değiştir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { init, getMode, setMode, isOnline, Sync } from '{{ url_for("static", filename="js/db.js") }}';
+        
+        // Global değişken
+        let pendingNewMode = null;
+        
+        // Mod durumunu güncelle
+        async function updateModeUI() {
+            await init();
+            const mode = getMode();
+            const btn = document.getElementById('dbModeBtn');
+            const icon = document.getElementById('dbModeIcon');
+            const text = document.getElementById('dbModeText');
+            const syncBtn = document.getElementById('syncBtn');
+            
+            if (mode === 'firebase') {
+                icon.style.background = '#22c55e';
+                text.textContent = '🔥 Firebase';
+                btn.style.background = 'rgba(34, 197, 94, 0.1)';
+                btn.style.color = '#16a34a';
+                btn.title = 'LocalStorage moduna geçmek için tıklayın';
+                // Firebase modunda sync butonu göster
+                syncBtn.style.display = 'flex';
+            } else {
+                icon.style.background = '#3b82f6';
+                text.textContent = '💾 LocalStorage';
+                btn.style.background = 'rgba(59, 130, 246, 0.1)';
+                btn.style.color = '#2563eb';
+                btn.title = 'Firebase moduna geçmek için tıklayın';
+                // LocalStorage modunda sync butonu gizle
+                syncBtn.style.display = 'none';
+            }
+        }
+        
+        // Manuel Senkronizasyon
+        window.manualSync = async function() {
+            const syncBtn = document.getElementById('syncBtn');
+            const icon = syncBtn.querySelector('i');
+            
+            // Buton animasyonu
+            icon.classList.add('fa-spin');
+            syncBtn.disabled = true;
+            
+            try {
+                await Sync.fullSync(true);
+            } finally {
+                icon.classList.remove('fa-spin');
+                syncBtn.disabled = false;
+            }
+        };
+        
+        // Popup göster
+        window.showModePopup = function() {
+            const mode = getMode();
+            pendingNewMode = mode === 'firebase' ? 'local' : 'firebase';
+            
+            const overlay = document.getElementById('modePopupOverlay');
+            const icon = document.getElementById('popupIcon');
+            const title = document.getElementById('popupTitle');
+            const message = document.getElementById('popupMessage');
+            const confirmBtn = document.getElementById('popupConfirmBtn');
+            
+            if (pendingNewMode === 'firebase') {
+                icon.innerHTML = '🔥';
+                icon.style.background = 'rgba(34, 197, 94, 0.1)';
+                title.textContent = 'Firebase Moduna Geç';
+                message.textContent = 'Verileriniz bulut üzerinde Firebase Realtime Database\'de saklanacak. İnternet bağlantısı gereklidir. Verileriniz otomatik olarak senkronize edilecek.';
+                confirmBtn.style.background = '#22c55e';
+                confirmBtn.style.color = 'white';
+            } else {
+                icon.innerHTML = '💾';
+                icon.style.background = 'rgba(59, 130, 246, 0.1)';
+                title.textContent = 'LocalStorage Moduna Geç';
+                message.textContent = 'Verileriniz tarayıcınızda yerel olarak saklanacak. İnternet bağlantısı gerekmez. Mevcut verileriniz korunacak.';
+                confirmBtn.style.background = '#3b82f6';
+                confirmBtn.style.color = 'white';
+            }
+            
+            overlay.style.display = 'block';
+        };
+        
+        // Popup kapat
+        window.closeModePopup = function() {
+            document.getElementById('modePopupOverlay').style.display = 'none';
+            pendingNewMode = null;
+        };
+        
+        // Mod değişikliğini onayla
+        window.confirmModeChange = function() {
+            if (pendingNewMode) {
+                setMode(pendingNewMode);
+                window.location.reload();
+            }
+        };
+        
+        // ESC tuşu ile kapatma
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModePopup();
+        });
+        
+        // Overlay tıklaması ile kapatma
+        document.getElementById('modePopupOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'modePopupOverlay') closeModePopup();
+        });
+        
+        // Sayfa yüklendiğinde
+        updateModeUI();
+    </script>
+    
+    <script>
+        // Tema Toggle
+        (function() {
+            const saved = localStorage.getItem('eMuhasebeTheme') || 'dark';
+            document.documentElement.setAttribute('data-theme', saved);
+            const icon = document.getElementById('themeIcon');
+            const label = document.getElementById('themeLabel');
+            if (icon) {
+                icon.className = saved === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+            }
+            if (label) {
+                label.textContent = saved === 'dark' ? 'Açık Tema' : 'Koyu Tema';
+            }
+        })();
+
+        document.getElementById('themeToggle').addEventListener('click', function() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('eMuhasebeTheme', next);
+            const icon = document.getElementById('themeIcon');
+            const label = document.getElementById('themeLabel');
+            icon.className = next === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+            label.textContent = next === 'dark' ? 'Açık Tema' : 'Koyu Tema';
+        });
+    </script>
+
+    <script>
+        // Sağ üst bildirim alanı: otomatik kapanma + manuel kapatma
+        (function() {
+            const container = document.getElementById('flashNotificationArea');
+            if (!container) return;
+
+            const closeNotification = (el) => {
+                el.classList.add('flash-hide');
+                setTimeout(() => {
+                    el.remove();
+                    if (!container.children.length) container.remove();
+                }, 260);
+            };
+
+            container.querySelectorAll('.flash-notification').forEach((item, index) => {
+                // Staggered giriş hissi
+                item.style.animationDelay = `${index * 80}ms`;
+
+                const closeBtn = item.querySelector('.flash-close');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => closeNotification(item));
+                }
+
+                // 5.5 saniye sonra otomatik kapat
+                setTimeout(() => {
+                    if (document.body.contains(item)) closeNotification(item);
+                }, 5500 + (index * 400));
+            });
+        })();
+
+        // Para formatla
+        function formatMoney(amount) {
+            return new Intl.NumberFormat('tr-TR', { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            }).format(amount);
+        }
+        
+        // Silme onayı
+        function confirmDelete(formId, message) {
+            if (confirm(message || 'Bu kaydı silmek istediğinizden emin misiniz?')) {
+                document.getElementById(formId).submit();
+            }
+        }
+        
+        // Sidebar Toggle
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.querySelector('.main-content');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const toggleIcon = document.getElementById('toggleIcon');
+        
+        // LocalStorage'dan durumu yükle
+        if (localStorage.getItem('sidebarCollapsed') === 'true') {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('expanded');
+            toggleIcon.classList.remove('fa-angles-left');
+            toggleIcon.classList.add('fa-angles-right');
+        }
+        
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+            
+            if (sidebar.classList.contains('collapsed')) {
+                toggleIcon.classList.remove('fa-angles-left');
+                toggleIcon.classList.add('fa-angles-right');
+                localStorage.setItem('sidebarCollapsed', 'true');
+            } else {
+                toggleIcon.classList.remove('fa-angles-right');
+                toggleIcon.classList.add('fa-angles-left');
+                localStorage.setItem('sidebarCollapsed', 'false');
+            }
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

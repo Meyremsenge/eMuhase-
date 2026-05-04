@@ -1,0 +1,42 @@
+<!-- Bottom Section: Quick Actions, Notifications, Activity -->
+<div class="bottom-section">
+    <!-- Hızlı İşlemler -->
+    <div class="quick-actions-card">
+        <div class="quick-actions-title">
+            <i class="fas fa-bolt"></i>
+            <span>Hızlı İşlemler</span>
+        </div>
+        <div class="quick-actions-grid">
+            <a href="{{ url_for('satis.yeni') }}" class="quick-action-btn">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span>Yeni Satış Faturası</span>
+            </a>
+            <a href="{{ url_for('alis.yeni') }}" class="quick-action-btn">
+                <i class="fas fa-file-import"></i>
+                <span>Yeni Alış Faturası</span>
+            </a>
+            <a href="/musteriler/yeni" class="quick-action-btn">
+                <i class="fas fa-user-plus"></i>
+                <span>Yeni Müşteri</span>
+            </a>
+            <a href="/urunler/yeni" class="quick-action-btn">
+                <i class="fas fa-box"></i>
+                <span>Yeni Ürün</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Son Aktiviteler -->
+    <div class="activity-card">
+        <div class="activity-title">
+            <i class="fas fa-history"></i>
+            <span>Son Aktiviteler</span>
+        </div>
+        <div class="activity-timeline" id="activityTimeline">
+            <div class="empty-state">
+                <i class="fas fa-clock"></i>
+                <p>Veri yok</p>
+            </div>
+        </div>
+    </div>
+</div>

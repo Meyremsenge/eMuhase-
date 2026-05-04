@@ -1,0 +1,1163 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Dashboard - eMuhasebe Pro{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}İşletmenizin finansal durumunu tek bakışta görün{% endblock %}
+
+{% block header_actions %}
+<div class="header-notif-wrap" id="headerNotifWrap">
+    <button type="button" class="header-notif-btn" id="notifToggleBtn" title="Bildirimler">
+        <i class="fas fa-bell"></i>
+        <span class="notification-badge is-hidden" id="notifBadge">0</span>
+    </button>
+    <div class="notif-dropdown" id="notifDropdown" hidden>
+        <div class="notif-dropdown-header">
+            <span><i class="fas fa-bell"></i> Bildirimler</span>
+        </div>
+        <div class="notification-list notification-list-dropdown" id="notificationList">
+            <div class="empty-state">
+                <i class="fas fa-check-circle"></i>
+                <p>Tüm işlemler yolunda!</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    {% include 'main/partials/dashboard_header.html' %}
+    {% include 'main/partials/ai_section.html' %}
+    {% include 'main/partials/nakit_tahmin.html' %}
+    {% include 'main/partials/mini_stats.html' %}
+    {% include 'main/partials/charts_section.html' %}
+    {% include 'main/partials/tables_section.html' %}
+    {% include 'main/partials/bottom_section.html' %}
+    {% include 'main/partials/footer_stats.html' %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script type="module">
+import { init, Musteriler, Urunler, SatisFaturalari, AlisFaturalari, IadeFaturalari } from '/static/js/db.js';
+import { nakitAkisiTahmini, anomaliTespiti } from '/static/js/ai-engine.js';
+
+function formatCurrency(amount) {
+    if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'M ₺';
+    if (amount >= 1000) return (amount / 1000).toFixed(1) + 'K ₺';
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
+}
+
+function formatCurrencyFull(amount) {
+    return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2 }).format(amount);
+}
+
+function formatNumber(num) { return new Intl.NumberFormat('tr-TR').format(num); }
+
+function animateValue(element, start, end, duration, formatter = null) {
+    const startTime = performance.now();
+    const difference = end - start;
+    
+    function updateValue(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeProgress = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+        const currentValue = start + (difference * easeProgress);
+        
+        element.textContent = formatter ? formatter(Math.round(currentValue)) : formatNumber(Math.round(currentValue));
+        if (progress < 1) requestAnimationFrame(updateValue);
+    }
+    
+    element.classList.add('animate');
+    requestAnimationFrame(updateValue);
+}
+
+function updateDateTime() {
+    const now = new Date();
+    document.getElementById('currentDate').textContent = now.toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    document.getElementById('currentTime').textContent = now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function filterThisMonth(items, dateField = 'fatura_tarihi') {
+    const now = new Date();
+    return items.filter(item => {
+        const dateValue = item[dateField] || item.olusturma_tarihi;
+        if (!dateValue) return false;
+        const itemDate = new Date(dateValue);
+        return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+    });
+}
+
+async function loadDashboardStats() {
+    try {
+        await init();
+        
+        const [musteriler, urunler, satisFaturalari, alisFaturalari, iadeFaturalari] = await Promise.all([
+            Musteriler.hepsiniGetir(), Urunler.hepsiniGetir(),
+            SatisFaturalari.hepsiniGetir(), AlisFaturalari.hepsiniGetir(), IadeFaturalari.hepsiniGetir()
+        ]);
+        
+        console.log('📦 Veriler:', { musteriler: musteriler.length, urunler: urunler.length, satis: satisFaturalari.length, alis: alisFaturalari.length, iade: iadeFaturalari.length });
+        
+        const thisMonthCustomers = filterThisMonth(musteriler, 'olusturma_tarihi');
+        const thisMonthSales = filterThisMonth(satisFaturalari);
+        const thisMonthPurchases = filterThisMonth(alisFaturalari);
+        
+        const totalIncome = satisFaturalari.reduce((sum, f) => sum + (parseFloat(f.genel_toplam) || 0), 0);
+        const totalExpense = alisFaturalari.reduce((sum, f) => sum + (parseFloat(f.genel_toplam) || 0), 0);
+        const totalReturns = iadeFaturalari.reduce((sum, f) => sum + (parseFloat(f.genel_toplam) || 0), 0);
+        const thisMonthIncome = thisMonthSales.reduce((sum, f) => sum + (parseFloat(f.genel_toplam) || 0), 0);
+        const thisMonthExpense = thisMonthPurchases.reduce((sum, f) => sum + (parseFloat(f.genel_toplam) || 0), 0);
+        const netProfit = totalIncome - totalExpense - totalReturns;
+        const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0;
+        
+        // Müşteri
+        const customerEl = document.getElementById('totalCustomers');
+        customerEl.innerHTML = '';
+        animateValue(customerEl, 0, musteriler.length, 800);
+        document.getElementById('newCustomersCount').textContent = thisMonthCustomers.length;
+        if (thisMonthCustomers.length === 0) {
+            document.getElementById('customerChange').classList.add('neutral');
+            document.getElementById('customerChange').innerHTML = '<i class="fas fa-minus"></i><span>Bu ay yeni müşteri yok</span>';
+        }
+        
+        // Ürün
+        const productEl = document.getElementById('totalProducts');
+        productEl.innerHTML = '';
+        animateValue(productEl, 0, urunler.length, 800);
+        document.getElementById('productChange').innerHTML = '<i class="fas fa-box"></i><span>' + urunler.length + ' aktif ürün</span>';
+        
+        // Gelir
+        const incomeEl = document.getElementById('totalIncome');
+        incomeEl.innerHTML = '';
+        animateValue(incomeEl, 0, totalIncome, 1200, formatCurrency);
+        incomeEl.title = formatCurrencyFull(totalIncome);
+        document.getElementById('incomeChange').innerHTML = thisMonthIncome > 0 
+            ? '<i class="fas fa-arrow-up"></i><span>' + formatCurrency(thisMonthIncome) + ' bu ay</span>'
+            : '<i class="fas fa-minus"></i><span>Bu ay satış yok</span>';
+        if (thisMonthIncome === 0) document.getElementById('incomeChange').classList.add('neutral');
+        
+        // Gider
+        const expenseEl = document.getElementById('totalExpense');
+        expenseEl.innerHTML = '';
+        animateValue(expenseEl, 0, totalExpense, 1200, formatCurrency);
+        expenseEl.title = formatCurrencyFull(totalExpense);
+        if (thisMonthExpense > 0) {
+            document.getElementById('expenseChange').innerHTML = '<i class="fas fa-arrow-down"></i><span>' + formatCurrency(thisMonthExpense) + ' bu ay</span>';
+        } else {
+            document.getElementById('expenseChange').classList.remove('negative');
+            document.getElementById('expenseChange').classList.add('neutral');
+            document.getElementById('expenseChange').innerHTML = '<i class="fas fa-minus"></i><span>Bu ay alış yok</span>';
+        }
+        
+        // Kar/Zarar
+        const profitEl = document.getElementById('netProfit');
+        profitEl.innerHTML = '';
+        const profitCard = document.getElementById('profitCard');
+        const profitChangeEl = document.getElementById('profitChange');
+        
+        if (netProfit >= 0) {
+            profitCard.classList.remove('danger');
+            profitCard.classList.add('success');
+            profitEl.classList.remove('profit-negative');
+            profitEl.classList.add('profit-positive');
+            profitChangeEl.classList.remove('negative');
+            profitChangeEl.innerHTML = '<i class="fas fa-arrow-up"></i><span>%' + profitMargin + ' kar marjı</span>';
+            animateValue(profitEl, 0, netProfit, 1200, formatCurrency);
+        } else {
+            profitCard.classList.remove('success', 'gold');
+            profitCard.classList.add('danger');
+            profitEl.classList.remove('profit-positive');
+            profitEl.classList.add('profit-negative');
+            profitChangeEl.classList.add('negative');
+            profitChangeEl.innerHTML = '<i class="fas fa-arrow-down"></i><span>%' + Math.abs(profitMargin) + ' zarar</span>';
+            animateValue(profitEl, 0, Math.abs(netProfit), 1200, (val) => '-' + formatCurrency(val));
+        }
+        profitEl.title = formatCurrencyFull(netProfit);
+        
+        console.log('✅ Dashboard yüklendi!');
+    } catch (error) {
+        console.error('❌ Hata:', error);
+        document.querySelectorAll('.stat-card-value').forEach(el => el.innerHTML = '<span class="text-danger">Hata</span>');
+    }
+}
+
+// ==================== CHARTS (BÖLÜM 2/4) ====================
+
+let revenueChartInstance = null;
+let pieChartInstance = null;
+
+function setChartState(chartId, emptyId, hasData) {
+    const chartEl = document.getElementById(chartId);
+    const emptyEl = document.getElementById(emptyId);
+    if (!chartEl || !emptyEl) return;
+
+    chartEl.style.display = hasData ? '' : 'none';
+    emptyEl.classList.toggle('is-hidden', hasData);
+}
+
+async function loadCharts() {
+    try {
+        const [satisFaturalari, alisFaturalari, iadeFaturalari] = await Promise.all([
+            SatisFaturalari.hepsiniGetir(),
+            AlisFaturalari.hepsiniGetir(),
+            IadeFaturalari.hepsiniGetir()
+        ]);
+        
+        // Mini stats güncelle
+        const totalInvoices = satisFaturalari.length + alisFaturalari.length + iadeFaturalari.length;
+        const paidInvoices = [...satisFaturalari, ...alisFaturalari].filter(f => f.durum === 'odendi').length;
+        const pendingInvoices = [...satisFaturalari, ...alisFaturalari].filter(f => f.durum === 'beklemede' || !f.durum).length;
+        
+        animateValue(document.getElementById('totalInvoices'), 0, totalInvoices, 800);
+        animateValue(document.getElementById('paidInvoices'), 0, paidInvoices, 800);
+        animateValue(document.getElementById('pendingInvoices'), 0, pendingInvoices, 800);
+
+        if (totalInvoices === 0) {
+            if (revenueChartInstance) revenueChartInstance.destroy();
+            if (pieChartInstance) pieChartInstance.destroy();
+            setChartState('revenueChart', 'revenueChartEmpty', false);
+            setChartState('pieChart', 'pieChartEmpty', false);
+            const legendEl = document.getElementById('pieLegend');
+            if (legendEl) {
+                legendEl.innerHTML = '';
+            }
+            return;
+        }
+
+        setChartState('revenueChart', 'revenueChartEmpty', true);
+        setChartState('pieChart', 'pieChartEmpty', true);
+        
+        // Aylık verileri hesapla (son 12 ay)
+        const monthlyData = calculateMonthlyData(satisFaturalari, alisFaturalari, 12);
+        
+        // Revenue Chart
+        createRevenueChart(monthlyData);
+        
+        // Pie Chart
+        createPieChart(satisFaturalari.length, alisFaturalari.length, iadeFaturalari.length);
+        
+        // Filter butonları
+        document.querySelectorAll('.chart-filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.chart-filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const period = parseInt(btn.dataset.period);
+                const newData = calculateMonthlyData(satisFaturalari, alisFaturalari, period);
+                updateRevenueChart(newData);
+            });
+        });
+        
+        console.log('📊 Grafikler yüklendi!');
+    } catch (error) {
+        console.error('❌ Grafik hatası:', error);
+    }
+}
+
+function calculateMonthlyData(satisFaturalari, alisFaturalari, months) {
+    const now = new Date();
+    const labels = [];
+    const gelirData = [];
+    const giderData = [];
+    const karData = [];
+    
+    for (let i = months - 1; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthName = date.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' });
+        labels.push(monthName);
+        
+        const monthGelir = satisFaturalari.filter(f => {
+            const fDate = new Date(f.fatura_tarihi || f.olusturma_tarihi);
+            return fDate.getMonth() === date.getMonth() && fDate.getFullYear() === date.getFullYear();
+        }).reduce((sum, f) => sum + (parseFloat(f.genel_toplam) || 0), 0);
+        
+        const monthGider = alisFaturalari.filter(f => {
+            const fDate = new Date(f.fatura_tarihi || f.olusturma_tarihi);
+            return fDate.getMonth() === date.getMonth() && fDate.getFullYear() === date.getFullYear();
+        }).reduce((sum, f) => sum + (parseFloat(f.genel_toplam) || 0), 0);
+        
+        gelirData.push(monthGelir);
+        giderData.push(monthGider);
+        karData.push(monthGelir - monthGider);
+    }
+    
+    return { labels, gelirData, giderData, karData };
+}
+
+function createRevenueChart(data) {
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    
+    if (revenueChartInstance) revenueChartInstance.destroy();
+    
+    revenueChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [
+                {
+                    label: 'Gelir',
+                    data: data.gelirData,
+                    backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                    borderColor: 'rgb(34, 197, 94)',
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    barPercentage: 0.6
+                },
+                {
+                    label: 'Gider',
+                    data: data.giderData,
+                    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                    borderColor: 'rgb(239, 68, 68)',
+                    borderWidth: 2,
+                    borderRadius: 6,
+                    barPercentage: 0.6
+                },
+                {
+                    label: 'Kar/Zarar',
+                    data: data.karData,
+                    type: 'line',
+                    borderColor: 'rgb(99, 102, 241)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#0e1d35' : 'white',
+                    pointBorderWidth: 2
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { 
+                        usePointStyle: true, padding: 20, 
+                        font: { size: 12, weight: '600' },
+                        color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e2e8f0' : undefined
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    padding: 12,
+                    titleFont: { size: 14 },
+                    bodyFont: { size: 13 },
+                    callbacks: {
+                        label: (ctx) => ctx.dataset.label + ': ' + formatCurrencyFull(ctx.raw)
+                    }
+                }
+            },
+            scales: {
+                x: { 
+                    grid: { display: false },
+                    ticks: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#94a3b8' : undefined }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' },
+                    ticks: {
+                        color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#94a3b8' : undefined,
+                        callback: (val) => val >= 1000 ? (val/1000) + 'K' : val
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateRevenueChart(data) {
+    if (!revenueChartInstance) return;
+    revenueChartInstance.data.labels = data.labels;
+    revenueChartInstance.data.datasets[0].data = data.gelirData;
+    revenueChartInstance.data.datasets[1].data = data.giderData;
+    revenueChartInstance.data.datasets[2].data = data.karData;
+    revenueChartInstance.update('active');
+}
+
+function createPieChart(satisCount, alisCount, iadeCount) {
+    const ctx = document.getElementById('pieChart').getContext('2d');
+    const total = satisCount + alisCount + iadeCount;
+    
+    if (pieChartInstance) pieChartInstance.destroy();
+    
+    const colors = ['#22c55e', '#3b82f6', '#f59e0b'];
+    const data = [satisCount, alisCount, iadeCount];
+    const labels = ['Satış Faturaları', 'Alış Faturaları', 'İade Faturaları'];
+    
+    pieChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors,
+                borderWidth: 0,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    padding: 12,
+                    callbacks: {
+                        label: (ctx) => ctx.label + ': ' + ctx.raw + ' adet (%' + ((ctx.raw/total)*100).toFixed(1) + ')'
+                    }
+                }
+            }
+        }
+    });
+    
+    // Legend oluştur
+    const legendEl = document.getElementById('pieLegend');
+    legendEl.innerHTML = labels.map((label, i) => `
+        <div class="pie-legend-item">
+            <div class="pie-legend-row">
+                <div class="pie-legend-color" data-color="${colors[i]}"></div>
+                <span class="pie-legend-label">${label}</span>
+            </div>
+            <span class="pie-legend-value">${data[i]} adet</span>
+        </div>
+    `).join('');
+
+    legendEl.querySelectorAll('.pie-legend-color').forEach((el) => {
+        const color = el.dataset.color;
+        if (color) el.style.background = color;
+    });
+}
+
+// ==================== TABLES (BÖLÜM 3/4) ====================
+
+async function loadTables() {
+    try {
+        const [satisFaturalari, alisFaturalari, iadeFaturalari, urunler] = await Promise.all([
+            SatisFaturalari.hepsiniGetir(),
+            AlisFaturalari.hepsiniGetir(),
+            IadeFaturalari.hepsiniGetir(),
+            Urunler.hepsiniGetir()
+        ]);
+        
+        // Son faturalar tablosu
+        renderRecentInvoices(satisFaturalari, alisFaturalari, iadeFaturalari);
+        
+        // En çok satanlar
+        renderTopProducts(satisFaturalari, urunler);
+        
+        console.log('📋 Tablolar yüklendi!');
+    } catch (error) {
+        console.error('❌ Tablo hatası:', error);
+    }
+}
+
+function renderRecentInvoices(satisFaturalari, alisFaturalari, iadeFaturalari) {
+    const detailUrlTemplates = {
+        satis: "{{ url_for('satis.detay', id='__ID__') }}",
+        alis: "{{ url_for('alis.detay', id='__ID__') }}",
+        iade: "{{ url_for('iade.detay', id='__ID__') }}"
+    };
+
+    // Tüm faturaları birleştir ve sırala
+    const allInvoices = [
+        ...satisFaturalari.map(f => ({ ...f, tip: 'satis', tipLabel: 'Satış' })),
+        ...alisFaturalari.map(f => ({ ...f, tip: 'alis', tipLabel: 'Alış' })),
+        ...iadeFaturalari.map(f => ({ ...f, tip: 'iade', tipLabel: 'İade' }))
+    ].sort((a, b) => new Date(b.fatura_tarihi || b.olusturma_tarihi) - new Date(a.fatura_tarihi || a.olusturma_tarihi))
+     .slice(0, 8);
+    
+    const container = document.getElementById('recentInvoicesTable');
+    
+    if (allInvoices.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-file-invoice"></i>
+                <p>Veri yok</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = `
+        <table class="premium-table">
+            <thead>
+                <tr>
+                    <th>Tip</th>
+                    <th>Fatura No</th>
+                    <th>Müşteri/Tedarikçi</th>
+                    <th>Tutar</th>
+                    <th>Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${allInvoices.map(f => {
+                    const durum = f.durum || 'beklemede';
+                    const durumClass = durum === 'odendi' ? 'success' : durum === 'beklemede' ? 'warning' : 'danger';
+                    const durumLabel = durum === 'odendi' ? 'Ödendi' : durum === 'beklemede' ? 'Beklemede' : 'Gecikmiş';
+                    const tarih = new Date(f.fatura_tarihi || f.olusturma_tarihi).toLocaleDateString('tr-TR');
+                    const detailUrl = detailUrlTemplates[f.tip]
+                        ? detailUrlTemplates[f.tip].replace('__ID__', f.id)
+                        : '#';
+                    
+                    return `
+                        <tr class="table-row-link" onclick="window.location.href='${detailUrl}'">
+                            <td>
+                                <div class="invoice-type">
+                                    <div class="invoice-type-icon ${f.tip}">
+                                        <i class="fas fa-${f.tip === 'satis' ? 'arrow-up' : f.tip === 'alis' ? 'arrow-down' : 'rotate-left'}"></i>
+                                    </div>
+                                    <span>${f.tipLabel}</span>
+                                </div>
+                            </td>
+                            <td><strong>${f.fatura_no || 'FTR-' + f.id?.slice(-6)}</strong><br><small class="table-date">${tarih}</small></td>
+                            <td>${f.musteri_adi || f.tedarikci_adi || '-'}</td>
+                            <td><strong>${formatCurrency(parseFloat(f.genel_toplam) || 0)}</strong></td>
+                            <td><span class="table-badge ${durumClass}">${durumLabel}</span></td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function renderTopProducts(satisFaturalari, urunler) {
+    console.log('📦 Ürünler:', urunler.length, 'Satış Faturaları:', satisFaturalari.length);
+    
+    // Ürün satış istatistiklerini hesapla
+    const productStats = {};
+    
+    // Önce tüm ürünleri ekle (sıfır satışla)
+    urunler.forEach(urun => {
+        const urunAdi = urun.ad || urun.urun_adi || urun.isim || 'Ürün';
+        const urunFiyat = parseFloat(urun.satis_fiyat) || parseFloat(urun.alis_fiyat)
+            || parseFloat(urun.satisFiyat) || parseFloat(urun.alisFiyat)
+            || parseFloat(urun.fiyat) || parseFloat(urun.birim_fiyat) || 0;
+        productStats[urunAdi] = { 
+            adet: 0, 
+            ciro: 0,
+            birimFiyat: urunFiyat
+        };
+    });
+    
+    // Satış faturalarından ürün satışlarını hesapla
+    satisFaturalari.forEach(fatura => {
+        // Fatura kalemleri varsa
+        const kalemler = fatura.kalemler || fatura.urunler || [];
+        
+        if (kalemler.length > 0) {
+            kalemler.forEach(kalem => {
+                const urunAdi = kalem.urun_adi || kalem.ad || kalem.aciklama || kalem.isim || 'Bilinmeyen Ürün';
+                const miktar = parseFloat(kalem.miktar) || parseFloat(kalem.adet) || 1;
+                const tutar = parseFloat(kalem.toplam) || parseFloat(kalem.tutar) || (parseFloat(kalem.birim_fiyat) || 0) * miktar;
+                
+                if (!productStats[urunAdi]) {
+                    productStats[urunAdi] = { adet: 0, ciro: 0, birimFiyat: 0 };
+                }
+                productStats[urunAdi].adet += miktar;
+                productStats[urunAdi].ciro += tutar;
+            });
+        } else {
+            // Kalem yoksa fatura tutarını genel olarak say
+            const tutar = parseFloat(fatura.genel_toplam) || 0;
+            if (tutar > 0 && !productStats['Diğer Satışlar']) {
+                productStats['Diğer Satışlar'] = { adet: 0, ciro: 0, birimFiyat: 0 };
+            }
+            if (tutar > 0) {
+                productStats['Diğer Satışlar'].adet += 1;
+                productStats['Diğer Satışlar'].ciro += tutar;
+            }
+        }
+    });
+    
+    // Sırala ve en çok satanları al
+    let topProducts = Object.entries(productStats)
+        .map(([ad, stats]) => ({ ad, ...stats }))
+        .filter(p => p.ciro > 0 || p.adet > 0)
+        .sort((a, b) => b.ciro - a.ciro)
+        .slice(0, 5);
+    
+    // Eğer satış yoksa, ürünlerden göster (simüle edilmiş veri ile)
+    console.log('🏆 Top Products:', topProducts);
+    
+    const container = document.getElementById('topProductsTable');
+    
+    if (topProducts.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-box-open"></i>
+                <p>Veri yok</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = topProducts.map((product, index) => {
+        const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : 'normal';
+        return `
+            <div class="top-product-item">
+                <div class="product-rank ${rankClass}">${index + 1}</div>
+                <div class="product-info">
+                    <div class="product-name">${product.ad}</div>
+                    <div class="product-category">${Math.round(product.adet)} adet satıldı</div>
+                </div>
+                <div class="product-stats">
+                    <div class="product-sales">${formatCurrency(product.ciro)}</div>
+                    <div class="product-revenue">toplam ciro</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ==================== NOTIFICATIONS & ACTIVITY (BÖLÜM 4/4) ====================
+
+async function loadNotificationsAndActivity() {
+    try {
+        const [satisFaturalari, alisFaturalari, musteriler] = await Promise.all([
+            SatisFaturalari.hepsiniGetir(),
+            AlisFaturalari.hepsiniGetir(),
+            Musteriler.hepsiniGetir()
+        ]);
+
+        const formatMoneySafe = (value) => {
+            const parsed = parseFloat(value);
+            if (!Number.isFinite(parsed)) return 'Tutar bilgisi eksik';
+            return formatCurrency(parsed);
+        };
+
+        const getFaturaToplam = (fatura) => {
+            const toplam = parseFloat(fatura.genel_toplam);
+            if (Number.isFinite(toplam)) return toplam;
+            const kalemler = fatura.kalemler || fatura.urunler || [];
+            const liste = Array.isArray(kalemler) ? kalemler : Object.values(kalemler);
+            if (!liste.length) return NaN;
+            return liste.reduce((sum, k) => {
+                const t = parseFloat(k.genel_toplam || k.toplam || k.tutar || 0);
+                return sum + (Number.isFinite(t) ? t : 0);
+            }, 0);
+        };
+        
+        // Bildirimleri oluştur
+        const notifications = [];
+        
+        // Bekleyen ödemeler
+        const bekleyenSatis = satisFaturalari.filter(f => f.durum !== 'odendi');
+        const bekleyenAlis = alisFaturalari.filter(f => f.durum !== 'odendi');
+        
+        if (bekleyenSatis.length > 0) {
+            const toplam = bekleyenSatis.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
+            notifications.push({
+                type: 'warning',
+                icon: 'clock',
+                text: `${bekleyenSatis.length} satış faturası ödeme bekliyor (${formatCurrency(toplam)})`,
+                time: 'Bugün'
+            });
+        }
+        
+        if (bekleyenAlis.length > 0) {
+            const toplam = bekleyenAlis.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
+            notifications.push({
+                type: 'danger',
+                icon: 'exclamation-triangle',
+                text: `${bekleyenAlis.length} tedarikçi ödemesi bekliyor (${formatCurrency(toplam)})`,
+                time: 'Bugün'
+            });
+        }
+        
+        // Yeni müşteriler (bu hafta)
+        const birHaftaOnce = new Date();
+        birHaftaOnce.setDate(birHaftaOnce.getDate() - 7);
+        const yeniMusteriler = musteriler.filter(m => new Date(m.olusturma_tarihi) > birHaftaOnce);
+        
+        if (yeniMusteriler.length > 0) {
+            notifications.push({
+                type: 'success',
+                icon: 'user-plus',
+                text: `Bu hafta ${yeniMusteriler.length} yeni müşteri eklendi`,
+                time: 'Bu hafta'
+            });
+        }
+        
+        // Kar durumu
+        const toplamGelir = satisFaturalari.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
+        const toplamGider = alisFaturalari.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
+        const kar = toplamGelir - toplamGider;
+        
+        if (kar > 0) {
+            notifications.push({
+                type: 'success',
+                icon: 'chart-line',
+                text: `Toplam kar: ${formatCurrency(kar)} - Harika gidiyorsunuz!`,
+                time: 'Genel'
+            });
+        } else if (kar < 0) {
+            notifications.push({
+                type: 'danger',
+                icon: 'chart-line',
+                text: `Dikkat! Zarar durumu: ${formatCurrency(Math.abs(kar))}`,
+                time: 'Genel'
+            });
+        }
+
+        // ---- AI: Anomali Tespiti ----
+        const satisAnomali = anomaliTespiti(satisFaturalari, 2.5);
+        const alisAnomali  = anomaliTespiti(alisFaturalari, 2.5);
+        const tumAnomali   = [...satisAnomali, ...alisAnomali];
+
+        if (tumAnomali.length > 0) {
+            notifications.push({
+                type: tumAnomali.some(a => a.seviye === 'kritik') ? 'danger' : 'warning',
+                icon: 'robot',
+                text: `Olağandışı ${tumAnomali.length} fatura tespit edildi. Detayları kontrol edin.`,
+                time: 'Bildirim'
+            });
+            tumAnomali.slice(0, 2).forEach(a => {
+                const toplam = getFaturaToplam(a);
+                notifications.push({
+                    type: a.seviye === 'kritik' ? 'danger' : 'warning',
+                    icon: a.seviye === 'kritik' ? 'exclamation-circle' : 'exclamation-triangle',
+                    text: `Uyarı: ${a.fatura_no || a.musteri_adi || 'Fatura'} — ${formatMoneySafe(toplam)}`,
+                    time: 'Bildirim'
+                });
+            });
+        }
+        // ---- /Anomali Tespiti ----
+        
+        // Bildirimleri render et
+        const notifier = window.notify;
+        const notifContainer = document.getElementById('notificationList');
+        const notifBadge = document.getElementById('notifBadge');
+
+        if (notifier && typeof notifier.setList === 'function') {
+            notifier.setList(notifications);
+        } else if (notifContainer && notifBadge) {
+            notifBadge.textContent = notifications.length;
+            if (notifications.length === 0) {
+                notifBadge.style.display = 'none';
+            } else {
+                notifBadge.style.display = 'inline-flex';
+            }
+            if (notifications.length > 0) {
+                notifContainer.innerHTML = notifications.map(n => `
+                    <div class="notification-item">
+                        <div class="notification-icon ${n.type}">
+                            <i class="fas fa-${n.icon}"></i>
+                        </div>
+                        <div class="notification-content">
+                            <div class="notification-text">${n.text}</div>
+                            <div class="notification-time">${n.time}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        // Son aktiviteleri oluştur
+        const activities = [];
+        
+        // Son eklenen faturalar
+        const tumFaturalar = [
+            ...satisFaturalari.map(f => ({ ...f, tip: 'Satış faturası' })),
+            ...alisFaturalari.map(f => ({ ...f, tip: 'Alış faturası' }))
+        ].sort((a, b) => new Date(b.olusturma_tarihi || b.fatura_tarihi) - new Date(a.olusturma_tarihi || a.fatura_tarihi))
+         .slice(0, 5);
+        
+        tumFaturalar.forEach(f => {
+            const tarih = new Date(f.olusturma_tarihi || f.fatura_tarihi);
+            const zamanFarki = getTimeAgo(tarih);
+            activities.push({
+                type: f.tip.includes('Satış') ? 'success' : 'warning',
+                text: `${f.tip} oluşturuldu: ${formatCurrency(parseFloat(f.genel_toplam) || 0)}`,
+                time: zamanFarki
+            });
+        });
+        
+        // Aktiviteleri render et
+        const activityContainer = document.getElementById('activityTimeline');
+        
+        if (activities.length > 0) {
+            activityContainer.innerHTML = activities.map(a => `
+                <div class="activity-item ${a.type}">
+                    <div class="activity-text">${a.text}</div>
+                    <div class="activity-time">${a.time}</div>
+                </div>
+            `).join('');
+        } else {
+            activityContainer.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-info-circle"></i>
+                    <p>Veri yok</p>
+                </div>
+            `;
+        }
+        
+        // Footer stats
+        document.getElementById('footerProfit').textContent = formatCurrency(Math.max(kar, 0));
+        document.getElementById('footerInvoices').textContent = satisFaturalari.length + alisFaturalari.length;
+        document.getElementById('footerCustomers').textContent = musteriler.length;
+        
+        const bekleyenToplam = bekleyenSatis.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
+        document.getElementById('footerPending').textContent = formatCurrency(bekleyenToplam);
+        
+        console.log('🔔 Bildirimler ve aktiviteler yüklendi!');
+    } catch (error) {
+        console.error('❌ Bildirim hatası:', error);
+    }
+}
+
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Az önce';
+    if (diffMins < 60) return `${diffMins} dakika önce`;
+    if (diffHours < 24) return `${diffHours} saat önce`;
+    if (diffDays < 7) return `${diffDays} gün önce`;
+    return date.toLocaleDateString('tr-TR');
+}
+
+function initNotificationDropdown() {
+    const wrap = document.getElementById('headerNotifWrap');
+    const toggleBtn = document.getElementById('notifToggleBtn');
+    const dropdown = document.getElementById('notifDropdown');
+    if (!wrap || !toggleBtn || !dropdown) return;
+
+    const closeDropdown = () => {
+        dropdown.hidden = true;
+        toggleBtn.setAttribute('aria-expanded', 'false');
+    };
+
+    toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const willOpen = dropdown.hidden;
+        dropdown.hidden = !willOpen;
+        toggleBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!wrap.contains(e.target)) closeDropdown();
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeDropdown();
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initNotificationDropdown();
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+    loadDashboardStats();
+    loadCharts();
+    loadTables();
+    loadNotificationsAndActivity(); // Bölüm 4/4
+    loadNakitAkisiTahmini();        // AI: Nakit Akışı Tahmini
+});
+
+window.reloadDashboard = () => { 
+    loadDashboardStats(); 
+    loadCharts(); 
+    loadTables(); 
+    loadNotificationsAndActivity();
+    loadNakitAkisiTahmini();
+};
+
+// ==================== AI: NAKİT AKIŞI TAHMİNİ ====================
+let nakitChartInstance = null;
+
+async function loadNakitAkisiTahmini() {
+    try {
+        const [satisFaturalari, alisFaturalari] = await Promise.all([
+            SatisFaturalari.hepsiniGetir(),
+            AlisFaturalari.hepsiniGetir()
+        ]);
+
+        const { gecmis, tahminler } = nakitAkisiTahmini(satisFaturalari, alisFaturalari, 3);
+
+        // Veri yoksa bölümü gizle
+        const toplamVeri = gecmis.reduce((s, g) => s + g.gelir + g.gider, 0);
+        const section = document.getElementById('nakitTahminSection');
+        if (toplamVeri === 0) { section.style.display = 'none'; return; }
+        section.style.display = 'block';
+
+        const tumAylar = [...gecmis, ...tahminler];
+        const labels = tumAylar.map(v => v.ay.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' }));
+        const gelirVerisi = tumAylar.map(v => v.gelir);
+        const giderVerisi = tumAylar.map(v => v.gider);
+        const netVerisi   = tumAylar.map(v => v.net);
+
+        // Renk: gerçek = düz, tahmin = kesik çizgi
+        const tahminBaslangic = gecmis.length; // ilk tahmin noktası
+
+        const ctx = document.getElementById('nakitTahminChart').getContext('2d');
+        if (nakitChartInstance) nakitChartInstance.destroy();
+
+        nakitChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Gelir (Gerçek)',
+                        data: gelirVerisi.slice(0, tahminBaslangic + 1),
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34,197,94,0.08)',
+                        borderWidth: 3, fill: true, tension: 0.4,
+                        pointRadius: 5, pointBackgroundColor: '#22c55e'
+                    },
+                    {
+                        label: 'Gelir (Tahmin)',
+                        data: [...Array(tahminBaslangic).fill(null), ...gelirVerisi.slice(tahminBaslangic)],
+                        borderColor: '#22c55e',
+                        borderDash: [8, 4], borderWidth: 2,
+                        pointRadius: 6, pointStyle: 'triangle',
+                        pointBackgroundColor: '#22c55e', fill: false, tension: 0.4
+                    },
+                    {
+                        label: 'Gider (Gerçek)',
+                        data: giderVerisi.slice(0, tahminBaslangic + 1),
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239,68,68,0.06)',
+                        borderWidth: 3, fill: true, tension: 0.4,
+                        pointRadius: 5, pointBackgroundColor: '#ef4444'
+                    },
+                    {
+                        label: 'Gider (Tahmin)',
+                        data: [...Array(tahminBaslangic).fill(null), ...giderVerisi.slice(tahminBaslangic)],
+                        borderColor: '#ef4444',
+                        borderDash: [8, 4], borderWidth: 2,
+                        pointRadius: 6, pointStyle: 'triangle',
+                        pointBackgroundColor: '#ef4444', fill: false, tension: 0.4
+                    },
+                    {
+                        label: 'Net Kar/Zarar',
+                        data: netVerisi,
+                        borderColor: '#6366f1',
+                        borderWidth: 2, tension: 0.4,
+                        pointRadius: 4, fill: false,
+                        pointBackgroundColor: 'white', pointBorderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { usePointStyle: true, padding: 15, font: { size: 11, weight: '600' }, color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#e2e8f0' : undefined } },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)', padding: 10,
+                        callbacks: { label: ctx => ctx.dataset.label + ': ' + formatCurrencyFull(ctx.raw || 0) }
+                    },
+                    annotation: { annotations: {} }
+                },
+                scales: {
+                    x: { 
+                        grid: { display: false },
+                        ticks: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#94a3b8' : undefined }
+                    },
+                    y: { beginAtZero: true, 
+                         grid: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' },
+                         ticks: { 
+                             color: document.documentElement.getAttribute('data-theme') === 'dark' ? '#94a3b8' : undefined,
+                             callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'K' : v 
+                         } 
+                    }
+                }
+            }
+        });
+
+        // Sağ alan: tahmin özeti kartları
+        const ozet = document.getElementById('nakitTahminOzet');
+        ozet.innerHTML = `
+            <div class="nakit-tahmin-title">
+                <i class="fas fa-magic"></i> Sonraki 3 Ay Tahmini
+            </div>
+            ${tahminler.map(t => `
+                <div class="nakit-tahmin-card ${t.net >= 0 ? 'is-positive' : 'is-negative'}">
+                    <div class="nakit-tahmin-meta">
+                        ${t.ay.toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
+                    </div>
+                    <div class="nakit-tahmin-row">
+                        <span class="nakit-tahmin-amount income"><i class="fas fa-arrow-up"></i> ${formatCurrency(t.gelir)}</span>
+                        <span class="nakit-tahmin-amount expense"><i class="fas fa-arrow-down"></i> ${formatCurrency(t.gider)}</span>
+                    </div>
+                    <div class="nakit-tahmin-net">
+                        Net: ${t.net >= 0 ? '+' : ''}${formatCurrency(t.net)}
+                    </div>
+                </div>
+            `).join('')}
+            <div class="nakit-tahmin-footer">
+                <i class="fas fa-info-circle"></i> Regresyon + Hareketli Ortalama tahminidir
+            </div>
+        `;
+
+        console.log('📈 Nakit akışı tahmini yüklendi!');
+    } catch (e) {
+        console.warn('Nakit akışı tahmini yüklenemedi:', e);
+    }
+}
+
+// ==================== AI ANALYSIS ====================
+
+const OPENROUTER_API_KEY = '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';
+
+async function analyzeWithAI() {
+    const btn = document.getElementById('aiAnalyzeBtn');
+    const placeholder = document.getElementById('aiPlaceholder');
+    const loading = document.getElementById('aiLoading');
+    const results = document.getElementById('aiResults');
+    
+    // Loading state
+    btn.disabled = true;
+    btn.classList.add('loading');
+    btn.innerHTML = '<i class="fas fa-spinner"></i><span>Analiz Ediliyor...</span>';
+    placeholder.style.display = 'none';
+    loading.style.display = 'flex';
+    results.classList.remove('active');
+    
+    try {
+        // Verileri topla
+        const [musteriler, urunler, satisFaturalari, alisFaturalari, iadeFaturalari] = await Promise.all([
+            Musteriler.hepsiniGetir(),
+            Urunler.hepsiniGetir(),
+            SatisFaturalari.hepsiniGetir(),
+            AlisFaturalari.hepsiniGetir(),
+            IadeFaturalari.hepsiniGetir()
+        ]);
+        
+        const totalIncome = satisFaturalari.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
+        const totalExpense = alisFaturalari.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
+        const totalReturns = iadeFaturalari.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
+        const netProfit = totalIncome - totalExpense - totalReturns;
+        const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0;
+        
+        const bekleyenSatis = satisFaturalari.filter(f => f.durum !== 'odendi').length;
+        const bekleyenAlis = alisFaturalari.filter(f => f.durum !== 'odendi').length;
+        
+        // AI'ya gönderilecek özet
+        const dataSummary = `
+İşletme Finansal Özeti:
+- Toplam Müşteri: ${musteriler.length}
+- Toplam Ürün: ${urunler.length}
+- Satış Fatura Sayısı: ${satisFaturalari.length}
+- Alış Fatura Sayısı: ${alisFaturalari.length}
+- İade Fatura Sayısı: ${iadeFaturalari.length}
+- Toplam Gelir: ${totalIncome.toLocaleString('tr-TR')} TL
+- Toplam Gider: ${totalExpense.toLocaleString('tr-TR')} TL
+- Toplam İade: ${totalReturns.toLocaleString('tr-TR')} TL
+- Net Kar/Zarar: ${netProfit.toLocaleString('tr-TR')} TL
+- Kar Marjı: %${profitMargin}
+- Bekleyen Satış Faturaları: ${bekleyenSatis}
+- Bekleyen Alış Faturaları: ${bekleyenAlis}
+`;
+        
+        const prompt = `Sen bir finansal danışmansın. Aşağıdaki işletme verilerini analiz et ve Türkçe olarak kısa, öz öneriler ver.
+
+${dataSummary}
+
+Lütfen şu formatta yanıt ver:
+1. Genel Durum (1-2 cümle)
+2. Güçlü Yönler (2-3 madde)
+3. Dikkat Edilmesi Gerekenler (2-3 madde)
+4. Öneriler (2-3 madde)
+
+Kısa ve pratik öneriler ver.`;
+
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': window.location.origin,
+                'X-Title': 'eMuhasebe Pro'
+            },
+            body: JSON.stringify({
+                model: 'mistralai/devstral-2512:free',
+                messages: [{ role: 'user', content: prompt }],
+                max_tokens: 1000
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('API hatası: ' + response.status);
+        }
+        
+        const data = await response.json();
+        const aiResponse = data.choices?.[0]?.message?.content || 'Analiz tamamlanamadı.';
+        
+        // Skorları hesapla
+        const karlilikSkoru = Math.min(100, Math.max(0, 50 + (netProfit / (totalIncome || 1)) * 100));
+        const likiditeSkoru = Math.min(100, Math.max(0, 100 - (bekleyenSatis * 5)));
+        const buyumeSkoru = Math.min(100, Math.max(0, satisFaturalari.length * 4));
+        const riskSkoru = Math.min(100, Math.max(0, 100 - (bekleyenAlis * 5) - (iadeFaturalari.length * 3)));
+        
+        // Genel durum belirle
+        const ortalamaSkor = (karlilikSkoru + likiditeSkoru + buyumeSkoru + riskSkoru) / 4;
+        let durumClass = 'critical';
+        let durumText = 'Kritik';
+        let durumIcon = 'exclamation-triangle';
+        if (ortalamaSkor >= 80) { durumClass = 'excellent'; durumText = 'Mükemmel'; durumIcon = 'trophy'; }
+        else if (ortalamaSkor >= 60) { durumClass = 'good'; durumText = 'İyi'; durumIcon = 'thumbs-up'; }
+        else if (ortalamaSkor >= 40) { durumClass = 'warning'; durumText = 'Dikkat'; durumIcon = 'exclamation-circle'; }
+        
+        // AI yanıtından önerileri parse et
+        const recommendations = parseAIRecommendations(aiResponse);
+        const scoreClass = ortalamaSkor >= 70 ? 'score-good' : ortalamaSkor >= 40 ? 'score-warn' : 'score-bad';
+        
+        // Sonuçları göster
+        loading.style.display = 'none';
+        results.classList.add('active');
+        results.innerHTML = `
+            <div class="ai-results-summary">
+                <div class="ai-results-score ${durumClass}">
+                    <i class="fas fa-${durumIcon}"></i>
+                    <div>
+                        <strong>${durumText}</strong>
+                        <span>%${Math.round(ortalamaSkor)} genel skor</span>
+                    </div>
+                </div>
+                <div class="ai-results-metrics">
+                    <div><span>Kar Marjı</span><strong>%${profitMargin}</strong></div>
+                    <div><span>Gelir</span><strong>${totalIncome.toLocaleString('tr-TR')} TL</strong></div>
+                    <div><span>Gider</span><strong>${totalExpense.toLocaleString('tr-TR')} TL</strong></div>
+                    <div><span>Net</span><strong>${netProfit.toLocaleString('tr-TR')} TL</strong></div>
+                </div>
+                <div class="ai-results-response">${aiResponse.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('AI analiz hatası:', error);
+        results.innerHTML = `
+            <div class="ai-results-summary is-error">
+                <strong>Analiz tamamlanamadı.</strong>
+                <span>Lütfen tekrar deneyin.</span>
+            </div>
+        `;
+        results.classList.add('active');
+    } finally {
+        btn.disabled = false;
+        btn.classList.remove('loading');
+        btn.innerHTML = '<i class="fas fa-crown"></i><span>AI Analiz</span>';
+    }
+}
+
+window.analyzeWithAI = analyzeWithAI;
+
+</script>
+{% endblock %}

@@ -1,0 +1,162 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}{{ 'Düzenle' if musteri_id else 'Yeni' }} Müşteri/Tedarikçi - eMuhasebe Pro{% endblock %}
+
+{% block page_title %}{{ 'Müşteri/Tedarikçi Düzenle' if musteri_id else 'Yeni Müşteri/Tedarikçi' }}{% endblock %}
+{% block page_subtitle %}{{ 'Kayıt bilgilerini güncelleyin' if musteri_id else 'Yeni kayıt oluşturun' }}{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('musteriler.liste') }}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i>
+    Geri Dön
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card fade-in">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-user-edit u-text-primary-500 u-mr-0-5"></i>
+            Kayıt Bilgileri
+        </h3>
+    </div>
+    <div class="card-body">
+        <form id="musteriForm" onsubmit="kaydet(event)">
+            <input type="hidden" id="musteriId" value="{{ musteri_id or '' }}">
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Unvan *</label>
+                    <input type="text" id="unvan" name="unvan" class="form-control" 
+                        placeholder="Firma unvanı veya kişi adı" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tip *</label>
+                    <select id="tip" name="tip" class="form-control form-select" required>
+                        <option value="">Seçiniz</option>
+                        <option value="musteri">Müşteri</option>
+                        <option value="tedarikci">Tedarikçi</option>
+                        <option value="her_ikisi">Her İkisi</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Vergi No / TC Kimlik</label>
+                    <input type="text" id="vergi_no" name="vergi_no" class="form-control" 
+                        placeholder="10 veya 11 haneli numara">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Vergi Dairesi</label>
+                    <input type="text" id="vergi_dairesi" name="vergi_dairesi" class="form-control" 
+                        placeholder="Vergi dairesi adı">
+                </div>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Telefon</label>
+                    <input type="tel" id="telefon" name="telefon" class="form-control" 
+                        placeholder="0555 123 45 67">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">E-posta</label>
+                    <input type="email" id="email" name="email" class="form-control" 
+                        placeholder="ornek@firma.com">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Adres</label>
+                <textarea id="adres" name="adres" class="form-control" rows="3" 
+                    placeholder="Açık adres bilgisi"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label u-flex u-align-center u-gap-0-5">
+                    <input type="checkbox" id="aktif" name="aktif" checked>
+                    Aktif
+                </label>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="kaydetBtn">
+                    <i class="fas fa-save"></i>
+                    <span id="kaydetBtnText">Kaydet</span>
+                </button>
+                <a href="{{ url_for('musteriler.liste') }}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i>
+                    İptal
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+import { init, Musteriler } from '{{ url_for("static", filename="js/db.js") }}';
+
+const musteriId = document.getElementById('musteriId').value;
+
+// Sayfa yüklendiğinde
+document.addEventListener('DOMContentLoaded', async () => {
+    if (musteriId) {
+        // Düzenleme modu - mevcut veriyi yükle
+        try {
+            const musteri = await Musteriler.getir(musteriId);
+            if (musteri) {
+                document.getElementById('unvan').value = musteri.unvan || '';
+                document.getElementById('tip').value = musteri.tip || '';
+                document.getElementById('vergi_no').value = musteri.vergi_no || '';
+                document.getElementById('vergi_dairesi').value = musteri.vergi_dairesi || '';
+                document.getElementById('telefon').value = musteri.telefon || '';
+                document.getElementById('email').value = musteri.email || '';
+                document.getElementById('adres').value = musteri.adres || '';
+                document.getElementById('aktif').checked = musteri.aktif !== false;
+            }
+        } catch (error) {
+            console.error('Veri yüklenirken hata:', error);
+        }
+    }
+});
+
+// Kaydetme
+window.kaydet = async function(e) {
+    e.preventDefault();
+    
+    const btn = document.getElementById('kaydetBtn');
+    const btnText = document.getElementById('kaydetBtnText');
+    btn.disabled = true;
+    btnText.textContent = 'Kaydediliyor...';
+    
+    const veri = {
+        unvan: document.getElementById('unvan').value,
+        tip: document.getElementById('tip').value,
+        vergi_no: document.getElementById('vergi_no').value,
+        vergi_dairesi: document.getElementById('vergi_dairesi').value,
+        telefon: document.getElementById('telefon').value,
+        email: document.getElementById('email').value,
+        adres: document.getElementById('adres').value,
+        aktif: document.getElementById('aktif').checked
+    };
+    
+    try {
+        if (musteriId) {
+            await Musteriler.guncelle(musteriId, veri);
+        } else {
+            await Musteriler.ekle(veri);
+        }
+        
+        // Başarılı - listeye yönlendir
+        window.location.href = '/musteriler/';
+    } catch (error) {
+        alert('Kaydetme hatası: ' + error.message);
+        btn.disabled = false;
+        btnText.textContent = 'Kaydet';
+    }
+};
+</script>
+{% endblock %}
