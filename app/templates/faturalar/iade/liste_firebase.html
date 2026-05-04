@@ -1,0 +1,192 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}İade Faturaları - eMuhasebe Pro{% endblock %}
+
+{% block page_title %}İade Faturaları{% endblock %}
+{% block page_subtitle %}Alış ve satış iadeleri{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('iade.yeni') }}" class="btn btn-primary">
+    <i class="fas fa-plus"></i>
+    Yeni İade Faturası
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="filter-bar">
+    <div class="u-flex u-flex-wrap u-gap-1 u-w-full u-align-end">
+        <div class="form-group">
+            <label class="form-label">Arama</label>
+            <input type="text" id="aramaInput" class="form-control" placeholder="Fatura no...">
+        </div>
+        <div class="form-group">
+            <label class="form-label">İade Tipi</label>
+            <select id="tipSelect" class="form-control form-select">
+                <option value="">Tümü</option>
+                <option value="alis_iade">Alış İadesi</option>
+                <option value="satis_iade">Satış İadesi</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <button type="button" onclick="filtrele()" class="btn btn-primary">
+                <i class="fas fa-search"></i>
+                Filtrele
+            </button>
+            <button type="button" onclick="temizle()" class="btn btn-secondary">
+                <i class="fas fa-times"></i>
+                Temizle
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="yukleniyorDiv" class="card is-hidden">
+    <div class="card-body u-text-center u-p-3">
+        <i class="fas fa-spinner fa-spin fa-2x u-text-primary-500"></i>
+        <p class="u-mt-1 u-text-muted">Veriler yükleniyor...</p>
+    </div>
+</div>
+
+<div class="card" id="listeCard">
+    <div class="card-body u-p-0">
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Fatura No</th>
+                        <th>İade Tipi</th>
+                        <th>Cari</th>
+                        <th>Tarih</th>
+                        <th>Tutar</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody id="faturaListesi"></tbody>
+            </table>
+        </div>
+        
+        <div id="bosState" class="empty-state is-hidden">
+            <div class="empty-state-icon">
+                <i class="fas fa-undo-alt"></i>
+            </div>
+            <h3>Henüz iade faturası yok</h3>
+            <p>İlk iade faturanızı oluşturarak başlayın.</p>
+            <a href="{{ url_for('iade.yeni') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Yeni İade Faturası
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="sonucSayisi" class="u-mt-1 u-text-center u-text-muted"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+import { init, IadeFaturalari, Musteriler } from '{{ url_for("static", filename="js/db.js") }}';
+
+let tumFaturalar = [];
+let cariler = {};
+
+document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('yukleniyorDiv').style.display = 'block';
+    document.getElementById('listeCard').style.display = 'none';
+    
+    const cariListesi = await Musteriler.hepsiniGetir();
+    cariListesi.forEach(m => cariler[m.id] = m.unvan);
+    
+    IadeFaturalari.dinle((faturalar) => {
+        tumFaturalar = faturalar.sort((a, b) => new Date(b.fatura_tarihi) - new Date(a.fatura_tarihi));
+        document.getElementById('yukleniyorDiv').style.display = 'none';
+        document.getElementById('listeCard').style.display = 'block';
+        listeyiGuncelle(tumFaturalar);
+    });
+});
+
+function paraFormat(tutar) {
+    return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tutar || 0);
+}
+
+function tarihFormat(tarih) {
+    return tarih ? new Date(tarih).toLocaleDateString('tr-TR') : '-';
+}
+
+function tipBadge(tip) {
+    return tip === 'alis_iade' 
+        ? '<span class="badge badge-primary">Alış İadesi</span>' 
+        : '<span class="badge badge-success">Satış İadesi</span>';
+}
+
+function durumBadge(durum) {
+    switch (durum) {
+        case 'tamamlandi': return '<span class="badge badge-success">Tamamlandı</span>';
+        case 'iptal': return '<span class="badge badge-danger">İptal</span>';
+        default: return '<span class="badge badge-warning">Beklemede</span>';
+    }
+}
+
+function listeyiGuncelle(faturalar) {
+    const tbody = document.getElementById('faturaListesi');
+    const bosState = document.getElementById('bosState');
+    const sonucSayisi = document.getElementById('sonucSayisi');
+    
+    if (faturalar.length === 0) {
+        tbody.innerHTML = '';
+        bosState.style.display = 'block';
+        sonucSayisi.textContent = '';
+        return;
+    }
+    
+    bosState.style.display = 'none';
+    const toplam = faturalar.reduce((t, f) => t + (parseFloat(f.genel_toplam) || 0), 0);
+    sonucSayisi.textContent = `Toplam ${faturalar.length} iade faturası - ₺${paraFormat(toplam)}`;
+    
+    tbody.innerHTML = faturalar.map(fatura => `
+        <tr>
+            <td><strong>${fatura.fatura_no || '-'}</strong></td>
+            <td>${tipBadge(fatura.iade_tipi)}</td>
+            <td>${cariler[fatura.cari_id] || fatura.cari_adi || '-'}</td>
+            <td>${tarihFormat(fatura.fatura_tarihi)}</td>
+            <td class="u-font-semibold">₺${paraFormat(fatura.genel_toplam)}</td>
+            <td>${durumBadge(fatura.durum)}</td>
+            <td>
+                <div class="table-actions">
+                    <a href="/faturalar/iade/duzenle/${fatura.id}" class="btn btn-sm btn-secondary" title="Düzenle">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <button type="button" onclick="faturaSil('${fatura.id}', '${fatura.fatura_no}')" class="btn btn-sm btn-danger" title="Sil">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+window.filtrele = function() {
+    const arama = document.getElementById('aramaInput').value.toLowerCase();
+    const tip = document.getElementById('tipSelect').value;
+    
+    let filtrelenmis = tumFaturalar;
+    if (arama) filtrelenmis = filtrelenmis.filter(f => f.fatura_no?.toLowerCase().includes(arama));
+    if (tip) filtrelenmis = filtrelenmis.filter(f => f.iade_tipi === tip);
+    
+    listeyiGuncelle(filtrelenmis);
+};
+
+window.temizle = function() {
+    document.getElementById('aramaInput').value = '';
+    document.getElementById('tipSelect').value = '';
+    listeyiGuncelle(tumFaturalar);
+};
+
+window.faturaSil = async function(id, faturaNo) {
+    if (confirm(`"${faturaNo}" numaralı faturayı silmek istediğinizden emin misiniz?`)) {
+        try { await IadeFaturalari.sil(id); } 
+        catch (error) { alert('Silme hatası: ' + error.message); }
+    }
+};
+</script>
+{% endblock %}

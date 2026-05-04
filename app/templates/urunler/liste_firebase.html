@@ -1,0 +1,193 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Ürünler / Hizmetler - eMuhasebe Pro{% endblock %}
+
+{% block page_title %}Ürünler / Hizmetler{% endblock %}
+{% block page_subtitle %}Ürün ve hizmet tanımları{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('urunler.yeni') }}" class="btn btn-primary">
+    <i class="fas fa-plus"></i>
+    Yeni Ürün/Hizmet
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtreler -->
+<div class="filter-bar">
+    <div class="u-flex u-flex-wrap u-gap-1 u-w-full u-align-end">
+        <div class="form-group">
+            <label class="form-label">Arama</label>
+            <input type="text" id="aramaInput" class="form-control" placeholder="Kod veya ad...">
+        </div>
+        <div class="form-group">
+            <button type="button" onclick="filtrele()" class="btn btn-primary">
+                <i class="fas fa-search"></i>
+                Filtrele
+            </button>
+            <button type="button" onclick="temizle()" class="btn btn-secondary">
+                <i class="fas fa-times"></i>
+                Temizle
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Yükleniyor -->
+<div id="yukleniyorDiv" class="card is-hidden">
+    <div class="card-body u-text-center u-p-3">
+        <i class="fas fa-spinner fa-spin fa-2x u-text-primary-500"></i>
+        <p class="u-mt-1 u-text-muted">Veriler yükleniyor...</p>
+    </div>
+</div>
+
+<!-- Liste -->
+<div class="card" id="listeCard">
+    <div class="card-body u-p-0">
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Kod</th>
+                        <th>Ad</th>
+                        <th>Birim</th>
+                        <th>Alış Fiyatı</th>
+                        <th>Satış Fiyatı</th>
+                        <th>Stok</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody id="urunListesi">
+                    <!-- Firebase'den dinamik olarak yüklenecek -->
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Boş durum -->
+        <div id="bosState" class="empty-state is-hidden">
+            <div class="empty-state-icon">
+                <i class="fas fa-boxes"></i>
+            </div>
+            <h3>Henüz ürün yok</h3>
+            <p>İlk ürün veya hizmetinizi ekleyerek başlayın.</p>
+            <a href="{{ url_for('urunler.yeni') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Yeni Ürün/Hizmet Ekle
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Sayfa sayısı -->
+<div id="sonucSayisi" class="u-mt-1 u-text-center u-text-muted"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+import { init, Urunler, Yardimci } from '{{ url_for("static", filename="js/db.js") }}';
+
+let tumUrunler = [];
+
+// Sayfa yüklendiğinde
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('yukleniyorDiv').style.display = 'block';
+    document.getElementById('listeCard').style.display = 'none';
+    
+    // Firebase'den realtime dinleme
+    Urunler.dinle((urunler) => {
+        tumUrunler = urunler;
+        document.getElementById('yukleniyorDiv').style.display = 'none';
+        document.getElementById('listeCard').style.display = 'block';
+        listeyiGuncelle(urunler);
+    });
+});
+
+// Para formatla
+function paraFormat(tutar) {
+    return new Intl.NumberFormat('tr-TR', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+    }).format(tutar || 0);
+}
+
+// Listeyi güncelle
+function listeyiGuncelle(urunler) {
+    const tbody = document.getElementById('urunListesi');
+    const bosState = document.getElementById('bosState');
+    const sonucSayisi = document.getElementById('sonucSayisi');
+    
+    if (urunler.length === 0) {
+        tbody.innerHTML = '';
+        bosState.style.display = 'block';
+        sonucSayisi.textContent = '';
+        return;
+    }
+    
+    bosState.style.display = 'none';
+    sonucSayisi.textContent = `Toplam ${urunler.length} ürün/hizmet bulundu`;
+    
+    tbody.innerHTML = urunler.map(urun => {
+        const alisFiyat = urun.alis_fiyat ?? urun.alisFiyat ?? urun.birim_fiyat ?? urun.fiyat ?? 0;
+        const satisFiyat = urun.satis_fiyat ?? urun.satisFiyat ?? urun.birim_fiyat ?? urun.fiyat ?? 0;
+        return `
+        <tr>
+            <td><code>${urun.kod || '-'}</code></td>
+            <td class="u-font-semibold">${urun.ad || '-'}</td>
+            <td>${urun.birim || '-'}</td>
+            <td>₺${paraFormat(alisFiyat)}</td>
+            <td>₺${paraFormat(satisFiyat)}</td>
+            <td>${urun.stok_miktari || 0} ${urun.birim || ''}</td>
+            <td>
+                ${urun.aktif ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-danger">Pasif</span>'}
+            </td>
+            <td>
+                <div class="table-actions">
+                    <a href="/urunler/duzenle/${urun.id}" class="btn btn-sm btn-secondary" title="Düzenle">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <button type="button" onclick="urunSil('${urun.id}', '${urun.ad}')" class="btn btn-sm btn-danger" title="Sil">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+        `;
+    }).join('');
+}
+
+// Filtreleme
+window.filtrele = function() {
+    const arama = document.getElementById('aramaInput').value.toLowerCase();
+    
+    let filtrelenmis = tumUrunler;
+    
+    if (arama) {
+        filtrelenmis = filtrelenmis.filter(u => 
+            (u.kod && u.kod.toLowerCase().includes(arama)) ||
+            (u.ad && u.ad.toLowerCase().includes(arama))
+        );
+    }
+    
+    listeyiGuncelle(filtrelenmis);
+};
+
+// Temizle
+window.temizle = function() {
+    document.getElementById('aramaInput').value = '';
+    listeyiGuncelle(tumUrunler);
+};
+
+// Silme
+window.urunSil = async function(id, ad) {
+    if (confirm(`"${ad}" ürününü silmek istediğinizden emin misiniz?`)) {
+        try {
+            await Urunler.sil(id);
+            // Realtime güncelleme otomatik olacak
+        } catch (error) {
+            alert('Silme işlemi başarısız: ' + error.message);
+        }
+    }
+};
+</script>
+{% endblock %}

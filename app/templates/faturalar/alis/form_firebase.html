@@ -1,0 +1,538 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}{{ 'Düzenle' if fatura_id else 'Yeni' }} Alış Faturası - eMuhasebe Pro{% endblock %}
+
+{% block page_title %}{{ 'Alış Faturası Düzenle' if fatura_id else 'Yeni Alış Faturası' }}{% endblock %}
+{% block page_subtitle %}{{ 'Fatura bilgilerini güncelleyin' if fatura_id else 'Tedarikçiden alış faturası oluşturun' }}{% endblock %}
+
+{% block extra_css %}
+<!-- SheetJS (Excel okuma kütüphanesi) -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('alis.liste') }}" class="btn btn-secondary">
+    <i class="fas fa-arrow-left"></i>
+    Geri Dön
+</a>
+{% endblock %}
+
+{% block content %}
+<form id="faturaForm" onsubmit="kaydet(event)">
+    <input type="hidden" id="faturaId" value="{{ fatura_id or '' }}">
+    
+    <div class="card fade-in">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-file-invoice u-text-primary-500 u-mr-0-5"></i>
+                Fatura Bilgileri
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Fatura No *</label>
+                    <input type="text" id="fatura_no" name="fatura_no" class="form-control" placeholder="ALF-2026-0001" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Fatura Tarihi *</label>
+                    <input type="date" id="fatura_tarihi" name="fatura_tarihi" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Vade Tarihi</label>
+                    <input type="date" id="vade_tarihi" name="vade_tarihi" class="form-control">
+                </div>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Tedarikçi *</label>
+                    <select id="tedarikci_id" name="tedarikci_id" class="form-control form-select" required>
+                        <option value="">Seçiniz</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Durum</label>
+                    <select id="durum" name="durum" class="form-control form-select">
+                        <option value="beklemede">Beklemede</option>
+                        <option value="odendi">Ödendi</option>
+                        <option value="iptal">İptal</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Açıklama</label>
+                <textarea id="aciklama" name="aciklama" class="form-control" rows="2" placeholder="Fatura ile ilgili notlar..."></textarea>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card fade-in u-mt-1-5">
+        <div class="card-header u-flex u-justify-between u-align-center">
+            <h3 class="card-title">
+                <i class="fas fa-list u-text-primary-500 u-mr-0-5"></i>
+                Fatura Kalemleri
+            </h3>
+            <div class="u-flex u-gap-0-5">
+                <button type="button" onclick="ornegiIndir()" class="btn btn-secondary btn--sm">
+                    <i class="fas fa-download"></i>
+                    Örnek Excel
+                </button>
+                <label class="btn btn-success btn--sm">
+                    <i class="fas fa-file-excel"></i>
+                    Excel'den Aktar
+                    <input type="file" id="excelInput" accept=".xlsx,.xls,.csv" onchange="excelYukle(event)" class="is-hidden">
+                </label>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="invoice-items-form" id="kalemlerContainer"></div>
+            
+            <div class="u-flex u-gap-0-5 u-flex-wrap">
+                <button type="button" onclick="kalemEkle()" class="btn-add-item">
+                    <i class="fas fa-plus"></i>
+                    Yeni Kalem Ekle
+                </button>
+                <button type="button" onclick="tumKalemleriTemizle()" class="btn-add-item btn-add-item--danger">
+                    <i class="fas fa-trash-alt"></i>
+                    Tümünü Temizle
+                </button>
+            </div>
+            
+            <div class="invoice-totals u-mt-1-5">
+                <div class="totals-row">
+                    <span>Ara Toplam:</span>
+                    <span id="araToplam">₺0,00</span>
+                </div>
+                <div class="totals-row">
+                    <span>KDV Toplam:</span>
+                    <span id="kdvToplam">₺0,00</span>
+                </div>
+                <div class="totals-row total">
+                    <span>Genel Toplam:</span>
+                    <span id="genelToplam">₺0,00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-actions u-mt-1-5">
+        <button type="submit" class="btn btn-primary" id="kaydetBtn">
+            <i class="fas fa-save"></i>
+            <span id="kaydetBtnText">Faturayı Kaydet</span>
+        </button>
+        <a href="{{ url_for('alis.liste') }}" class="btn btn-secondary">
+            <i class="fas fa-times"></i>
+            İptal
+        </a>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+import { init, AlisFaturalari, Musteriler, Urunler } from '{{ url_for("static", filename="js/db.js") }}';
+
+const faturaId = document.getElementById('faturaId').value;
+let kalemSayaci = 0;
+let tedarikciler = [];
+let urunler = [];
+
+// Para formatla
+function paraFormat(tutar) {
+    return new Intl.NumberFormat('tr-TR', { 
+        minimumFractionDigits: 2, 
+        maximumFractionDigits: 2 
+    }).format(tutar || 0);
+}
+
+// Bugünün tarihi
+function bugun() {
+    return new Date().toISOString().split('T')[0];
+}
+
+// Sayfa yüklendiğinde
+document.addEventListener('DOMContentLoaded', async () => {
+    // Bugünün tarihini ayarla
+    document.getElementById('fatura_tarihi').value = bugun();
+    
+    // Tedarikçileri yükle
+    tedarikciler = await Musteriler.hepsiniGetir();
+    const tedarikciSelect = document.getElementById('tedarikci_id');
+    tedarikciler
+        .filter(m => m.tip === 'tedarikci' || m.tip === 'her_ikisi')
+        .forEach(t => {
+            const option = document.createElement('option');
+            option.value = t.id;
+            option.textContent = t.unvan;
+            tedarikciSelect.appendChild(option);
+        });
+    
+    // Ürünleri yükle
+    urunler = await Urunler.hepsiniGetir();
+    
+    // Düzenleme modu
+    if (faturaId) {
+        const fatura = await AlisFaturalari.getir(faturaId);
+        if (fatura) {
+            document.getElementById('fatura_no').value = fatura.fatura_no || '';
+            document.getElementById('fatura_tarihi').value = fatura.fatura_tarihi || '';
+            document.getElementById('vade_tarihi').value = fatura.vade_tarihi || '';
+            document.getElementById('tedarikci_id').value = fatura.tedarikci_id || '';
+            document.getElementById('durum').value = fatura.durum || 'beklemede';
+            document.getElementById('aciklama').value = fatura.aciklama || '';
+            
+            // Kalemleri yükle
+            if (fatura.kalemler && fatura.kalemler.length > 0) {
+                fatura.kalemler.forEach(kalem => kalemEkle(kalem));
+            } else {
+                kalemEkle();
+            }
+        }
+    } else {
+        // Yeni fatura - boş kalem ekle
+        kalemEkle();
+    }
+});
+
+// Kalem ekle
+window.kalemEkle = function(kalem = null) {
+    kalemSayaci++;
+    const container = document.getElementById('kalemlerContainer');
+    
+    const row = document.createElement('div');
+    row.className = 'invoice-item-row';
+    row.id = `kalem-${kalemSayaci}`;
+    
+    row.innerHTML = `
+        <input type="text" name="kalem_aciklama[]" class="form-control" 
+            placeholder="Ürün/Hizmet açıklaması" value="${kalem?.aciklama || ''}" required>
+        <input type="number" name="kalem_miktar[]" class="form-control kalem-miktar" 
+            step="0.01" min="0" placeholder="Miktar" value="${kalem?.miktar || 1}" 
+            onchange="toplamlariHesapla()" required>
+        <input type="number" name="kalem_fiyat[]" class="form-control kalem-fiyat" 
+            step="0.01" min="0" placeholder="Birim Fiyat" value="${kalem?.birim_fiyat || 0}" 
+            onchange="toplamlariHesapla()" required>
+        <select name="kalem_kdv[]" class="form-control form-select kalem-kdv" onchange="toplamlariHesapla()">
+            <option value="0" ${kalem?.kdv_orani == 0 ? 'selected' : ''}>%0</option>
+            <option value="1" ${kalem?.kdv_orani == 1 ? 'selected' : ''}>%1</option>
+            <option value="8" ${kalem?.kdv_orani == 8 ? 'selected' : ''}>%8</option>
+            <option value="10" ${kalem?.kdv_orani == 10 ? 'selected' : ''}>%10</option>
+            <option value="18" ${kalem?.kdv_orani == 18 ? 'selected' : ''}>%18</option>
+            <option value="20" ${!kalem || kalem?.kdv_orani == 20 ? 'selected' : ''}>%20</option>
+        </select>
+        <input type="text" class="form-control kalem-toplam" readonly value="₺0,00">
+        <button type="button" onclick="kalemSil(${kalemSayaci})" class="btn-remove-item" title="Kalemi Sil">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    container.appendChild(row);
+    toplamlariHesapla();
+};
+
+// Kalem sil
+window.kalemSil = function(id) {
+    const row = document.getElementById(`kalem-${id}`);
+    if (row && document.querySelectorAll('.invoice-item-row').length > 1) {
+        row.remove();
+        toplamlariHesapla();
+    }
+};
+
+// Toplamları hesapla
+window.toplamlariHesapla = function() {
+    let araToplam = 0;
+    let kdvToplam = 0;
+    
+    document.querySelectorAll('.invoice-item-row').forEach(row => {
+        const miktar = parseFloat(row.querySelector('.kalem-miktar').value) || 0;
+        const fiyat = parseFloat(row.querySelector('.kalem-fiyat').value) || 0;
+        const kdvOrani = parseInt(row.querySelector('.kalem-kdv').value) || 0;
+        
+        const kalemTutar = miktar * fiyat;
+        const kalemKdv = kalemTutar * kdvOrani / 100;
+        const kalemToplam = kalemTutar + kalemKdv;
+        
+        row.querySelector('.kalem-toplam').value = `₺${paraFormat(kalemToplam)}`;
+        
+        araToplam += kalemTutar;
+        kdvToplam += kalemKdv;
+    });
+    
+    document.getElementById('araToplam').textContent = `₺${paraFormat(araToplam)}`;
+    document.getElementById('kdvToplam').textContent = `₺${paraFormat(kdvToplam)}`;
+    document.getElementById('genelToplam').textContent = `₺${paraFormat(araToplam + kdvToplam)}`;
+};
+
+// ==================== EXCEL İMPORT ====================
+
+// Örnek Excel dosyası indir
+window.ornegiIndir = function() {
+    // Örnek veri
+    const ornekVeri = [
+        { aciklama: 'Bilgisayar', miktar: 2, birim_fiyat: 15000, kdv_orani: 20 },
+        { aciklama: 'Monitör', miktar: 4, birim_fiyat: 3500, kdv_orani: 20 },
+        { aciklama: 'Klavye', miktar: 10, birim_fiyat: 250, kdv_orani: 20 },
+        { aciklama: 'Mouse', miktar: 10, birim_fiyat: 150, kdv_orani: 20 },
+        { aciklama: 'Teknik Destek Hizmeti', miktar: 1, birim_fiyat: 5000, kdv_orani: 20 }
+    ];
+    
+    // Worksheet oluştur
+    const ws = XLSX.utils.json_to_sheet(ornekVeri);
+    
+    // Sütun genişlikleri
+    ws['!cols'] = [
+        { wch: 30 }, // aciklama
+        { wch: 10 }, // miktar
+        { wch: 15 }, // birim_fiyat
+        { wch: 12 }  // kdv_orani
+    ];
+    
+    // Workbook oluştur
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Fatura Kalemleri');
+    
+    // İndir
+    XLSX.writeFile(wb, 'fatura_kalemleri_ornegi.xlsx');
+    
+    if (window.Toast) {
+        Toast.success('Örnek Excel dosyası indirildi!');
+    }
+};
+
+// Excel dosyası yükle
+window.excelYukle = async function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        
+        // İlk sayfayı al
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // JSON'a çevir
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        if (jsonData.length === 0) {
+            if (window.Toast) Toast.warning('Excel dosyası boş veya okunamadı!');
+            return;
+        }
+        
+        // Sütun kontrolü
+        const ilkSatir = jsonData[0];
+        const gerekliSutunlar = ['aciklama'];
+        const eksikSutunlar = gerekliSutunlar.filter(s => !(s in ilkSatir));
+        
+        if (eksikSutunlar.length > 0) {
+            if (window.Toast) {
+                Toast.error(`Eksik sütunlar: ${eksikSutunlar.join(', ')}. Lütfen örnek Excel'i indirip formatı kontrol edin.`);
+            } else {
+                alert(`Eksik sütunlar: ${eksikSutunlar.join(', ')}`);
+            }
+            return;
+        }
+        
+        // Önizleme modal göster
+        excelOnizlemeGoster(jsonData, file.name);
+        
+    } catch (error) {
+        console.error('Excel okuma hatası:', error);
+        if (window.Toast) {
+            Toast.error('Excel dosyası okunamadı: ' + error.message);
+        } else {
+            alert('Excel dosyası okunamadı!');
+        }
+    }
+    
+    // Input'u sıfırla
+    event.target.value = '';
+};
+
+// Excel önizleme modal
+function excelOnizlemeGoster(veriler, dosyaAdi) {
+    const mevcutModal = document.getElementById('excelModal');
+    if (mevcutModal) mevcutModal.remove();
+    const modal = document.createElement('div');
+    modal.id = 'excelModal';
+    modal.innerHTML = `
+        <div class="excel-modal-overlay" onclick="if(event.target === this) this.parentElement.remove()">
+            <div class="excel-modal">
+                <div class="excel-modal-header success">
+                    <div>
+                        <h3 class="excel-modal-title">
+                            <i class="fas fa-file-excel"></i>
+                            Excel Önizleme
+                        </h3>
+                        <p class="excel-modal-subtitle">
+                            ${dosyaAdi} - ${veriler.length} satır bulundu
+                        </p>
+                    </div>
+                    <button onclick="document.getElementById('excelModal').remove()" class="excel-modal-close">×</button>
+                </div>
+                <div class="excel-modal-body">
+                    <table class="excel-modal-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Açıklama</th>
+                                <th class="u-text-right">Miktar</th>
+                                <th class="u-text-right">Birim Fiyat</th>
+                                <th class="u-text-right">KDV %</th>
+                                <th class="u-text-right">Toplam</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${veriler.map((v, i) => {
+                                const miktar = parseFloat(v.miktar) || 1;
+                                const fiyat = parseFloat(v.birim_fiyat || v.fiyat) || 0;
+                                const kdv = parseInt(v.kdv_orani || v.kdv) || 20;
+                                const toplam = miktar * fiyat * (1 + kdv / 100);
+                                return `
+                                    <tr>
+                                        <td>${i + 1}</td>
+                                        <td>${v.aciklama || '-'}</td>
+                                        <td class="u-text-right">${miktar}</td>
+                                        <td class="u-text-right">₺${paraFormat(fiyat)}</td>
+                                        <td class="u-text-right">%${kdv}</td>
+                                        <td class="u-text-right u-font-semibold">₺${paraFormat(toplam)}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="excel-modal-footer">
+                    <label class="excel-modal-checkbox">
+                        <input type="checkbox" id="mevcutuTemizle" checked> Mevcut kalemleri temizle
+                    </label>
+                    <div class="excel-modal-actions">
+                        <button onclick="document.getElementById('excelModal').remove()" class="excel-modal-btn excel-modal-btn-cancel">İptal</button>
+                        <button onclick='excelVerileriniEkle(${JSON.stringify(veriler)})' class="excel-modal-btn excel-modal-btn-confirm success">
+                            <i class="fas fa-check excel-modal-confirm-icon"></i>
+                            ${veriler.length} Kalemi Ekle
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+// Excel verilerini faturaya ekle
+window.excelVerileriniEkle = function(veriler) {
+    const mevcutuTemizle = document.getElementById('mevcutuTemizle')?.checked ?? true;
+    
+    // Mevcut kalemleri temizle
+    if (mevcutuTemizle) {
+        document.getElementById('kalemlerContainer').innerHTML = '';
+        kalemSayaci = 0;
+    }
+    
+    // Yeni kalemleri ekle
+    veriler.forEach(v => {
+        kalemEkle({
+            aciklama: v.aciklama || '',
+            miktar: parseFloat(v.miktar) || 1,
+            birim_fiyat: parseFloat(v.birim_fiyat || v.fiyat) || 0,
+            kdv_orani: parseInt(v.kdv_orani || v.kdv) || 20
+        });
+    });
+    
+    // Modal kapat
+    document.getElementById('excelModal')?.remove();
+    
+    // Toplamları hesapla
+    toplamlariHesapla();
+    
+    if (window.Toast) {
+        Toast.success(`${veriler.length} kalem Excel'den başarıyla eklendi! 📊`);
+    }
+};
+
+// Tüm kalemleri temizle
+window.tumKalemleriTemizle = function() {
+    if (confirm('Tüm fatura kalemlerini silmek istediğinizden emin misiniz?')) {
+        document.getElementById('kalemlerContainer').innerHTML = '';
+        kalemSayaci = 0;
+        kalemEkle(); // Boş bir kalem ekle
+        toplamlariHesapla();
+        
+        if (window.Toast) {
+            Toast.info('Tüm kalemler temizlendi');
+        }
+    }
+};
+
+// Kaydet
+window.kaydet = async function(e) {
+    e.preventDefault();
+    
+    const btn = document.getElementById('kaydetBtn');
+    const btnText = document.getElementById('kaydetBtnText');
+    btn.disabled = true;
+    btnText.textContent = 'Kaydediliyor...';
+    
+    // Kalemleri topla
+    const kalemler = [];
+    let araToplam = 0;
+    let kdvToplam = 0;
+    
+    document.querySelectorAll('.invoice-item-row').forEach(row => {
+        const miktar = parseFloat(row.querySelector('.kalem-miktar').value) || 0;
+        const birim_fiyat = parseFloat(row.querySelector('.kalem-fiyat').value) || 0;
+        const kdv_orani = parseInt(row.querySelector('.kalem-kdv').value) || 0;
+        
+        const tutar = miktar * birim_fiyat;
+        const kdv_tutar = tutar * kdv_orani / 100;
+        
+        kalemler.push({
+            aciklama: row.querySelector('input[name="kalem_aciklama[]"]').value,
+            miktar,
+            birim_fiyat,
+            kdv_orani,
+            tutar,
+            kdv_tutar,
+            genel_toplam: tutar + kdv_tutar
+        });
+        
+        araToplam += tutar;
+        kdvToplam += kdv_tutar;
+    });
+    
+    const vadeTarihi = document.getElementById('vade_tarihi').value;
+    const fatura = {
+        fatura_no: document.getElementById('fatura_no').value,
+        fatura_tarihi: document.getElementById('fatura_tarihi').value,
+        vade_tarihi: vadeTarihi ? vadeTarihi : null,
+        tedarikci_id: document.getElementById('tedarikci_id').value,
+        tedarikci_adi: document.getElementById('tedarikci_id').selectedOptions[0]?.text || '',
+        durum: document.getElementById('durum').value,
+        aciklama: document.getElementById('aciklama').value,
+        kalemler,
+        ara_toplam: araToplam,
+        kdv_toplam: kdvToplam,
+        genel_toplam: araToplam + kdvToplam
+    };
+    
+    try {
+        if (faturaId) {
+            await AlisFaturalari.guncelle(faturaId, fatura);
+        } else {
+            await AlisFaturalari.ekle(fatura);
+        }
+        
+        window.location.href = '/faturalar/alis/';
+    } catch (error) {
+        alert('Kaydetme hatası: ' + error.message);
+        btn.disabled = false;
+        btnText.textContent = 'Faturayı Kaydet';
+    }
+};
+</script>
+{% endblock %}

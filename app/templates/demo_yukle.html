@@ -1,0 +1,657 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Veri Yükleyici - eMuhasebe Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+        h1 {
+            color: #1e293b;
+            margin-bottom: 0.5rem;
+            font-size: 1.75rem;
+        }
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 2rem;
+        }
+        .progress-container {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .progress-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .progress-item:last-child { border-bottom: none; }
+        .progress-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 1rem;
+            font-size: 1rem;
+        }
+        .progress-icon.pending { background: #f1f5f9; color: #94a3b8; }
+        .progress-icon.loading { background: #dbeafe; color: #3b82f6; animation: pulse 1s infinite; }
+        .progress-icon.success { background: #dcfce7; color: #22c55e; }
+        .progress-icon.error { background: #fee2e2; color: #ef4444; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .progress-text { flex: 1; }
+        .progress-text h4 { color: #1e293b; font-size: 0.95rem; }
+        .progress-text p { color: #64748b; font-size: 0.8rem; }
+        .progress-count {
+            background: #f1f5f9;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .btn {
+            width: 100%;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -10px rgba(102,126,234,0.5); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-success {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: white;
+        }
+        .summary {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            display: none;
+        }
+        .summary h3 { color: #166534; margin-bottom: 1rem; }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 6px;
+        }
+        .summary-item.total {
+            grid-column: span 2;
+            background: #dcfce7;
+        }
+        .summary-item span:first-child { color: #64748b; }
+        .summary-item span:last-child { font-weight: 600; color: #166534; }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #64748b;
+            text-decoration: none;
+        }
+        .back-link:hover { color: #1e293b; }
+        .back-link:hover { color: #1e293b; }
+        .btn-danger { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; margin-bottom: 1rem; }
+        .btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239,68,68,0.4); }
+        .warn-box { background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 0.875rem 1rem; margin-bottom: 1rem; color: #92400e; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Demo Veri Yükleyici</h1>
+        <p class="subtitle">eMuhasebe Pro için örnek veriler oluşturulacak</p>
+
+        <div class="warn-box">
+            ⚠️ Mevcut verilerin üzerine yazmak için önce <strong>"Veriyi Sıfırla"</strong> butonuna, ardından <strong>"Demo Verileri Yükle"</strong> butonuna basın.
+        </div>
+        <button class="btn btn-danger" onclick="veriSifirla()">🗑️ Mevcut Veriyi Sıfırla</button>
+        
+        <div class="progress-container">
+            <div class="progress-item" id="prog-musteri">
+                <div class="progress-icon pending">👥</div>
+                <div class="progress-text">
+                    <h4>Müşteriler / Tedarikçiler</h4>
+                    <p>Örnek firma ve kişi kayıtları</p>
+                </div>
+                <span class="progress-count">25 kayıt</span>
+            </div>
+            <div class="progress-item" id="prog-urun">
+                <div class="progress-icon pending">📦</div>
+                <div class="progress-text">
+                    <h4>Ürünler / Hizmetler</h4>
+                    <p>Farklı kategorilerden ürünler</p>
+                </div>
+                <span class="progress-count">25 kayıt</span>
+            </div>
+            <div class="progress-item" id="prog-alis">
+                <div class="progress-icon pending">🛒</div>
+                <div class="progress-text">
+                    <h4>Alış Faturaları</h4>
+                    <p>Tedarikçilerden alış faturaları</p>
+                </div>
+                <span class="progress-count">25 kayıt</span>
+            </div>
+            <div class="progress-item" id="prog-satis">
+                <div class="progress-icon pending">💰</div>
+                <div class="progress-text">
+                    <h4>Satış Faturaları</h4>
+                    <p>Müşterilere satış faturaları</p>
+                </div>
+                <span class="progress-count">25 kayıt</span>
+            </div>
+            <div class="progress-item" id="prog-iade">
+                <div class="progress-icon pending">↩️</div>
+                <div class="progress-text">
+                    <h4>İade Faturaları</h4>
+                    <p>Alış ve satış iadeleri</p>
+                </div>
+                <span class="progress-count">25 kayıt</span>
+            </div>
+        </div>
+        
+        <button class="btn btn-primary" id="loadBtn" onclick="loadDemoData()">
+            📥 Demo Verileri Yükle
+        </button>
+        
+        <div class="summary" id="summary">
+            <h3>✅ Yükleme Tamamlandı!</h3>
+            <div class="summary-grid">
+                <div class="summary-item"><span>Müşteriler</span><span id="sum-musteri">0</span></div>
+                <div class="summary-item"><span>Ürünler</span><span id="sum-urun">0</span></div>
+                <div class="summary-item"><span>Alış Faturaları</span><span id="sum-alis">0</span></div>
+                <div class="summary-item"><span>Satış Faturaları</span><span id="sum-satis">0</span></div>
+                <div class="summary-item"><span>İade Faturaları</span><span id="sum-iade">0</span></div>
+                <div class="summary-item total">
+                    <span>Toplam Kayıt</span><span id="sum-total">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <a href="/" class="back-link">← Ana Sayfaya Dön</a>
+
+    </div>
+    <script>
+        // ==================== DEMO VERİ ÜRETİCİLER ====================
+        const ISIMLER = ["Ahmet", "Mehmet", "Mustafa", "Ali", "Hüseyin", "Hasan", "İbrahim", "Ömer", "Fatma", "Ayşe", "Emine", "Hatice", "Zeynep", "Elif", "Merve", "Esra"];
+
+        // ══════════════════════════════════════════════════════
+        //  SABIT DEMO VERİLER — gerçekçi isimler, dolu alanlar
+        // ══════════════════════════════════════════════════════
+        const SEHIRLER = ["İstanbul", "Ankara", "İzmir", "Bursa", "Antalya", "Adana", "Konya", "Gaziantep"];
+        const KDV_ORANLARI = [1, 10, 20];
+
+        // Sabit ürünler (görsellerden alınan isimler + gerçekçi fiyatlar)
+        const URUNLER_SABIT = [
+            { kod: "ELK-001", ad: "Laptop Dell XPS 15",        birim: "Adet", alis: 28500, satis: 34900, kdv: 20, stok: 45 },
+            { kod: "ELK-002", ad: "iPhone 15 Pro",              birim: "Adet", alis: 52000, satis: 62999, kdv: 20, stok: 30 },
+            { kod: "ELK-003", ad: "Samsung Galaxy S24",         birim: "Adet", alis: 32000, satis: 39900, kdv: 20, stok: 28 },
+            { kod: "ELK-004", ad: "MacBook Air M3",             birim: "Adet", alis: 45000, satis: 54900, kdv: 20, stok: 18 },
+            { kod: "ELK-005", ad: "iPad Pro 12.9",              birim: "Adet", alis: 29000, satis: 35900, kdv: 20, stok: 22 },
+            { kod: "ELK-006", ad: "Apple Watch Ultra",          birim: "Adet", alis: 18000, satis: 22900, kdv: 20, stok: 40 },
+            { kod: "ELK-007", ad: "Sony WH-1000XM5",            birim: "Adet", alis: 4500,  satis: 6299,  kdv: 20, stok: 60 },
+            { kod: "ELK-008", ad: "LG OLED TV 55\"",            birim: "Adet", alis: 22000, satis: 28900, kdv: 20, stok: 15 },
+            { kod: "ELK-009", ad: "Monitör Dell 27\" 4K",       birim: "Adet", alis: 7500,  satis: 9500,  kdv: 20, stok: 35 },
+            { kod: "ELK-010", ad: "Klavye Logitech MX Keys",    birim: "Adet", alis: 1100,  satis: 1599,  kdv: 20, stok: 80 },
+            { kod: "ELK-011", ad: "Mouse Logitech MX Master 3", birim: "Adet", alis: 850,   satis: 1199,  kdv: 20, stok: 90 },
+            { kod: "ELK-012", ad: "Webcam Logitech C920s",      birim: "Adet", alis: 1200,  satis: 1749,  kdv: 20, stok: 55 },
+            { kod: "ELK-013", ad: "Printer HP LaserJet Pro",    birim: "Adet", alis: 4800,  satis: 6200,  kdv: 20, stok: 20 },
+            { kod: "ELK-014", ad: "UPS APC 1500VA",             birim: "Adet", alis: 2800,  satis: 3699,  kdv: 20, stok: 25 },
+            { kod: "ELK-015", ad: "SSD Samsung 1TB",            birim: "Adet", alis: 900,   satis: 1249,  kdv: 20, stok: 120 },
+            { kod: "OFS-001", ad: "Ofis Masası (160cm)",        birim: "Adet", alis: 3200,  satis: 4500,  kdv: 20, stok: 12 },
+            { kod: "OFS-002", ad: "Ofis Koltuğu Ergonomik",     birim: "Adet", alis: 2800,  satis: 3999,  kdv: 20, stok: 18 },
+            { kod: "OFS-003", ad: "Dolap Metal 4 Raflı",        birim: "Adet", alis: 1800,  satis: 2599,  kdv: 20, stok: 10 },
+            { kod: "SFT-001", ad: "Antivirüs Paketi (1 Yıl)",    birim: "Paket", alis: 250, satis: 399,   kdv: 20, stok: 200 },
+            { kod: "SFT-002", ad: "Microsoft 365 Business Paketi", birim: "Paket", alis: 700, satis: 999,   kdv: 20, stok: 150 },
+            { kod: "SFT-003", ad: "Bulut Depolama 1TB/Yıl",      birim: "Paket", alis: 120, satis: 199,   kdv: 20, stok: 300 },
+            { kod: "TEK-001", ad: "Telefon Santrali IP",         birim: "Adet", alis: 5500, satis: 7200,  kdv: 20, stok: 8 },
+            { kod: "TEK-002", ad: "Network Switch 24 Port",     birim: "Adet", alis: 3200, satis: 4299,  kdv: 20, stok: 14 },
+            { kod: "TEK-003", ad: "WiFi Access Point",          birim: "Adet", alis: 1500, satis: 2099,  kdv: 20, stok: 30 },
+            { kod: "TEK-004", ad: "Güvenlik Kamerası 4K",       birim: "Adet", alis: 1200, satis: 1699,  kdv: 20, stok: 40 }
+        ];
+
+        // Sabit müşteri/tedarikçi isimleri
+        const FIRMALAR = [
+            { unvan: "Mega Market Elektronik A.Ş.",   tip: "tedarikci",  sehir: "İstanbul" },
+            { unvan: "Digital Store Teknoloji Ltd.",  tip: "tedarikci",  sehir: "İstanbul" },
+            { unvan: "Tech Dünyası Bilişim A.Ş.",     tip: "tedarikci",  sehir: "Ankara"   },
+            { unvan: "ABC Elektronik Tic. Ltd.",      tip: "tedarikci",  sehir: "İzmir"    },
+            { unvan: "ProTech İthalat A.Ş.",          tip: "tedarikci",  sehir: "Bursa"    },
+            { unvan: "Global Tech Distribütör",       tip: "tedarikci",  sehir: "İstanbul" },
+            { unvan: "TechHub Wholesale Ltd.",        tip: "tedarikci",  sehir: "Ankara"   },
+            { unvan: "Yıldız Teknoloji Tedarik",      tip: "tedarikci",  sehir: "İzmir"    },
+            { unvan: "Özkan Bilişim Çözümleri",       tip: "musteri",    sehir: "İstanbul" },
+            { unvan: "Güven Ofis Sistemleri A.Ş.",    tip: "musteri",    sehir: "Ankara"   },
+            { unvan: "Akın Yazılım ve Danışmanlık",   tip: "musteri",    sehir: "İzmir"    },
+            { unvan: "Başaran Holding İletişim",      tip: "musteri",    sehir: "Bursa"    },
+            { unvan: "Delta Kurumsal Çözümler",       tip: "musteri",    sehir: "Antalya"  },
+            { unvan: "Çelik Mühendislik A.Ş.",        tip: "musteri",    sehir: "Adana"    },
+            { unvan: "İnova Dijital Medya Ltd.",       tip: "musteri",    sehir: "İstanbul" },
+            { unvan: "Kartal Lojistik Hizmetleri",    tip: "musteri",    sehir: "Konya"    },
+            { unvan: "Nur Eğitim Teknolojileri",      tip: "musteri",    sehir: "Gaziantep"},
+            { unvan: "Asya Turizm ve Otelcilik",      tip: "musteri",    sehir: "Antalya"  },
+            { unvan: "Demir İnşaat Malzemeleri",      tip: "her_ikisi",  sehir: "İstanbul" },
+            { unvan: "Koç Teknoloji Sistemleri",      tip: "her_ikisi",  sehir: "Ankara"   },
+            { unvan: "Fırat Medikal Cihazlar",        tip: "musteri",    sehir: "İstanbul" },
+            { unvan: "Yüksel Tarım Makineleri",       tip: "musteri",    sehir: "Konya"    },
+            { unvan: "Doğan Enerji Sistemleri",       tip: "her_ikisi",  sehir: "İzmir"    },
+            { unvan: "Altın Gıda Dağıtım A.Ş.",       tip: "musteri",    sehir: "Adana"    },
+            { unvan: "Pınar Tekstil Sanayi Ltd.",      tip: "musteri",    sehir: "Bursa"    }
+        ];
+        function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+        function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+        function randItem(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+        function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+        function generateVergiNo(seed) {
+            // Tekrarlanmayan vergi no üret
+            const base = String(seed).padStart(3, '0');
+            return `${rand(1,9)}${rand(0,9)}${rand(0,9)}${base}${rand(0,9)}${rand(0,9)}${rand(0,9)}${rand(0,9)}`;
+        }
+        function generatePhone(seed) {
+            const prefixes = ['532','533','534','535','536','542','543','544','545'];
+            const p = prefixes[seed % prefixes.length];
+            return `0${p} ${rand(100,999)} ${String(seed*7%100).padStart(2,'0')} ${rand(10,99)}`;
+        }
+        function generateDate(daysBack = 180) {
+            const date = new Date();
+            date.setDate(date.getDate() - rand(5, daysBack));
+            return date.toISOString().split('T')[0];
+        }
+        function generateFaturaNo(prefix, index) {
+            const year = new Date().getFullYear();
+            return `${prefix}-${year}-${String(index).padStart(4, '0')}`;
+        }
+        // ==================== VERİ OLUŞTURUCULAR ====================
+
+        // ==================== VERİ OLUŞTURUCULAR ====================
+        function createMusteriler() {
+            const musteriler = {};
+            const cadde = ['Atatürk','Cumhuriyet','İstiklal','Fatih','Mevlana','Bağdat','Halaskargazi'];
+            
+            for (let i = 0; i < 25; i++) {
+                const id = `musteri_${i + 1}`;
+                const firma = FIRMALAR[i];
+                const unvanSlug = firma.unvan.split(' ')[0].toLowerCase().replace(/ş/g,'s').replace(/ç/g,'c').replace(/ğ/g,'g').replace(/ü/g,'u').replace(/ö/g,'o').replace(/ı/g,'i');
+                const domainlar = ['gmail.com','outlook.com','firma.com.tr','info.com.tr','mail.com'];
+                
+                musteriler[id] = {
+                    id,
+                    unvan:          firma.unvan,
+                    vergi_no:       generateVergiNo(i + 1),
+                    vergi_dairesi:  `${firma.sehir} Vergi Dairesi`,
+                    adres:          `${randItem(cadde)} Cad. No:${rand(1,200)} ${firma.sehir}`,
+                    telefon:        generatePhone(i + 1),
+                    email:          `info@${unvanSlug}.${domainlar[i % domainlar.length]}`,
+                    tip:            firma.tip,
+                    aktif:          true,
+                    olusturma_tarihi: generateDate(180),
+                    guncelleme_tarihi: generateDate(30)
+                };
+            }
+            return musteriler;
+        }
+
+        function createUrunler() {
+            const urunler = {};
+            for (let i = 0; i < URUNLER_SABIT.length; i++) {
+                const id    = `urun_${i + 1}`;
+                const u     = URUNLER_SABIT[i];
+                // Fiyatlara ±%5 rastsallık ekle
+                const alis  = Math.round(u.alis  * (1 + (rand(-3, 3) / 100)));
+                const satis = Math.round(u.satis * (1 + (rand(-2, 2) / 100)));
+                
+                urunler[id] = {
+                    id,
+                    kod:            u.kod,
+                    ad:             u.ad,
+                    aciklama:       `${u.ad} — stokta mevcut, hızlı teslimat`,
+                    birim:          u.birim,
+                    alis_fiyat:     alis,
+                    satis_fiyat:    satis,
+                    kdv_orani:      u.kdv,
+                    stok_miktari:   u.stok,
+                    aktif:          true,
+                    olusturma_tarihi:  generateDate(365),
+                    guncelleme_tarihi: generateDate(60)
+                };
+            }
+            return urunler;
+        }
+        function createAlisFaturalari(musteriler, urunler) {
+            const faturalar = {};
+            const musteriIds = Object.keys(musteriler).filter(k => 
+                musteriler[k].tip === 'tedarikci' || musteriler[k].tip === 'her_ikisi'
+            );
+            const urunIds = Object.keys(urunler);
+            const durumlar = ["beklemede", "odendi", "odendi", "odendi"];
+            
+            for (let i = 1; i <= 25; i++) {
+                const id = `alis_${i}`;
+                const faturaTarihi = generateDate(180);
+                const vadeDate = new Date(faturaTarihi);
+                vadeDate.setDate(vadeDate.getDate() + rand(15, 60));
+                
+                const kalemler = {};
+                let araToplam = 0, kdvToplam = 0;
+                const kalemSayisi = rand(1, 5);
+                
+                for (let k = 1; k <= kalemSayisi; k++) {
+                    const urunId = randItem(urunIds);
+                    const urun = urunler[urunId];
+                    const miktar = rand(1, 20);
+                    const birimFiyat = urun.alis_fiyat;
+                    const kdvOrani = urun.kdv_orani;
+                    const indirimOrani = randItem([0, 0, 0, 5, 10]);
+                    
+                    const tutar = miktar * birimFiyat;
+                    const indirim = tutar * (indirimOrani / 100);
+                    const netTutar = tutar - indirim;
+                    const kdvTutar = netTutar * (kdvOrani / 100);
+                    
+                    kalemler[`kalem_${k}`] = {
+                        id: `kalem_${k}`,
+                        urun_id: urunId,
+                        urun_adi: urun.ad,
+                        aciklama: urun.ad,
+                        miktar,
+                        birim: urun.birim,
+                        birim_fiyat: birimFiyat,
+                        kdv_orani: kdvOrani,
+                        indirim_orani: indirimOrani,
+                        toplam: netTutar,
+                        kdv_tutar: kdvTutar,
+                        genel_toplam: netTutar + kdvTutar
+                    };
+                    araToplam += netTutar;
+                    kdvToplam += kdvTutar;
+                }
+                
+                const tedarikciId = musteriIds.length > 0 ? randItem(musteriIds) : Object.keys(musteriler)[0];
+                
+                faturalar[id] = {
+                    id,
+                    fatura_no: generateFaturaNo("AF", i),
+                    fatura_tarihi: faturaTarihi,
+                    vade_tarihi: vadeDate.toISOString().split('T')[0],
+                    tedarikci_id: tedarikciId,
+                    tedarikci_unvan: musteriler[tedarikciId].unvan,
+                    ara_toplam: Math.round(araToplam * 100) / 100,
+                    kdv_toplam: Math.round(kdvToplam * 100) / 100,
+                    indirim_toplam: 0,
+                    genel_toplam: Math.round((araToplam + kdvToplam) * 100) / 100,
+                    durum: randItem(durumlar),
+                    aciklama: `Alış faturası - ${musteriler[tedarikciId].unvan}`,
+                    kalemler,
+                    olusturma_tarihi: faturaTarihi,
+                    guncelleme_tarihi: generateDate(30)
+                };
+            }
+            return faturalar;
+        }
+
+        function createSatisFaturalari(musteriler, urunler) {
+            const faturalar = {};
+            const musteriIds = Object.keys(musteriler).filter(k => 
+                musteriler[k].tip === 'musteri' || musteriler[k].tip === 'her_ikisi'
+            );
+            const urunIds = Object.keys(urunler);
+            const durumlar = ["beklemede", "tahsil_edildi", "tahsil_edildi", "tahsil_edildi"];
+            
+            for (let i = 1; i <= 25; i++) {
+                const id = `satis_${i}`;
+                const faturaTarihi = generateDate(180);
+                const vadeDate = new Date(faturaTarihi);
+                vadeDate.setDate(vadeDate.getDate() + rand(15, 60));
+                
+                const kalemler = {};
+                let araToplam = 0, kdvToplam = 0;
+                const kalemSayisi = rand(1, 5);
+                
+                for (let k = 1; k <= kalemSayisi; k++) {
+                    const urunId = randItem(urunIds);
+                    const urun = urunler[urunId];
+                    const miktar = rand(1, 15);
+                    const birimFiyat = urun.satis_fiyat;
+                    const kdvOrani = urun.kdv_orani;
+                    const indirimOrani = randItem([0, 0, 0, 5, 10, 15]);
+                    
+                    const tutar = miktar * birimFiyat;
+                    const indirim = tutar * (indirimOrani / 100);
+                    const netTutar = tutar - indirim;
+                    const kdvTutar = netTutar * (kdvOrani / 100);
+                    
+                    kalemler[`kalem_${k}`] = {
+                        id: `kalem_${k}`,
+                        urun_id: urunId,
+                        urun_adi: urun.ad,
+                        aciklama: urun.ad,
+                        miktar,
+                        birim: urun.birim,
+                        birim_fiyat: birimFiyat,
+                        kdv_orani: kdvOrani,
+                        indirim_orani: indirimOrani,
+                        toplam: netTutar,
+                        kdv_tutar: kdvTutar,
+                        genel_toplam: netTutar + kdvTutar
+                    };
+                    araToplam += netTutar;
+                    kdvToplam += kdvTutar;
+                }
+                
+                const musteriId = musteriIds.length > 0 ? randItem(musteriIds) : Object.keys(musteriler)[0];
+                
+                faturalar[id] = {
+                    id,
+                    fatura_no: generateFaturaNo("SF", i),
+                    fatura_tarihi: faturaTarihi,
+                    vade_tarihi: vadeDate.toISOString().split('T')[0],
+                    musteri_id: musteriId,
+                    musteri_unvan: musteriler[musteriId].unvan,
+                    ara_toplam: Math.round(araToplam * 100) / 100,
+                    kdv_toplam: Math.round(kdvToplam * 100) / 100,
+                    indirim_toplam: 0,
+                    genel_toplam: Math.round((araToplam + kdvToplam) * 100) / 100,
+                    durum: randItem(durumlar),
+                    aciklama: `Satış faturası - ${musteriler[musteriId].unvan}`,
+                    kalemler,
+                    olusturma_tarihi: faturaTarihi,
+                    guncelleme_tarihi: generateDate(30)
+                };
+            }
+            return faturalar;
+        }
+
+        function createIadeFaturalari(musteriler, urunler) {
+            const faturalar = {};
+            const musteriIds = Object.keys(musteriler);
+            const urunIds = Object.keys(urunler);
+            const iadeTipleri = ["alis_iade", "satis_iade"];
+            const durumlar = ["beklemede", "tamamlandi", "tamamlandi", "tamamlandi"];
+            const iadeNedenleri = [
+                "Ürün hasarlı geldi", "Yanlış ürün gönderildi", "Müşteri fikir değiştirdi",
+                "Ürün beklentiyi karşılamadı", "Sipariş iptal edildi", "Kalite sorunu", "Fiyat uyuşmazlığı"
+            ];
+            
+            for (let i = 1; i <= 25; i++) {
+                const id = `iade_${i}`;
+                const faturaTarihi = generateDate(120);
+                const iadeTipi = randItem(iadeTipleri);
+                
+                const kalemler = {};
+                let araToplam = 0, kdvToplam = 0;
+                const kalemSayisi = rand(1, 3);
+                
+                for (let k = 1; k <= kalemSayisi; k++) {
+                    const urunId = randItem(urunIds);
+                    const urun = urunler[urunId];
+                    const miktar = rand(1, 5);
+                    const birimFiyat = iadeTipi === "satis_iade" ? urun.satis_fiyat : urun.alis_fiyat;
+                    const kdvOrani = urun.kdv_orani;
+                    
+                    const tutar = miktar * birimFiyat;
+                    const kdvTutar = tutar * (kdvOrani / 100);
+                    
+                    kalemler[`kalem_${k}`] = {
+                        id: `kalem_${k}`,
+                        urun_id: urunId,
+                        urun_adi: urun.ad,
+                        aciklama: `İade: ${urun.ad}`,
+                        miktar,
+                        birim: urun.birim,
+                        birim_fiyat: birimFiyat,
+                        kdv_orani: kdvOrani,
+                        indirim_orani: 0,
+                        toplam: tutar,
+                        kdv_tutar: kdvTutar,
+                        genel_toplam: tutar + kdvTutar
+                    };
+                    araToplam += tutar;
+                    kdvToplam += kdvTutar;
+                }
+                
+                const firmaId = randItem(musteriIds);
+                
+                faturalar[id] = {
+                    id,
+                    fatura_no: generateFaturaNo("IF", i),
+                    fatura_tarihi: faturaTarihi,
+                    firma_id: firmaId,
+                    firma_unvan: musteriler[firmaId].unvan,
+                    iade_tipi: iadeTipi,
+                    ara_toplam: Math.round(araToplam * 100) / 100,
+                    kdv_toplam: Math.round(kdvToplam * 100) / 100,
+                    genel_toplam: Math.round((araToplam + kdvToplam) * 100) / 100,
+                    durum: randItem(durumlar),
+                    aciklama: randItem(iadeNedenleri),
+                    kalemler,
+                    olusturma_tarihi: faturaTarihi,
+                    guncelleme_tarihi: generateDate(30)
+                };
+            }
+            return faturalar;
+        }
+
+        // ==================== YÜKLEME FONKSİYONU ====================
+        function veriSifirla() {
+            const keys = ['emuhasebe_musteriler','emuhasebe_urunler','emuhasebe_alis_faturalari','emuhasebe_satis_faturalari','emuhasebe_iade_faturalari','emuhasebe_force_local','emuhasebe_last_sync'];
+            keys.forEach(k => localStorage.removeItem(k));
+            alert('✅ Tüm demo veriler silindi. Şimdi "Demo Verileri Yükle" butonuna basabilirsiniz.');
+        }
+
+        function setProgress(id, status) {
+            const item = document.querySelector(`#${id} .progress-icon`);
+            item.className = `progress-icon ${status}`;
+            if (status === 'loading') item.innerHTML = '⏳';
+            else if (status === 'success') item.innerHTML = '✅';
+            else if (status === 'error') item.innerHTML = '❌';
+        }
+
+        async function loadDemoData() {
+            const btn = document.getElementById('loadBtn');
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Yükleniyor...';
+            
+            try {
+                // Müşteriler
+                setProgress('prog-musteri', 'loading');
+                await new Promise(r => setTimeout(r, 300));
+                const musteriler = createMusteriler();
+                localStorage.setItem('emuhasebe_musteriler', JSON.stringify(musteriler));
+                setProgress('prog-musteri', 'success');
+                
+                // Ürünler
+                setProgress('prog-urun', 'loading');
+                await new Promise(r => setTimeout(r, 300));
+                const urunler = createUrunler();
+                localStorage.setItem('emuhasebe_urunler', JSON.stringify(urunler));
+                setProgress('prog-urun', 'success');
+                
+                // Alış Faturaları
+                setProgress('prog-alis', 'loading');
+                await new Promise(r => setTimeout(r, 300));
+                const alisFaturalari = createAlisFaturalari(musteriler, urunler);
+                localStorage.setItem('emuhasebe_alis_faturalari', JSON.stringify(alisFaturalari));
+                setProgress('prog-alis', 'success');
+                
+                // Satış Faturaları
+                setProgress('prog-satis', 'loading');
+                await new Promise(r => setTimeout(r, 300));
+                const satisFaturalari = createSatisFaturalari(musteriler, urunler);
+                localStorage.setItem('emuhasebe_satis_faturalari', JSON.stringify(satisFaturalari));
+                setProgress('prog-satis', 'success');
+                
+                // İade Faturaları
+                setProgress('prog-iade', 'loading');
+                await new Promise(r => setTimeout(r, 300));
+                const iadeFaturalari = createIadeFaturalari(musteriler, urunler);
+                localStorage.setItem('emuhasebe_iade_faturalari', JSON.stringify(iadeFaturalari));
+                setProgress('prog-iade', 'success');
+                
+                // Özet göster
+                document.getElementById('sum-musteri').textContent = Object.keys(musteriler).length;
+                document.getElementById('sum-urun').textContent = Object.keys(urunler).length;
+                document.getElementById('sum-alis').textContent = Object.keys(alisFaturalari).length;
+                document.getElementById('sum-satis').textContent = Object.keys(satisFaturalari).length;
+                document.getElementById('sum-iade').textContent = Object.keys(iadeFaturalari).length;
+                document.getElementById('sum-total').textContent = 
+                    Object.keys(musteriler).length + Object.keys(urunler).length + 
+                    Object.keys(alisFaturalari).length + Object.keys(satisFaturalari).length + 
+                    Object.keys(iadeFaturalari).length;
+                
+                document.getElementById('summary').style.display = 'block';
+                btn.className = 'btn btn-success';
+                btn.innerHTML = '✅ Yükleme Tamamlandı!';
+                
+                // LocalStorage modunu aktif et (Firebase bypass)
+                localStorage.setItem('emuhasebe_force_local', 'true');
+                
+                // 2 saniye sonra ana sayfaya yönlendir
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('Hata:', error);
+                btn.innerHTML = '❌ Hata Oluştu';
+            }
+        }
+    </script>
+</body>
+</html>

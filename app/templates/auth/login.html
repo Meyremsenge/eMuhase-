@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giris - eMuhasebe Pro</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --ink: #0b0b0f;
+            --bg: #f8f5f2;
+            --accent: #ff7a18;
+            --accent-2: #facc15;
+            --shadow: rgba(15, 23, 42, 0.2);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Plus Jakarta Sans", sans-serif;
+            background: radial-gradient(1200px 800px at 10% -10%, #fff2e5, transparent),
+                        radial-gradient(1200px 800px at 90% 10%, #e5f0ff, transparent),
+                        var(--bg);
+            color: var(--ink);
+            display: grid;
+            place-items: center;
+            padding: 2rem 1.5rem;
+        }
+
+        .shell {
+            width: min(980px, 100%);
+            display: grid;
+            grid-template-columns: 1.1fr 1fr;
+            gap: 2rem;
+            align-items: stretch;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #111827, #0f172a 60%, #1f2937);
+            color: #fff;
+            border-radius: 24px;
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(2, 6, 23, 0.35);
+        }
+
+        .hero::before {
+            content: "";
+            position: absolute;
+            inset: -40% -20% auto auto;
+            width: 280px;
+            height: 280px;
+            background: radial-gradient(circle, rgba(255, 122, 24, 0.8), transparent 60%);
+            opacity: 0.6;
+            transform: rotate(15deg);
+        }
+
+        .hero h1 {
+            font-size: 2.2rem;
+            margin: 0 0 1rem 0;
+            letter-spacing: -0.02em;
+        }
+
+        .hero p {
+            margin: 0 0 2rem 0;
+            line-height: 1.6;
+            color: #cbd5f5;
+        }
+
+        .hero-list {
+            display: grid;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .hero-list span {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.45rem 0.9rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            color: #fef3c7;
+            margin-bottom: 1.5rem;
+        }
+
+        .card {
+            background: #fff;
+            border-radius: 24px;
+            padding: 2.4rem;
+            box-shadow: 0 16px 40px var(--shadow);
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .card h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .card p {
+            margin: 0;
+            color: #6b7280;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            font-size: 1rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(255, 122, 24, 0.2);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.95rem 1.2rem;
+            border-radius: 14px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            background: linear-gradient(120deg, var(--accent), var(--accent-2));
+            color: #111827;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px rgba(255, 122, 24, 0.3);
+        }
+
+        .message {
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            background: #fef2f2;
+            color: #b91c1c;
+            font-size: 0.95rem;
+            display: none;
+        }
+
+        .small {
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        @media (max-width: 880px) {
+            .shell { grid-template-columns: 1fr; }
+            .hero { order: 2; }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <section class="hero">
+            <div class="hero-badge">🔐 Guvenli Giris</div>
+            <h1>eMuhasebe Pro</h1>
+            <p>Finansal verilerinizi tek merkezden yonetin. Giris yaparak tum modullere erisin ve hareketlerinizi guvende tutun.</p>
+            <div class="hero-list">
+                <span>✅ Mustriler ve tedarikciler tek ekranda</span>
+                <span>✅ Satis, alis ve iade faturalarinda tam kontrol</span>
+                <span>✅ Anlik raporlar ve net kar/zarar takibi</span>
+            </div>
+        </section>
+
+        <section class="card">
+            <div>
+                <h2>Hesabina Giris Yap</h2>
+                <p>Yetkili bir kullanici ile devam et.</p>
+            </div>
+
+            <div class="message" id="loginError"></div>
+
+            <form id="loginForm" autocomplete="on">
+                <div>
+                    <label for="email">E-posta</label>
+                    <input id="email" name="email" type="email" placeholder="ornek@firma.com" required>
+                </div>
+                <div>
+                    <label for="password">Sifre</label>
+                    <input id="password" name="password" type="password" placeholder="••••••••" required>
+                </div>
+                <button class="btn" type="submit" id="loginBtn">Giris Yap</button>
+            </form>
+
+            <button class="btn" type="button" id="skipLoginBtn">Giris olmadan devam et</button>
+
+            <div class="small">Giris yapinca tokenlar tarayiciya kaydedilir.</div>
+        </section>
+    </div>
+
+    <script>
+        (function() {
+            const token = localStorage.getItem('emuhasebe_access_token');
+            if (token) {
+                const next = new URLSearchParams(window.location.search).get('next') || '/';
+                window.location.href = next;
+                return;
+            }
+
+            const form = document.getElementById('loginForm');
+            const btn = document.getElementById('loginBtn');
+            const skipBtn = document.getElementById('skipLoginBtn');
+            const errorBox = document.getElementById('loginError');
+
+            skipBtn.addEventListener('click', () => {
+                localStorage.setItem('emuhasebe_auth_disabled', '1');
+                const next = new URLSearchParams(window.location.search).get('next') || '/';
+                window.location.href = next;
+            });
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                errorBox.style.display = 'none';
+
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+
+                btn.disabled = true;
+                btn.textContent = 'Giris yapiliyor...';
+
+                try {
+                    const response = await fetch('/api/v1/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+
+                    let data = null;
+                    try {
+                        data = await response.json();
+                    } catch (parseError) {
+                        data = null;
+                    }
+
+                    if (!response.ok) {
+                        const msg = data?.error || data?.message || 'Giris basarisiz.';
+                        throw new Error(msg);
+                    }
+
+                    localStorage.setItem('emuhasebe_access_token', data.access_token);
+                    if (data.refresh_token) {
+                        localStorage.setItem('emuhasebe_refresh_token', data.refresh_token);
+                    }
+
+                    const next = new URLSearchParams(window.location.search).get('next') || '/';
+                    window.location.href = next;
+                } catch (err) {
+                    errorBox.textContent = err.message || 'Bir hata olustu.';
+                    errorBox.style.display = 'block';
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Giris Yap';
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

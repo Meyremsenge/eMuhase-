@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Veriler Temizleniyor - eMuhasebe Pro</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            padding: 2rem;
+        }
+        .card {
+            background: #111827;
+            border: 1px solid #1f2937;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 520px;
+            width: 100%;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+        }
+        h1 { margin: 0 0 0.75rem 0; font-size: 1.4rem; }
+        p { margin: 0; color: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Veriler temizleniyor...</h1>
+        <p>Tarayiciya kaydedilen tum eMuhasebe verileri siliniyor.</p>
+    </div>
+
+    <script>
+        (function() {
+            Object.keys(localStorage)
+                .filter((k) => k.startsWith('emuhasebe_'))
+                .forEach((k) => localStorage.removeItem(k));
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 300);
+        })();
+    </script>
+</body>
+</html>

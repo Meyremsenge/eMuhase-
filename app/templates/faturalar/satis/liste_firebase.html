@@ -1,0 +1,207 @@
+﻿{% extends 'base.html' %}
+
+{% block title %}Satış Faturaları - eMuhasebe Pro{% endblock %}
+
+{% block page_title %}Satış Faturaları{% endblock %}
+{% block page_subtitle %}Müşterilere yapılan satış faturaları{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('satis.yeni') }}" class="btn btn-primary">
+    <i class="fas fa-plus"></i>
+    Yeni Fatura
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtreler -->
+<div class="filter-bar">
+    <div class="u-flex u-flex-wrap u-gap-1 u-w-full u-align-end">
+        <div class="form-group">
+            <label class="form-label">Arama</label>
+            <input type="text" id="aramaInput" class="form-control" placeholder="Fatura no veya müşteri...">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Durum</label>
+            <select id="durumSelect" class="form-control form-select">
+                <option value="">Tümü</option>
+                <option value="beklemede">Beklemede</option>
+                <option value="odendi">Ödendi</option>
+                <option value="iptal">İptal</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <button type="button" onclick="filtrele()" class="btn btn-primary">
+                <i class="fas fa-search"></i>
+                Filtrele
+            </button>
+            <button type="button" onclick="temizle()" class="btn btn-secondary">
+                <i class="fas fa-times"></i>
+                Temizle
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Yükleniyor -->
+<div id="yukleniyorDiv" class="card is-hidden">
+    <div class="card-body u-text-center u-p-3">
+        <i class="fas fa-spinner fa-spin fa-2x u-text-primary-500"></i>
+        <p class="u-mt-1 u-text-muted">Veriler yükleniyor...</p>
+    </div>
+</div>
+
+<!-- Liste -->
+<div class="card" id="listeCard">
+    <div class="card-body u-p-0">
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Fatura No</th>
+                        <th>Müşteri</th>
+                        <th>Tarih</th>
+                        <th>Vade</th>
+                        <th>Tutar</th>
+                        <th>Durum</th>
+                        <th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody id="faturaListesi">
+                </tbody>
+            </table>
+        </div>
+        
+        <div id="bosState" class="empty-state is-hidden">
+            <div class="empty-state-icon">
+                <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <h3>Henüz fatura yok</h3>
+            <p>İlk satış faturanızı oluşturarak başlayın.</p>
+            <a href="{{ url_for('satis.yeni') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
+                Yeni Fatura Oluştur
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="sonucSayisi" class="u-mt-1 u-text-center u-text-muted"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+import { init, SatisFaturalari, Musteriler } from '{{ url_for("static", filename="js/db.js") }}';
+
+let tumFaturalar = [];
+let musteriler = {};
+
+document.addEventListener('DOMContentLoaded', async () => {
+    document.getElementById('yukleniyorDiv').style.display = 'block';
+    document.getElementById('listeCard').style.display = 'none';
+    
+    const musteriListesi = await Musteriler.hepsiniGetir();
+    musteriListesi.forEach(m => musteriler[m.id] = m.unvan);
+    
+    SatisFaturalari.dinle((faturalar) => {
+        tumFaturalar = faturalar.sort((a, b) => new Date(b.fatura_tarihi) - new Date(a.fatura_tarihi));
+        document.getElementById('yukleniyorDiv').style.display = 'none';
+        document.getElementById('listeCard').style.display = 'block';
+        listeyiGuncelle(tumFaturalar);
+    });
+});
+
+function paraFormat(tutar) {
+    return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tutar || 0);
+}
+
+function tarihFormat(tarih) {
+    if (!tarih) return '-';
+    return new Date(tarih).toLocaleDateString('tr-TR');
+}
+
+function durumBadge(durum) {
+    switch (durum) {
+        case 'odendi': return '<span class="badge badge-success">Ödendi</span>';
+        case 'iptal': return '<span class="badge badge-danger">İptal</span>';
+        default: return '<span class="badge badge-warning">Beklemede</span>';
+    }
+}
+
+function listeyiGuncelle(faturalar) {
+    const tbody = document.getElementById('faturaListesi');
+    const bosState = document.getElementById('bosState');
+    const sonucSayisi = document.getElementById('sonucSayisi');
+    
+    if (faturalar.length === 0) {
+        tbody.innerHTML = '';
+        bosState.style.display = 'block';
+        sonucSayisi.textContent = '';
+        return;
+    }
+    
+    bosState.style.display = 'none';
+    const toplam = faturalar.reduce((t, f) => t + (parseFloat(f.genel_toplam) || 0), 0);
+    sonucSayisi.textContent = `Toplam ${faturalar.length} fatura - ₺${paraFormat(toplam)}`;
+    
+    tbody.innerHTML = faturalar.map(fatura => `
+        <tr>
+            <td><strong>${fatura.fatura_no || '-'}</strong></td>
+            <td>${musteriler[fatura.musteri_id] || fatura.musteri_adi || '-'}</td>
+            <td>${tarihFormat(fatura.fatura_tarihi)}</td>
+            <td>${tarihFormat(fatura.vade_tarihi)}</td>
+            <td class="u-font-semibold">₺${paraFormat(fatura.genel_toplam)}</td>
+            <td>${durumBadge(fatura.durum)}</td>
+            <td>
+                <div class="table-actions">
+                    <a href="/faturalar/satis/detay/${fatura.id}" class="btn btn-sm btn-primary" title="Detay">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="/faturalar/satis/duzenle/${fatura.id}" class="btn btn-sm btn-secondary" title="Düzenle">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <button type="button" onclick="faturaSil('${fatura.id}', '${fatura.fatura_no}')" class="btn btn-sm btn-danger" title="Sil">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+window.filtrele = function() {
+    const arama = document.getElementById('aramaInput').value.toLowerCase();
+    const durum = document.getElementById('durumSelect').value;
+    
+    let filtrelenmis = tumFaturalar;
+    
+    if (arama) {
+        filtrelenmis = filtrelenmis.filter(f => 
+            (f.fatura_no && f.fatura_no.toLowerCase().includes(arama)) ||
+            (musteriler[f.musteri_id] && musteriler[f.musteri_id].toLowerCase().includes(arama))
+        );
+    }
+    
+    if (durum) {
+        filtrelenmis = filtrelenmis.filter(f => f.durum === durum);
+    }
+    
+    listeyiGuncelle(filtrelenmis);
+};
+
+window.temizle = function() {
+    document.getElementById('aramaInput').value = '';
+    document.getElementById('durumSelect').value = '';
+    listeyiGuncelle(tumFaturalar);
+};
+
+window.faturaSil = async function(id, faturaNo) {
+    if (confirm(`"${faturaNo}" numaralı faturayı silmek istediğinizden emin misiniz?`)) {
+        try {
+            await SatisFaturalari.sil(id);
+        } catch (error) {
+            alert('Silme işlemi başarısız: ' + error.message);
+        }
+    }
+};
+</script>
+{% endblock %}

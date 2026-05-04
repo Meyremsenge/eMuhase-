@@ -1,0 +1,51 @@
+<!-- Welcome Banner -->
+<div class="welcome-banner">
+    <div class="welcome-content">
+        <div class="welcome-text">
+            <h2><span class="pulse-dot"></span> Hoş Geldiniz!</h2>
+            <p>eMuhasebe Pro ile işletmenizi profesyonelce yönetin. Tüm finansal verileriniz tek bakışta.</p>
+        </div>
+        <div class="welcome-date">
+            <div class="date" id="currentDate">-</div>
+            <div class="time" id="currentTime">--:--</div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Header - 5 Premium Cards -->
+<div class="stats-header">
+    <div class="stat-card primary" onclick="window.location.href='/musteriler'">
+        <div class="stat-card-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-card-label">Toplam Müşteri</div>
+        <div class="stat-card-value" id="totalCustomers"><div class="skeleton skeleton-value"></div></div>
+        <div class="stat-card-change" id="customerChange"><i class="fas fa-arrow-up"></i><span>Bu ay +<span id="newCustomersCount">0</span></span></div>
+    </div>
+
+    <div class="stat-card info" onclick="window.location.href='/urunler'">
+        <div class="stat-card-icon"><i class="fas fa-boxes-stacked"></i></div>
+        <div class="stat-card-label">Toplam Ürün</div>
+        <div class="stat-card-value" id="totalProducts"><div class="skeleton skeleton-value"></div></div>
+        <div class="stat-card-change neutral" id="productChange"><i class="fas fa-box"></i><span>Aktif ürün</span></div>
+    </div>
+
+    <div class="stat-card success" onclick="window.location.href='{{ url_for('satis.liste') }}'">
+        <div class="stat-card-icon"><i class="fas fa-arrow-trend-up"></i></div>
+        <div class="stat-card-label">Toplam Gelir</div>
+        <div class="stat-card-value" id="totalIncome"><div class="skeleton skeleton-value"></div></div>
+        <div class="stat-card-change" id="incomeChange"><i class="fas fa-arrow-up"></i><span>Bu ay</span></div>
+    </div>
+
+    <div class="stat-card danger" onclick="window.location.href='{{ url_for('alis.liste') }}'">
+        <div class="stat-card-icon"><i class="fas fa-arrow-trend-down"></i></div>
+        <div class="stat-card-label">Toplam Gider</div>
+        <div class="stat-card-value" id="totalExpense"><div class="skeleton skeleton-value"></div></div>
+        <div class="stat-card-change negative" id="expenseChange"><i class="fas fa-arrow-down"></i><span>Bu ay</span></div>
+    </div>
+
+    <div class="stat-card gold" id="profitCard">
+        <div class="stat-card-icon"><i class="fas fa-coins"></i></div>
+        <div class="stat-card-label">Net Kar/Zarar</div>
+        <div class="stat-card-value" id="netProfit"><div class="skeleton skeleton-value"></div></div>
+        <div class="stat-card-change" id="profitChange"><i class="fas fa-percentage"></i><span>Kar marjı</span></div>
+    </div>
+</div>

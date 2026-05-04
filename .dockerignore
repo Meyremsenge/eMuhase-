@@ -1,0 +1,17 @@
+.git
+.env
+.env.*
+*.zip
+eMuhase-/
+eMuhase-*.zip
+.venv/
+.venv-*/
+__pycache__/
+*.py[cod]
+htmlcov/
+logs/
+instance/
+tests/
+.pytest_cache/
+.mypy_cache/
+.flask_limiter/
