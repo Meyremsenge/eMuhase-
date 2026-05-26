@@ -176,6 +176,52 @@ export function getMode() {
     return firebaseConnected ? 'firebase' : 'local';
 }
 
+// Firebase config'i yükle.
+// Öncelik sırası:
+//   1) Kullanıcının UI'dan girdiği config (localStorage 'emuhasebe_firebase_config')
+//   2) Backend tarafında env var ile sağlanan config (/api/config/firebase)
+//
+// Bu, "kendi Firebase projemi bağlamak istiyorum" akışını destekler ama
+// kurumsal kurulumlarda env'den otomatik gelmeye de izin verir.
+const FIREBASE_LOCAL_CONFIG_KEY = 'emuhasebe_firebase_config';
+
+export function getLocalFirebaseConfig() {
+    try {
+        const raw = localStorage.getItem(FIREBASE_LOCAL_CONFIG_KEY);
+        if (!raw) return null;
+        const cfg = JSON.parse(raw);
+        const required = ['apiKey', 'authDomain', 'databaseURL', 'projectId'];
+        const ok = required.every(k => cfg && typeof cfg[k] === 'string' && cfg[k].trim());
+        return ok ? cfg : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+export function setLocalFirebaseConfig(cfg) {
+    if (cfg) {
+        localStorage.setItem(FIREBASE_LOCAL_CONFIG_KEY, JSON.stringify(cfg));
+    } else {
+        localStorage.removeItem(FIREBASE_LOCAL_CONFIG_KEY);
+    }
+}
+
+async function loadFirebaseConfig() {
+    // 1) Önce kullanıcı UI'sından gelen config
+    const local = getLocalFirebaseConfig();
+    if (local) return local;
+
+    // 2) Sonra backend env config
+    try {
+        const response = await fetch('/api/config/firebase');
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.config || null;
+    } catch (e) {
+        return null;
+    }
+}
+
 // Firebase modüllerini dinamik import et
 async function initFirebase() {
     // Manuel local mod aktifse Firebase'e bağlanma
@@ -184,12 +230,18 @@ async function initFirebase() {
         firebaseConnected = false;
         return false;
     }
-    
+
+    const firebaseConfig = await loadFirebaseConfig();
+    if (!firebaseConfig) {
+        console.warn('⚠️ Firebase yapılandırması yok, LocalStorage moduna geçiliyor.');
+        firebaseConnected = false;
+        return false;
+    }
+
     try {
         const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js');
         const { getDatabase, ref, get, onValue } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js');
-        const { firebaseConfig } = await import('./firebase-config.js');
-        
+
         firebaseApp = initializeApp(firebaseConfig);
         firebaseDb = getDatabase(firebaseApp);
         
@@ -216,6 +268,34 @@ export function isOnline() {
     return firebaseConnected && !getForceLocalMode();
 }
 
+// Verilen config ile Firebase bağlantısını TEST et (kalıcı bağlanmaz).
+// UI'dan "Test Et" butonu için kullanılır.
+export async function testFirebaseConfig(cfg) {
+    if (!cfg) return { ok: false, error: 'Config boş' };
+    const required = ['apiKey', 'authDomain', 'databaseURL', 'projectId'];
+    const missing = required.filter(k => !cfg[k] || !String(cfg[k]).trim());
+    if (missing.length) {
+        return { ok: false, error: `Eksik alanlar: ${missing.join(', ')}` };
+    }
+    try {
+        const { initializeApp, deleteApp } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js');
+        const { getDatabase, ref, get } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js');
+        const testApp = initializeApp(cfg, 'emuhasebe-test-' + Date.now());
+        const testDb = getDatabase(testApp);
+        try {
+            await Promise.race([
+                get(ref(testDb, 'connection_test')),
+                new Promise((_, rej) => setTimeout(() => rej(new Error('Zaman aşımı (5s)')), 5000))
+            ]);
+            return { ok: true };
+        } finally {
+            try { await deleteApp(testApp); } catch (e) { /* ignore */ }
+        }
+    } catch (error) {
+        return { ok: false, error: error.message || 'Bağlantı kurulamadı' };
+    }
+}
+
 // ==================== LOCALSTORAGE OPERASYONLARI ====================
 const LocalDB = {
     // Veri al
@@ -233,7 +313,7 @@ const LocalDB = {
     
     // Benzersiz ID oluştur
     generateId: () => {
-        return 'local_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+        return 'local_' + Date.now().toString(36) + Math.random().toString(36).substring(2, 11);
     }
 };
 
@@ -242,52 +322,63 @@ function buildSeedDate(offsetDays) {
 }
 
 function createSeedData() {
+    // Müşteriler ve tedarikçiler — form/list ile aynı alan adlarını kullanır:
+    // unvan, tip ∈ {musteri, tedarikci, her_ikisi}, vergi_no, telefon, email, adres, aktif
     const customers = {
-        customer_1: { ad: 'Atlas Endüstri A.Ş.', tip: 'kurumsal', sehir: 'İstanbul', telefon: '0212 555 01 01', olusturma_tarihi: buildSeedDate(42), guncelleme_tarihi: buildSeedDate(42) },
-        customer_2: { ad: 'Nova Teknoloji Ltd. Şti.', tip: 'kurumsal', sehir: 'Ankara', telefon: '0312 555 01 02', olusturma_tarihi: buildSeedDate(35), guncelleme_tarihi: buildSeedDate(35) },
-        customer_3: { ad: 'Mavi Sağlık Hizmetleri', tip: 'kurumsal', sehir: 'İzmir', telefon: '0232 555 01 03', olusturma_tarihi: buildSeedDate(30), guncelleme_tarihi: buildSeedDate(30) },
-        customer_4: { ad: 'Kuzey Lojistik', tip: 'kurumsal', sehir: 'Bursa', telefon: '0224 555 01 04', olusturma_tarihi: buildSeedDate(28), guncelleme_tarihi: buildSeedDate(28) },
-        customer_5: { ad: 'Deniz Yapı Market', tip: 'kurumsal', sehir: 'Antalya', telefon: '0242 555 01 05', olusturma_tarihi: buildSeedDate(24), guncelleme_tarihi: buildSeedDate(24) },
-        customer_6: { ad: 'Selin Yılmaz', tip: 'bireysel', sehir: 'Eskişehir', telefon: '0532 111 22 33', olusturma_tarihi: buildSeedDate(20), guncelleme_tarihi: buildSeedDate(20) },
-        customer_7: { ad: 'Emre Kaya', tip: 'bireysel', sehir: 'Konya', telefon: '0533 222 33 44', olusturma_tarihi: buildSeedDate(18), guncelleme_tarihi: buildSeedDate(18) },
-        customer_8: { ad: 'Pera Danışmanlık', tip: 'kurumsal', sehir: 'İstanbul', telefon: '0212 555 01 08', olusturma_tarihi: buildSeedDate(16), guncelleme_tarihi: buildSeedDate(16) },
-        customer_9: { ad: 'Yıldız Ofis Çözümleri', tip: 'kurumsal', sehir: 'Ankara', telefon: '0312 555 01 09', olusturma_tarihi: buildSeedDate(13), guncelleme_tarihi: buildSeedDate(13) },
-        customer_10: { ad: 'Alya Bilişim', tip: 'kurumsal', sehir: 'Kocaeli', telefon: '0262 555 01 10', olusturma_tarihi: buildSeedDate(11), guncelleme_tarihi: buildSeedDate(11) }
+        customer_1:  { unvan: 'Atlas Endüstri A.Ş.',       tip: 'musteri',   vergi_no: '1112223334', telefon: '0212 555 01 01', email: 'info@atlas.com',  adres: 'İstanbul', aktif: true, olusturma_tarihi: buildSeedDate(42), guncelleme_tarihi: buildSeedDate(42) },
+        customer_2:  { unvan: 'Nova Teknoloji Ltd. Şti.',  tip: 'musteri',   vergi_no: '2223334445', telefon: '0312 555 01 02', email: 'info@nova.com',   adres: 'Ankara',   aktif: true, olusturma_tarihi: buildSeedDate(35), guncelleme_tarihi: buildSeedDate(35) },
+        customer_3:  { unvan: 'Mavi Sağlık Hizmetleri',    tip: 'musteri',   vergi_no: '3334445556', telefon: '0232 555 01 03', email: 'info@mavi.com',   adres: 'İzmir',    aktif: true, olusturma_tarihi: buildSeedDate(30), guncelleme_tarihi: buildSeedDate(30) },
+        customer_4:  { unvan: 'Kuzey Lojistik',            tip: 'musteri',   vergi_no: '4445556667', telefon: '0224 555 01 04', email: 'info@kuzey.com',  adres: 'Bursa',    aktif: true, olusturma_tarihi: buildSeedDate(28), guncelleme_tarihi: buildSeedDate(28) },
+        customer_5:  { unvan: 'Deniz Yapı Market',         tip: 'musteri',   vergi_no: '5556667778', telefon: '0242 555 01 05', email: 'info@deniz.com',  adres: 'Antalya',  aktif: true, olusturma_tarihi: buildSeedDate(24), guncelleme_tarihi: buildSeedDate(24) },
+        customer_6:  { unvan: 'Selin Yılmaz',              tip: 'musteri',   vergi_no: '12345678901',telefon: '0532 111 22 33', email: 'selin@example.com', adres: 'Eskişehir', aktif: true, olusturma_tarihi: buildSeedDate(20), guncelleme_tarihi: buildSeedDate(20) },
+        customer_7:  { unvan: 'Tekno Dağıtım',             tip: 'tedarikci', vergi_no: '6667778889', telefon: '0212 555 02 01', email: 'info@tekno.com',  adres: 'İstanbul', aktif: true, olusturma_tarihi: buildSeedDate(18), guncelleme_tarihi: buildSeedDate(18) },
+        customer_8:  { unvan: 'Marmara Bilişim',           tip: 'tedarikci', vergi_no: '7778889990', telefon: '0212 555 02 02', email: 'info@marmara.com',adres: 'İstanbul', aktif: true, olusturma_tarihi: buildSeedDate(16), guncelleme_tarihi: buildSeedDate(16) },
+        customer_9:  { unvan: 'Anadolu Tedarik',           tip: 'tedarikci', vergi_no: '8889990001', telefon: '0312 555 02 03', email: 'info@anadolu.com',adres: 'Ankara',   aktif: true, olusturma_tarihi: buildSeedDate(13), guncelleme_tarihi: buildSeedDate(13) },
+        customer_10: { unvan: 'Penta Çözüm',               tip: 'her_ikisi', vergi_no: '9990001112', telefon: '0262 555 02 04', email: 'info@penta.com',  adres: 'Kocaeli',  aktif: true, olusturma_tarihi: buildSeedDate(11), guncelleme_tarihi: buildSeedDate(11) }
     };
 
+    // Ürünler — form/list ile aynı alan adlarını kullanır:
+    // kod, ad, birim, kdv_orani, stok_miktari, alis_fiyat, satis_fiyat, aktif
     const products = {
-        product_1: { ad: 'Dell Latitude 5540', kategori: 'Bilgisayar', stok: 18, alis_fiyat: 33500, satis_fiyat: 41900, kdv: 20, olusturma_tarihi: buildSeedDate(50), guncelleme_tarihi: buildSeedDate(50) },
-        product_2: { ad: 'HP ProBook 450 G10', kategori: 'Bilgisayar', stok: 14, alis_fiyat: 28500, satis_fiyat: 35900, kdv: 20, olusturma_tarihi: buildSeedDate(49), guncelleme_tarihi: buildSeedDate(49) },
-        product_3: { ad: 'Logitech MX Master 3S', kategori: 'Aksesuar', stok: 36, alis_fiyat: 1450, satis_fiyat: 2190, kdv: 20, olusturma_tarihi: buildSeedDate(48), guncelleme_tarihi: buildSeedDate(48) },
-        product_4: { ad: 'Samsung 1TB NVMe SSD', kategori: 'Depolama', stok: 42, alis_fiyat: 1950, satis_fiyat: 2790, kdv: 20, olusturma_tarihi: buildSeedDate(47), guncelleme_tarihi: buildSeedDate(47) },
-        product_5: { ad: 'Brother HL-L2375DW', kategori: 'Yazıcı', stok: 11, alis_fiyat: 7250, satis_fiyat: 8990, kdv: 20, olusturma_tarihi: buildSeedDate(46), guncelleme_tarihi: buildSeedDate(46) },
-        product_6: { ad: 'Cisco 24 Port Switch', kategori: 'Ağ', stok: 9, alis_fiyat: 9800, satis_fiyat: 12490, kdv: 20, olusturma_tarihi: buildSeedDate(45), guncelleme_tarihi: buildSeedDate(45) },
-        product_7: { ad: 'A4 Fotokopi Kağıdı', kategori: 'Sarf', stok: 240, alis_fiyat: 95, satis_fiyat: 149, kdv: 20, olusturma_tarihi: buildSeedDate(44), guncelleme_tarihi: buildSeedDate(44) },
-        product_8: { ad: 'IP Kamera 4MP', kategori: 'Güvenlik', stok: 26, alis_fiyat: 2100, satis_fiyat: 2990, kdv: 20, olusturma_tarihi: buildSeedDate(43), guncelleme_tarihi: buildSeedDate(43) },
-        product_9: { ad: 'Ofis Koltuğu Ergonomik', kategori: 'Ofis', stok: 15, alis_fiyat: 2650, satis_fiyat: 3490, kdv: 20, olusturma_tarihi: buildSeedDate(42), guncelleme_tarihi: buildSeedDate(42) },
-        product_10: { ad: 'İşletim Sistemi Lisans Paketi', kategori: 'Yazılım', stok: 60, alis_fiyat: 1250, satis_fiyat: 1890, kdv: 20, olusturma_tarihi: buildSeedDate(41), guncelleme_tarihi: buildSeedDate(41) }
+        product_1:  { kod: 'ELK-001', ad: 'Dell Latitude 5540',         birim: 'Adet',  kdv_orani: 20, stok_miktari: 18,  alis_fiyat: 33500, satis_fiyat: 41900, aktif: true, olusturma_tarihi: buildSeedDate(50), guncelleme_tarihi: buildSeedDate(50) },
+        product_2:  { kod: 'ELK-002', ad: 'HP ProBook 450 G10',         birim: 'Adet',  kdv_orani: 20, stok_miktari: 14,  alis_fiyat: 28500, satis_fiyat: 35900, aktif: true, olusturma_tarihi: buildSeedDate(49), guncelleme_tarihi: buildSeedDate(49) },
+        product_3:  { kod: 'ELK-010', ad: 'Logitech MX Master 3S',      birim: 'Adet',  kdv_orani: 20, stok_miktari: 36,  alis_fiyat: 1450,  satis_fiyat: 2190,  aktif: true, olusturma_tarihi: buildSeedDate(48), guncelleme_tarihi: buildSeedDate(48) },
+        product_4:  { kod: 'ELK-011', ad: 'Samsung 1TB NVMe SSD',       birim: 'Adet',  kdv_orani: 20, stok_miktari: 42,  alis_fiyat: 1950,  satis_fiyat: 2790,  aktif: true, olusturma_tarihi: buildSeedDate(47), guncelleme_tarihi: buildSeedDate(47) },
+        product_5:  { kod: 'ELK-005', ad: 'Brother HL-L2375DW',         birim: 'Adet',  kdv_orani: 20, stok_miktari: 11,  alis_fiyat: 7250,  satis_fiyat: 8990,  aktif: true, olusturma_tarihi: buildSeedDate(46), guncelleme_tarihi: buildSeedDate(46) },
+        product_6:  { kod: 'ELK-006', ad: 'Cisco 24 Port Switch',       birim: 'Adet',  kdv_orani: 20, stok_miktari: 9,   alis_fiyat: 9800,  satis_fiyat: 12490, aktif: true, olusturma_tarihi: buildSeedDate(45), guncelleme_tarihi: buildSeedDate(45) },
+        product_7:  { kod: 'SFT-003', ad: 'A4 Fotokopi Kağıdı',         birim: 'Paket', kdv_orani: 20, stok_miktari: 240, alis_fiyat: 95,    satis_fiyat: 149,   aktif: true, olusturma_tarihi: buildSeedDate(44), guncelleme_tarihi: buildSeedDate(44) },
+        product_8:  { kod: 'TEK-001', ad: 'IP Kamera 4MP',              birim: 'Adet',  kdv_orani: 20, stok_miktari: 26,  alis_fiyat: 2100,  satis_fiyat: 2990,  aktif: true, olusturma_tarihi: buildSeedDate(43), guncelleme_tarihi: buildSeedDate(43) },
+        product_9:  { kod: 'OFS-001', ad: 'Ofis Koltuğu Ergonomik',     birim: 'Adet',  kdv_orani: 20, stok_miktari: 15,  alis_fiyat: 2650,  satis_fiyat: 3490,  aktif: true, olusturma_tarihi: buildSeedDate(42), guncelleme_tarihi: buildSeedDate(42) },
+        product_10: { kod: 'SFT-001', ad: 'İşletim Sistemi Lisans Paketi', birim: 'Adet', kdv_orani: 20, stok_miktari: 60, alis_fiyat: 1250, satis_fiyat: 1890, aktif: true, olusturma_tarihi: buildSeedDate(41), guncelleme_tarihi: buildSeedDate(41) }
     };
 
     const customerList = Object.entries(customers).map(([id, data]) => ({ id, ...data }));
     const productList = Object.entries(products).map(([id, data]) => ({ id, ...data }));
+    const tedarikciList = customerList.filter(c => c.tip === 'tedarikci' || c.tip === 'her_ikisi');
+    const aliciList = customerList.filter(c => c.tip === 'musteri' || c.tip === 'her_ikisi');
 
     const salesInvoices = {};
     const purchaseInvoices = {};
     const returnInvoices = {};
 
     for (let i = 0; i < 10; i++) {
-        const customer = customerList[i % customerList.length];
+        const customer = aliciList[i % aliciList.length];
+        const tedarikci = tedarikciList[i % tedarikciList.length];
         const product = productList[i % productList.length];
+
         const saleQty = 2 + (i % 4);
         const saleTotal = product.satis_fiyat * saleQty;
         const saleDate = buildSeedDate(9 - i);
         salesInvoices[`sale_${i + 1}`] = {
             fatura_no: `SF-2026-${String(i + 1).padStart(4, '0')}`,
-            musteri_adi: customer.ad,
+            musteri_id: customer.id,
+            musteri_adi: customer.unvan,
             fatura_tarihi: saleDate,
             genel_toplam: saleTotal,
+            ara_toplam: saleTotal,
+            kdv_toplam: 0,
             durum: i % 3 === 0 ? 'beklemede' : 'odendi',
-            kalemler: [{ urun_adi: product.ad, miktar: saleQty, birim_fiyat: product.satis_fiyat, toplam: saleTotal }],
+            kalemler: [{ aciklama: product.ad, urun_adi: product.ad, miktar: saleQty, birim_fiyat: product.satis_fiyat, kdv_orani: 20, toplam: saleTotal, genel_toplam: saleTotal }],
             olusturma_tarihi: saleDate,
             guncelleme_tarihi: saleDate
         };
@@ -297,23 +388,32 @@ function createSeedData() {
         const purchaseDate = buildSeedDate(18 - i);
         purchaseInvoices[`purchase_${i + 1}`] = {
             fatura_no: `AF-2026-${String(i + 1).padStart(4, '0')}`,
-            tedarikci_adi: ['Tekno Dağıtım', 'Marmara Bilişim', 'Anadolu Tedarik', 'Metro Elektronik', 'Penta Çözüm'][i % 5],
+            tedarikci_id: tedarikci.id,
+            tedarikci_adi: tedarikci.unvan,
             fatura_tarihi: purchaseDate,
             genel_toplam: purchaseTotal,
+            ara_toplam: purchaseTotal,
+            kdv_toplam: 0,
             durum: i % 4 === 0 ? 'beklemede' : 'odendi',
-            kalemler: [{ urun_adi: product.ad, miktar: purchaseQty, birim_fiyat: product.alis_fiyat, toplam: purchaseTotal }],
+            kalemler: [{ aciklama: product.ad, urun_adi: product.ad, miktar: purchaseQty, birim_fiyat: product.alis_fiyat, kdv_orani: 20, toplam: purchaseTotal, genel_toplam: purchaseTotal }],
             olusturma_tarihi: purchaseDate,
             guncelleme_tarihi: purchaseDate
         };
 
         const returnDate = buildSeedDate(5 - i);
+        const returnTotal = Math.round(product.satis_fiyat * 0.5);
         returnInvoices[`return_${i + 1}`] = {
             fatura_no: `IF-2026-${String(i + 1).padStart(4, '0')}`,
-            musteri_adi: customer.ad,
+            iade_tipi: i % 2 === 0 ? 'satis_iade' : 'alis_iade',
+            cari_id: i % 2 === 0 ? customer.id : tedarikci.id,
+            cari_adi: i % 2 === 0 ? customer.unvan : tedarikci.unvan,
             fatura_tarihi: returnDate,
-            genel_toplam: Math.round(product.satis_fiyat * 0.5),
+            genel_toplam: returnTotal,
+            ara_toplam: returnTotal,
+            kdv_toplam: 0,
+            durum: i % 3 === 0 ? 'beklemede' : 'tamamlandi',
             sebep: ['Ürün uyumsuzluğu', 'Kutuda hasar', 'Yanlış model', 'Kurulum problemi'][i % 4],
-            kalemler: [{ urun_adi: product.ad, miktar: 1, birim_fiyat: Math.round(product.satis_fiyat * 0.5), toplam: Math.round(product.satis_fiyat * 0.5) }],
+            kalemler: [{ aciklama: product.ad, urun_adi: product.ad, miktar: 1, birim_fiyat: returnTotal, kdv_orani: 20, toplam: returnTotal, genel_toplam: returnTotal }],
             olusturma_tarihi: returnDate,
             guncelleme_tarihi: returnDate
         };
@@ -358,9 +458,12 @@ async function getFirebaseRefs() {
 }
 
 // ==================== GENERIC CRUD OPERASYONLARI ====================
+// Aktif local listener'ları takip et — leak'i engelle
+const _activeLocalListeners = new Map();
+
 function createCRUD(collectionName) {
     return {
-        // Realtime dinle
+        // Realtime dinle — bir collection için sadece tek bir aktif listener tutar
         dinle: async (callback) => {
             if (firebaseConnected) {
                 const { ref, onValue } = await getFirebaseRefs();
@@ -371,20 +474,24 @@ function createCRUD(collectionName) {
                     callback(items);
                 });
             } else {
-                // LocalStorage için polling veya event dinle
+                // LocalStorage için event dinle (leak yok: önceki listener silinir)
                 const getData = () => {
                     const data = LocalDB.get(collectionName);
                     const items = Object.entries(data).map(([id, val]) => ({ id, ...val }));
                     callback(items);
                 };
                 getData(); // İlk yükleme
-                
-                // Değişiklik dinle
-                window.addEventListener('localdb-change', (e) => {
-                    if (e.detail.collection === collectionName) {
-                        getData();
-                    }
-                });
+
+                // Önceki listener varsa kaldır
+                const previous = _activeLocalListeners.get(collectionName);
+                if (previous) {
+                    window.removeEventListener('localdb-change', previous);
+                }
+                const handler = (e) => {
+                    if (e.detail && e.detail.collection === collectionName) getData();
+                };
+                _activeLocalListeners.set(collectionName, handler);
+                window.addEventListener('localdb-change', handler);
             }
         },
 
@@ -570,12 +677,16 @@ export const Dashboard = {
             // İlk yükleme
             const stats = await Dashboard.istatistikler();
             callback(stats);
-            
-            // LocalDB değişikliklerini dinle
-            window.addEventListener('localdb-change', async () => {
+
+            // LocalDB değişikliklerini dinle — leak'i engelle
+            const previous = _activeLocalListeners.get('__dashboard__');
+            if (previous) window.removeEventListener('localdb-change', previous);
+            const handler = async () => {
                 const stats = await Dashboard.istatistikler();
                 callback(stats);
-            });
+            };
+            _activeLocalListeners.set('__dashboard__', handler);
+            window.addEventListener('localdb-change', handler);
         }
     }
 };
@@ -598,7 +709,7 @@ export const Yardimci = {
 
     // Benzersiz ID oluştur
     benzersizId: () => {
-        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        return Date.now().toString(36) + Math.random().toString(36).substring(2);
     },
     
     // Fatura numarası oluştur
@@ -888,7 +999,7 @@ export async function init() {
             isOnline,
             getMode,
             setMode,
-            loadDemoData,
+            loadDemoData: window.loadDemoData,
             Musteriler,
             Urunler,
             AlisFaturalari,
@@ -897,15 +1008,14 @@ export async function init() {
             Dashboard,
             Yardimci,
             Sync,
-            Toast
+            Toast: window.Toast
         };
         // Durum göster
         const mode = getMode();
         const forceLocal = getForceLocalMode();
-        
+
         if (mode === 'firebase') {
             // Firebase modunda otomatik senkronizasyon yap
-                loadDemoData,
             setTimeout(async () => {
                 await Sync.fullSync(true);
                 // Otomatik sync başlat (her 2 dakikada bir)

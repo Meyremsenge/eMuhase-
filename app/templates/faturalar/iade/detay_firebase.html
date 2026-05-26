@@ -5,6 +5,11 @@
 {% block page_title %}İade Faturası Detay{% endblock %}
 {% block page_subtitle %}Fatura bilgileri ve kalem detayları{% endblock %}
 
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+{% endblock %}
+
 {% block content %}
 <div class="card fade-in">
     <div class="card-header">
@@ -12,14 +17,18 @@
             <i class="fas fa-undo-alt u-text-warning-500 u-mr-0-5"></i>
             <span id="faturaNo">Fatura No: -</span>
         </h3>
-        <div class="u-flex u-gap-0-5">
+        <div class="u-flex u-gap-0-5 u-flex-wrap">
             <a href="{{ url_for('iade.liste') }}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left"></i>
                 Geri Dön
             </a>
-            <button type="button" class="btn btn-warning" onclick="yazdir()">
+            <button type="button" class="btn btn--ghost" onclick="yazdir()">
                 <i class="fas fa-print"></i>
                 Yazdır
+            </button>
+            <button type="button" class="btn btn-warning" id="pdfBtn" disabled>
+                <i class="fas fa-file-pdf"></i>
+                PDF İndir
             </button>
         </div>
     </div>
@@ -104,6 +113,9 @@
 {% block extra_js %}
 <script type="module">
 import { init, IadeFaturalari, Musteriler, Urunler } from '{{ url_for("static", filename="js/db.js") }}';
+import { faturaPdfIndir } from '{{ url_for("static", filename="js/fatura-export.js") }}';
+
+let _aktifFatura = null;
 
 function paraFormat(tutar) {
     return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tutar || 0);
@@ -180,27 +192,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('detayNeden').textContent = fatura.iade_nedeni || '-';
         
         // Fatura kalemlerini doldur
-        const kalemler = fatura.kalemler || [];
+        const esc = (s) => String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+        const kalemler = Array.isArray(fatura.kalemler) ? fatura.kalemler
+            : (fatura.kalemler ? Object.values(fatura.kalemler) : []);
         document.getElementById('faturaKalemleri').innerHTML = kalemler.length > 0
-            ? kalemler.map((k, i) => `
+            ? kalemler.map((k, i) => {
+                const urunAdi = urunMap[k.urun_id] || k.urun_adi || k.aciklama || '-';
+                const kdvTutar = k.kdv_tutar ?? k.kdv_tutari ?? 0;
+                const toplam = k.toplam ?? k.genel_toplam ?? 0;
+                return `
                 <tr>
                     <td>${i + 1}</td>
-                    <td>${urunMap[k.urun_id] || k.urun_adi || '-'}</td>
-                    <td class="u-text-right">${k.miktar}</td>
-                    <td>${k.birim || 'Adet'}</td>
+                    <td>${esc(urunAdi)}</td>
+                    <td class="u-text-right">${esc(k.miktar)}</td>
+                    <td>${esc(k.birim || 'Adet')}</td>
                     <td class="u-text-right">₺${paraFormat(k.birim_fiyat)}</td>
-                    <td class="u-text-right">%${k.kdv_orani || 0}</td>
-                    <td class="u-text-right">₺${paraFormat(k.kdv_tutari)}</td>
-                    <td class="u-text-right">₺${paraFormat(k.toplam)}</td>
+                    <td class="u-text-right">%${esc(k.kdv_orani || 0)}</td>
+                    <td class="u-text-right">₺${paraFormat(kdvTutar)}</td>
+                    <td class="u-text-right">₺${paraFormat(toplam)}</td>
                 </tr>
-            `).join('')
+            `;
+            }).join('')
             : '<tr><td colspan="8" class="table-empty">Fatura kalemi yok</td></tr>';
         
         // Toplamları doldur
         document.getElementById('araToplam').textContent = `₺${paraFormat(fatura.ara_toplam)}`;
         document.getElementById('toplamKdv').textContent = `₺${paraFormat(fatura.kdv_toplam)}`;
         document.getElementById('genelToplam').textContent = `₺${paraFormat(fatura.genel_toplam)}`;
-        
+
+        _aktifFatura = { ...fatura, _cari_resolved: cariMap[fatura.cari_id] || fatura.cari_adi || '-' };
+        document.getElementById('pdfBtn').disabled = false;
+
     } catch (error) {
         console.error('Fatura yüklenirken hata:', error);
         alert('Fatura yüklenirken bir hata oluştu');
@@ -210,5 +235,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 window.yazdir = function() {
     window.print();
 };
+
+document.getElementById('pdfBtn').addEventListener('click', async () => {
+    if (!_aktifFatura) return;
+    try {
+        await faturaPdfIndir(_aktifFatura, {
+            baslik: 'IADE FATURASI',
+            cariEtiket: 'Cari',
+            cariAdi: _aktifFatura._cari_resolved,
+            accentColor: [245, 158, 11]
+        });
+    } catch (e) {
+        alert('PDF oluşturulamadı: ' + e.message);
+    }
+});
 </script>
 {% endblock %}

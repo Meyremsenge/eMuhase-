@@ -1,5 +1,5 @@
-﻿<!DOCTYPE html>
-<html lang="tr" data-theme="dark">
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,11 +13,17 @@
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Ana CSS (cache-bust) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ range(1, 999999) | random }}">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
+    <!-- Ana CSS — sürüm bilgisiyle cache-bust (deploy başına bir kez değişir) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ config.get('APP_VERSION', '1.0.0') }}">
+
+    <!-- PWA -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#334155">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="eMuhasebe">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo1.png') }}">
     
     
     <!-- Veritabanı Modülü (Firebase + LocalStorage Fallback) -->
@@ -237,9 +243,43 @@
 
 </head>
 <body>
+    <!-- Skip Link (A11y) -->
+    <a href="#mainContent" class="skip-link">Ana içeriğe geç</a>
+
+    <!-- Mobil Sidebar Backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
+
+    <!-- Custom Confirm Modal (Sprint 3) -->
+    <div class="confirm-modal-overlay" id="confirmModalOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle" aria-describedby="confirmModalMessage">
+        <div class="confirm-modal" id="confirmModal">
+            <div class="confirm-modal-icon danger" id="confirmModalIcon" aria-hidden="true">
+                <i class="fas fa-trash-alt" id="confirmModalIconInner"></i>
+            </div>
+            <h3 class="confirm-modal-title" id="confirmModalTitle">Silmek istediğinize emin misiniz?</h3>
+            <p class="confirm-modal-message" id="confirmModalMessage">Bu işlem geri alınamaz.</p>
+            <div class="confirm-modal-item is-hidden" id="confirmModalItem"></div>
+            <div class="confirm-modal-actions">
+                <button type="button" class="btn btn--ghost" id="confirmModalCancelBtn" aria-label="İptal">
+                    <i class="fas fa-times"></i> İptal
+                </button>
+                <button type="button" class="btn btn--danger" id="confirmModalOkBtn">
+                    <i class="fas fa-trash-alt"></i> <span id="confirmModalOkLabel">Sil</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Undo Toast (Sprint 3) -->
+    <div class="undo-toast" id="undoToast" role="status" aria-live="polite" aria-atomic="true">
+        <i class="fas fa-check-circle text-success"></i>
+        <span id="undoToastMsg">Kayıt silindi.</span>
+        <button type="button" class="undo-toast-btn" id="undoToastBtn" aria-label="Geri al">Geri Al</button>
+        <div class="undo-toast-progress" id="undoToastProgress" style="width:100%"></div>
+    </div>
+
     <div class="app-container">
         <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar" id="sidebar" role="navigation" aria-label="Ana menü">
             <div class="sidebar-header">
                 <div class="sidebar-logo">
                     <img src="{{ url_for('static', filename='img/logo1.png') }}" alt="eMuhasebe Logo" class="sidebar-logo-img">
@@ -260,6 +300,10 @@
                     <a href="{{ url_for('main.index') }}" class="nav-item {% if request.endpoint == 'main.index' %}active{% endif %}">
                         <i class="fas fa-home"></i>
                         <span>Dashboard</span>
+                    </a>
+                    <a href="{{ url_for('main.bildirimler') }}" class="nav-item {% if request.endpoint == 'main.bildirimler' %}active{% endif %}">
+                        <i class="fas fa-bell"></i>
+                        <span>Bildirimler</span>
                     </a>
                 </div>
                 
@@ -292,6 +336,19 @@
                         <span>Ürünler / Hizmetler</span>
                     </a>
                 </div>
+
+                <!-- Hesap -->
+                <div class="nav-section">
+                    <div class="nav-section-title">Hesap</div>
+                    <a href="{{ url_for('main.giris') }}" class="nav-item {% if request.endpoint == 'main.giris' %}active{% endif %}" id="navGirisLink">
+                        <i class="fas fa-right-to-bracket"></i>
+                        <span>Giriş</span>
+                    </a>
+                    <a href="#" class="nav-item" id="navCikisLink" onclick="logout(event)" hidden>
+                        <i class="fas fa-right-from-bracket"></i>
+                        <span>Çıkış</span>
+                    </a>
+                </div>
             </nav>
 
             <div class="sidebar-footer"></div>
@@ -300,18 +357,20 @@
         <!-- Ana İçerik -->
         <main class="main-content">
             <!-- Header -->
-            <header class="main-header">
-                <div class="header-title">
-                    <h2>{% block page_title %}Dashboard{% endblock %}</h2>
-                    <p>{% block page_subtitle %}Hoş geldiniz{% endblock %}</p>
+            <header class="main-header" role="banner">
+                <div class="header-title" style="display:flex;align-items:center;gap:0.75rem">
+                    <!-- Hamburger (mobil) -->
+                    <button class="hamburger-btn" id="hamburgerBtn" type="button" aria-label="Menüyü aç" aria-expanded="false" aria-controls="sidebar">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div>
+                        <h2>{% block page_title %}Dashboard{% endblock %}</h2>
+                        <p>{% block page_subtitle %}Hoş geldiniz{% endblock %}</p>
+                    </div>
                 </div>
                 <div class="header-actions">
-                    <button class="demo-data-btn btn btn--ghost" id="demoDataBtn" type="button" title="Demo Veri Ekle" onclick="window.loadDemoData && window.loadDemoData()">
-                        <span class="demo-data-icon"><i class="fas fa-database"></i></span>
-                        <span class="demo-data-label">Demo Veri Ekle</span>
-                    </button>
-                    <button class="theme-toggle btn btn--ghost" id="themeToggle" type="button" title="Tema Değiştir">
-                        <span class="theme-toggle-icon"><i class="fas fa-moon" id="themeIcon"></i></span>
+                    <button class="theme-toggle btn btn--ghost" id="themeToggle" type="button" title="Tema Değiştir" aria-label="Temayı değiştir">
+                        <span class="theme-toggle-icon" aria-hidden="true"><i class="fas fa-moon" id="themeIcon"></i></span>
                         <span class="theme-toggle-label" id="themeLabel">Açık Tema</span>
                     </button>
                     {% block header_actions %}{% endblock %}
@@ -319,7 +378,7 @@
             </header>
 
             <!-- İçerik Alanı -->
-            <div class="content-area">
+            <div class="content-area" id="mainContent" tabindex="-1">
                 {% block content %}{% endblock %}
             </div>
         </main>
@@ -345,17 +404,227 @@
     
     <!-- Veritabanı Mod Toggle ve Sync Butonları -->
     <div id="dbModeToggle" class="db-mode-toggle">
+        <!-- Firebase Kurulum Butonu -->
+        <button id="firebaseSetupBtn" onclick="showFirebaseSetup()" class="db-mode-sync-btn" title="Firebase'i Bağla" aria-label="Firebase'i bağla">
+            <i class="fas fa-fire"></i>
+        </button>
+
+        <!-- AI Kurulum Butonu -->
+        <button id="aiSetupBtn" onclick="showAiSetup()" class="db-mode-sync-btn" title="Yapay Zeka Anahtarını Bağla" aria-label="Yapay zeka bağla">
+            <i class="fas fa-robot"></i>
+        </button>
+
         <!-- Manuel Sync Butonu -->
         <button id="syncBtn" onclick="manualSync()" class="db-mode-sync-btn" title="Verileri Senkronize Et">
             <i class="fas fa-sync-alt"></i>
         </button>
-        
+
         <!-- Mod Butonu -->
         <button id="dbModeBtn" onclick="showModePopup()" class="db-mode-btn">
             <span id="dbModeIcon" class="db-mode-icon"></span>
             <span id="dbModeText">Yükleniyor...</span>
             <i class="fas fa-exchange-alt db-mode-switch-icon"></i>
         </button>
+    </div>
+
+    <!-- Firebase Kurulum Modal -->
+    <div id="firebaseSetupOverlay" class="firebase-setup-overlay" role="dialog" aria-modal="true" aria-labelledby="firebaseSetupTitle">
+        <div class="firebase-setup-modal">
+            <div class="firebase-setup-header">
+                <div class="firebase-setup-header-icon"><i class="fas fa-fire"></i></div>
+                <div>
+                    <h3 class="firebase-setup-title" id="firebaseSetupTitle">Firebase'i Bağla</h3>
+                    <p class="firebase-setup-subtitle">Kendi Firebase projeni eMuhasebe ile birleştir</p>
+                </div>
+                <button type="button" class="firebase-setup-close" id="firebaseSetupClose" aria-label="Kapat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="firebase-setup-body">
+                <!-- Mevcut bağlantı durumu -->
+                <div class="firebase-status" id="firebaseStatus" hidden></div>
+
+                <!-- Adım adım talimatlar -->
+                <details class="firebase-setup-steps" open>
+                    <summary><strong>Nasıl Firebase config'i alırım?</strong> (Tıkla)</summary>
+                    <ol class="firebase-setup-steps-list">
+                        <li><a href="https://console.firebase.google.com/" target="_blank" rel="noopener">Firebase Console</a>'a git ve yeni bir proje oluştur (ya da mevcut projeni seç).</li>
+                        <li>Sol menüden <b>Realtime Database</b>'i etkinleştir. Test modunda başlayabilirsin.</li>
+                        <li>Sol üstte <b>Project Settings</b> (⚙ dişli simgesi) &gt; <b>General</b>'a gel.</li>
+                        <li>"Your apps" bölümünden <b>Web (&lt;/&gt;)</b> simgesine tıkla ve uygulamayı kaydet.</li>
+                        <li>Firebase sana bir <code>firebaseConfig</code> nesnesi gösterecek; aşağıdaki alanlara kopyala. (Ya da JSON'u olduğu gibi yapıştır.)</li>
+                    </ol>
+                    <p class="firebase-setup-hint">
+                        <i class="fas fa-info-circle"></i>
+                        Veriler doğrudan kendi Firebase projende saklanır. eMuhasebe bu config'i tarayıcında lokal olarak tutar.
+                    </p>
+                </details>
+
+                <details class="firebase-setup-steps">
+                    <summary><strong>Güvenlik kuralları (production için önerilen)</strong> 🔒</summary>
+                    <p style="font-size:0.85rem; color:var(--text-secondary); margin:0.5rem 0;">
+                        Firebase Console → <b>Realtime Database</b> → <b>Rules</b> sekmesine aşağıdaki kuralları yapıştır.
+                        "Test mode" başlangıçta açıktır ve <b>30 gün sonra herkese kapanır</b>. Üretimde mutlaka değiştir.
+                    </p>
+                    <p style="font-size:0.8rem; font-weight:600; margin:0.5rem 0 0.25rem;">Sadece kendin için (en basit):</p>
+                    <pre style="background:var(--bg-900,#0f172a); color:#e2e8f0; padding:0.75rem; border-radius:8px; font-size:0.75rem; overflow:auto; margin:0;">{
+  "rules": {
+    ".read":  "auth != null",
+    ".write": "auth != null"
+  }
+}</pre>
+                    <p style="font-size:0.8rem; font-weight:600; margin:0.75rem 0 0.25rem;">Tek kullanıcılı (UID eşleşmesi):</p>
+                    <pre style="background:var(--bg-900,#0f172a); color:#e2e8f0; padding:0.75rem; border-radius:8px; font-size:0.75rem; overflow:auto; margin:0;">{
+  "rules": {
+    ".read":  "auth != null &amp;&amp; auth.uid == 'BURAYA_KENDI_UID'",
+    ".write": "auth != null &amp;&amp; auth.uid == 'BURAYA_KENDI_UID'"
+  }
+}</pre>
+                    <p class="firebase-setup-hint" style="margin-top:0.75rem;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <b>Test mode</b> ({"\".read\": true, \".write\": true"}) projeni internete açık bırakır. Asla üretimde kullanma.
+                        Detaylı rehber: <a href="https://firebase.google.com/docs/database/security" target="_blank" rel="noopener">firebase.google.com/docs/database/security</a>
+                    </p>
+                </details>
+
+                <!-- JSON yapıştırma alanı -->
+                <div class="firebase-setup-paste">
+                    <label class="form-label" for="firebaseJsonPaste">
+                        Hızlı yol: <code>firebaseConfig</code> nesnesini yapıştır
+                    </label>
+                    <textarea id="firebaseJsonPaste" class="form-control firebase-setup-textarea" rows="4"
+                              placeholder='{ "apiKey": "...", "authDomain": "...", "databaseURL": "https://xxx.firebaseio.com", "projectId": "...", ... }'></textarea>
+                    <button type="button" class="btn btn-secondary btn--sm" id="firebaseJsonParseBtn">
+                        <i class="fas fa-magic"></i> JSON'dan Doldur
+                    </button>
+                </div>
+
+                <!-- Ayrı alan form -->
+                <div class="firebase-setup-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="fb_apiKey">API Key *</label>
+                        <input type="text" id="fb_apiKey" class="form-control" placeholder="AIzaSy...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="fb_authDomain">Auth Domain *</label>
+                        <input type="text" id="fb_authDomain" class="form-control" placeholder="proje.firebaseapp.com">
+                    </div>
+                    <div class="form-group firebase-setup-grid-wide">
+                        <label class="form-label" for="fb_databaseURL">Database URL *</label>
+                        <input type="text" id="fb_databaseURL" class="form-control" placeholder="https://proje-default-rtdb.firebaseio.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="fb_projectId">Project ID *</label>
+                        <input type="text" id="fb_projectId" class="form-control" placeholder="proje-id">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="fb_storageBucket">Storage Bucket</label>
+                        <input type="text" id="fb_storageBucket" class="form-control" placeholder="proje.appspot.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="fb_messagingSenderId">Messaging Sender ID</label>
+                        <input type="text" id="fb_messagingSenderId" class="form-control" placeholder="1234567890">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="fb_appId">App ID</label>
+                        <input type="text" id="fb_appId" class="form-control" placeholder="1:1234:web:abc">
+                    </div>
+                </div>
+
+                <!-- Test/Kaydet/Kaldır butonları -->
+                <div class="firebase-setup-actions">
+                    <button type="button" class="btn btn-secondary" id="firebaseClearBtn">
+                        <i class="fas fa-trash-alt"></i> Bağlantıyı Kaldır
+                    </button>
+                    <div class="firebase-setup-actions-right">
+                        <button type="button" class="btn btn--ghost" id="firebaseTestBtn">
+                            <i class="fas fa-vial"></i> Test Et
+                        </button>
+                        <button type="button" class="btn btn-primary" id="firebaseSaveBtn">
+                            <i class="fas fa-link"></i> Bağlan ve Kaydet
+                        </button>
+                    </div>
+                </div>
+
+                <div class="firebase-setup-result" id="firebaseSetupResult" hidden></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI (Yapay Zeka) Kurulum Modal -->
+    <div id="aiSetupOverlay" class="ai-setup-overlay" role="dialog" aria-modal="true" aria-labelledby="aiSetupTitle">
+        <div class="ai-setup-modal">
+            <div class="ai-setup-header">
+                <div class="ai-setup-header-icon"><i class="fas fa-robot"></i></div>
+                <div>
+                    <h3 class="ai-setup-title" id="aiSetupTitle">Yapay Zeka Bağla</h3>
+                    <p class="ai-setup-subtitle">OpenRouter API anahtarınla AI Analiz özelliğini etkinleştir</p>
+                </div>
+                <button type="button" class="ai-setup-close" id="aiSetupClose" aria-label="Kapat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="ai-setup-body">
+                <!-- Bağlantı durumu -->
+                <div class="ai-status" id="aiStatus" hidden></div>
+
+                <!-- Adım adım talimatlar -->
+                <details class="ai-setup-steps" open>
+                    <summary><strong>Nasıl OpenRouter API anahtarı alırım?</strong> (Tıkla)</summary>
+                    <ol class="ai-setup-steps-list">
+                        <li><a href="https://openrouter.ai/" target="_blank" rel="noopener">openrouter.ai</a>'a git ve ücretsiz hesap aç (Google/GitHub ile bir tıkta).</li>
+                        <li>Sağ üstte profil menüsünden <b>Keys</b> sayfasına gel.</li>
+                        <li><b>"Create Key"</b> butonuna tıkla, anahtara bir isim ver (ör. "eMuhasebe").</li>
+                        <li>Görüntülenen <code>sk-or-v1-…</code> anahtarını <b>kopyala</b> ve aşağıdaki alana yapıştır.</li>
+                        <li>Model olarak ücretsiz model seçebilirsin: <code>mistralai/devstral-2512:free</code> veya <code>google/gemini-2.0-flash-exp:free</code>. İsterse plan satın alıp daha güçlü modelleri (ör. <code>anthropic/claude-3.5-sonnet</code>) kullanabilirsin.</li>
+                    </ol>
+                    <p class="ai-setup-hint">
+                        <i class="fas fa-shield-alt"></i>
+                        Anahtarın yalnızca tarayıcında localStorage'da tutulur. AI istekleri backend üzerinden iletilir (anahtar hiçbir zaman 3. partilere açılmaz).
+                    </p>
+                </details>
+
+                <!-- Form -->
+                <div class="form-group">
+                    <label class="form-label" for="aiApiKey">OpenRouter API Anahtarı *</label>
+                    <input type="password" id="aiApiKey" class="form-control" autocomplete="off"
+                           placeholder="sk-or-v1-...">
+                    <div class="form-help">Anahtar gizli kalır; URL'de veya log'larda görünmez.</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="aiModel">Model</label>
+                    <select id="aiModel" class="form-control form-select">
+                        <option value="mistralai/devstral-2512:free">Mistral Devstral (Ücretsiz) — varsayılan</option>
+                        <option value="google/gemini-2.0-flash-exp:free">Google Gemini 2.0 Flash (Ücretsiz)</option>
+                        <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Ücretsiz)</option>
+                        <option value="anthropic/claude-3.5-sonnet">Anthropic Claude 3.5 Sonnet (Ücretli)</option>
+                        <option value="anthropic/claude-3.7-sonnet">Anthropic Claude 3.7 Sonnet (Ücretli)</option>
+                        <option value="openai/gpt-4o-mini">OpenAI GPT-4o-mini (Ücretli)</option>
+                        <option value="openai/gpt-4o">OpenAI GPT-4o (Ücretli)</option>
+                    </select>
+                </div>
+
+                <!-- Aksiyon butonları -->
+                <div class="ai-setup-actions">
+                    <button type="button" class="btn btn-secondary" id="aiClearBtn">
+                        <i class="fas fa-trash-alt"></i> Bağlantıyı Kaldır
+                    </button>
+                    <div class="ai-setup-actions-right">
+                        <button type="button" class="btn btn--ghost" id="aiTestBtn">
+                            <i class="fas fa-vial"></i> Test Et
+                        </button>
+                        <button type="button" class="btn btn-primary" id="aiSaveBtn">
+                            <i class="fas fa-link"></i> Kaydet
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ai-setup-result" id="aiSetupResult" hidden></div>
+            </div>
+        </div>
     </div>
 
     <!-- Mod Değiştirme Popup Modal -->
@@ -385,7 +654,277 @@
     </div>
     
     <script type="module">
-        import { init, getMode, setMode, isOnline, Sync } from '{{ url_for("static", filename="js/db.js") }}';
+        import { init, getMode, setMode, isOnline, Sync,
+                 getLocalFirebaseConfig, setLocalFirebaseConfig, testFirebaseConfig
+               } from '{{ url_for("static", filename="js/db.js") }}';
+
+        // ── Firebase Kurulum Modal Logic ─────────────────────────────
+        const overlay  = document.getElementById('firebaseSetupOverlay');
+        const closeBtn = document.getElementById('firebaseSetupClose');
+        const testBtn  = document.getElementById('firebaseTestBtn');
+        const saveBtn  = document.getElementById('firebaseSaveBtn');
+        const clearBtn = document.getElementById('firebaseClearBtn');
+        const parseBtn = document.getElementById('firebaseJsonParseBtn');
+        const resultEl = document.getElementById('firebaseSetupResult');
+        const statusEl = document.getElementById('firebaseStatus');
+
+        const FB_FIELDS = ['apiKey', 'authDomain', 'databaseURL', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+
+        function readForm() {
+            const cfg = {};
+            FB_FIELDS.forEach(f => {
+                const v = document.getElementById('fb_' + f).value.trim();
+                if (v) cfg[f] = v;
+            });
+            return cfg;
+        }
+
+        function writeForm(cfg) {
+            FB_FIELDS.forEach(f => {
+                document.getElementById('fb_' + f).value = (cfg && cfg[f]) || '';
+            });
+        }
+
+        function showResult(level, msg) {
+            resultEl.hidden = false;
+            resultEl.className = 'firebase-setup-result is-' + level;
+            resultEl.textContent = msg;
+        }
+
+        function clearResult() {
+            resultEl.hidden = true;
+            resultEl.textContent = '';
+        }
+
+        function refreshStatus() {
+            const existing = getLocalFirebaseConfig();
+            if (existing) {
+                statusEl.hidden = false;
+                statusEl.className = 'firebase-status is-connected';
+                statusEl.innerHTML = `<i class="fas fa-check-circle"></i> Bağlı: <code>${existing.projectId}</code>`;
+                writeForm(existing);
+            } else {
+                statusEl.hidden = false;
+                statusEl.className = 'firebase-status is-disconnected';
+                statusEl.innerHTML = `<i class="fas fa-circle"></i> Henüz bağlantı yok — config gir ve bağla.`;
+            }
+        }
+
+        window.showFirebaseSetup = function() {
+            clearResult();
+            refreshStatus();
+            overlay.classList.add('is-open');
+            overlay.setAttribute('aria-hidden', 'false');
+        };
+
+        function closeSetup() {
+            overlay.classList.remove('is-open');
+            overlay.setAttribute('aria-hidden', 'true');
+        }
+        closeBtn.addEventListener('click', closeSetup);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSetup(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && overlay.classList.contains('is-open')) closeSetup();
+        });
+
+        // JSON yapıştır → alanlara doldur
+        parseBtn.addEventListener('click', () => {
+            const raw = document.getElementById('firebaseJsonPaste').value.trim();
+            if (!raw) { showResult('warn', 'Önce JSON yapıştır.'); return; }
+            try {
+                // JS object literal ya da JSON kabul et: { apiKey: "x" } veya {"apiKey":"x"}
+                const cleaned = raw
+                    .replace(/^.*?firebaseConfig\s*=\s*/s, '')
+                    .replace(/;?\s*$/s, '')
+                    .replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":')
+                    .replace(/'/g, '"');
+                const parsed = JSON.parse(cleaned);
+                writeForm(parsed);
+                document.getElementById('firebaseJsonPaste').value = '';
+                showResult('info', 'JSON ayrıştırıldı — alanlar dolduruldu.');
+            } catch (err) {
+                showResult('error', 'Geçersiz JSON: ' + err.message);
+            }
+        });
+
+        testBtn.addEventListener('click', async () => {
+            clearResult();
+            testBtn.disabled = true;
+            const orig = testBtn.innerHTML;
+            testBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Test ediliyor...';
+            try {
+                const result = await testFirebaseConfig(readForm());
+                if (result.ok) {
+                    showResult('success', '✅ Bağlantı başarılı — kaydedip kullanmaya başlayabilirsin.');
+                } else {
+                    showResult('error', '❌ ' + result.error);
+                }
+            } finally {
+                testBtn.disabled = false;
+                testBtn.innerHTML = orig;
+            }
+        });
+
+        saveBtn.addEventListener('click', async () => {
+            clearResult();
+            const cfg = readForm();
+            const result = await testFirebaseConfig(cfg);
+            if (!result.ok) {
+                showResult('error', '❌ Bağlanmadan kaydedilmiyor: ' + result.error);
+                return;
+            }
+            setLocalFirebaseConfig(cfg);
+            // Firebase moduna geç ve sayfayı yenile
+            setMode('firebase');
+            showResult('success', '✅ Kaydedildi. Sayfa yenileniyor...');
+            setTimeout(() => window.location.reload(), 800);
+        });
+
+        clearBtn.addEventListener('click', async () => {
+            const confirmed = await window.showConfirm({
+                title:    'Firebase bağlantısını kaldır?',
+                message:  'Lokal Firebase config silinecek. Veriler tarayıcıda kalmaya devam edecek (LocalStorage moduna geçilecek).',
+                okLabel:  'Kaldır',
+                type:     'danger',
+                icon:     'unlink'
+            });
+            if (!confirmed) return;
+            setLocalFirebaseConfig(null);
+            setMode('local');
+            showResult('info', 'Bağlantı kaldırıldı. Sayfa yenileniyor...');
+            setTimeout(() => window.location.reload(), 600);
+        });
+        // ── /Firebase Kurulum Modal Logic ────────────────────────────
+
+        // ── AI (Yapay Zeka) Kurulum Modal Logic ──────────────────────
+        const aiOverlay  = document.getElementById('aiSetupOverlay');
+        const aiCloseBtn = document.getElementById('aiSetupClose');
+        const aiTestBtn  = document.getElementById('aiTestBtn');
+        const aiSaveBtn  = document.getElementById('aiSaveBtn');
+        const aiClearBtn = document.getElementById('aiClearBtn');
+        const aiResultEl = document.getElementById('aiSetupResult');
+        const aiStatusEl = document.getElementById('aiStatus');
+        const aiKeyInput   = document.getElementById('aiApiKey');
+        const aiModelInput = document.getElementById('aiModel');
+
+        const AI_KEY_LS   = 'emuhasebe_ai_api_key';
+        const AI_MODEL_LS = 'emuhasebe_ai_model';
+
+        function aiShowResult(level, msg) {
+            aiResultEl.hidden = false;
+            aiResultEl.className = 'ai-setup-result is-' + level;
+            aiResultEl.textContent = msg;
+        }
+        function aiClearResult() { aiResultEl.hidden = true; aiResultEl.textContent = ''; }
+
+        function aiReadKey() {
+            try { return localStorage.getItem(AI_KEY_LS) || ''; } catch (e) { return ''; }
+        }
+        function aiReadModel() {
+            try { return localStorage.getItem(AI_MODEL_LS) || 'mistralai/devstral-2512:free'; } catch (e) { return 'mistralai/devstral-2512:free'; }
+        }
+
+        function refreshAiStatus() {
+            const key = aiReadKey();
+            const model = aiReadModel();
+            if (key) {
+                aiStatusEl.hidden = false;
+                aiStatusEl.className = 'ai-status is-connected';
+                const masked = key.length > 12 ? key.slice(0, 8) + '…' + key.slice(-4) : '****';
+                aiStatusEl.innerHTML = `<i class="fas fa-check-circle"></i> Aktif anahtar: <code>${masked}</code> | Model: <code>${model}</code>`;
+                aiKeyInput.value = key;
+                aiModelInput.value = model;
+            } else {
+                aiStatusEl.hidden = false;
+                aiStatusEl.className = 'ai-status is-disconnected';
+                aiStatusEl.innerHTML = `<i class="fas fa-circle"></i> Henüz AI anahtarı bağlı değil.`;
+                aiKeyInput.value = '';
+                aiModelInput.value = aiReadModel();
+            }
+        }
+
+        window.showAiSetup = function() {
+            aiClearResult();
+            refreshAiStatus();
+            aiOverlay.classList.add('is-open');
+            aiOverlay.setAttribute('aria-hidden', 'false');
+        };
+        function closeAiSetup() {
+            aiOverlay.classList.remove('is-open');
+            aiOverlay.setAttribute('aria-hidden', 'true');
+        }
+        aiCloseBtn.addEventListener('click', closeAiSetup);
+        aiOverlay.addEventListener('click', (e) => { if (e.target === aiOverlay) closeAiSetup(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && aiOverlay.classList.contains('is-open')) closeAiSetup();
+        });
+
+        async function aiTestKey(key, model) {
+            // OpenRouter /auth/key endpoint'ini kullanır — token harcamaz, sadece anahtarı doğrular.
+            try {
+                const r = await fetch('/api/ai/ping', {
+                    method: 'POST',
+                    headers: { 'X-OpenRouter-Key': key }
+                });
+                const data = await r.json().catch(() => ({}));
+                if (data.ok) {
+                    let info = '';
+                    if (typeof data.usage === 'number') info += ` | Kullanım: $${data.usage.toFixed(2)}`;
+                    if (data.is_free_tier) info += ' | Ücretsiz katman';
+                    return { ok: true, info };
+                }
+                return { ok: false, error: data.error || 'Geçersiz anahtar' };
+            } catch (e) {
+                return { ok: false, error: e.message || 'Bağlantı hatası' };
+            }
+        }
+
+        aiTestBtn.addEventListener('click', async () => {
+            aiClearResult();
+            const key = aiKeyInput.value.trim();
+            if (!key) { aiShowResult('warn', 'Önce API anahtarını gir.'); return; }
+            aiTestBtn.disabled = true;
+            const orig = aiTestBtn.innerHTML;
+            aiTestBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Test ediliyor...';
+            try {
+                const result = await aiTestKey(key, aiModelInput.value);
+                if (result.ok) aiShowResult('success', '✅ Anahtar çalışıyor' + (result.info || '') + ' — kaydedebilirsin.');
+                else aiShowResult('error', '❌ ' + result.error);
+            } finally {
+                aiTestBtn.disabled = false;
+                aiTestBtn.innerHTML = orig;
+            }
+        });
+
+        aiSaveBtn.addEventListener('click', () => {
+            aiClearResult();
+            const key = aiKeyInput.value.trim();
+            if (!key) { aiShowResult('warn', 'API anahtarı boş olamaz.'); return; }
+            try {
+                localStorage.setItem(AI_KEY_LS, key);
+                localStorage.setItem(AI_MODEL_LS, aiModelInput.value);
+                aiShowResult('success', '✅ Kaydedildi. AI Analiz artık aktif.');
+                refreshAiStatus();
+            } catch (e) {
+                aiShowResult('error', 'Kaydedilemedi: ' + e.message);
+            }
+        });
+
+        aiClearBtn.addEventListener('click', async () => {
+            const confirmed = await window.showConfirm({
+                title:   'AI anahtarı kaldırılsın mı?',
+                message: 'Lokal anahtar silinecek; AI Analiz devre dışı kalacak.',
+                okLabel: 'Kaldır',
+                type:    'danger',
+                icon:    'unlink'
+            });
+            if (!confirmed) return;
+            localStorage.removeItem(AI_KEY_LS);
+            localStorage.removeItem(AI_MODEL_LS);
+            aiShowResult('info', 'Bağlantı kaldırıldı.');
+            refreshAiStatus();
+        });
+        // ── /AI Kurulum Modal Logic ───────────────────────────────────
         
         // Global değişken
         let pendingNewMode = null;
@@ -508,6 +1047,37 @@
             }
         })();
 
+        // ── Aktif oturum: Çıkış butonunu göster/gizle ────────────────
+        (function() {
+            fetch('/api/v1/auth/me', { credentials: 'same-origin' })
+                .then(r => r.ok ? r.json() : null)
+                .then(user => {
+                    if (user && user.id) {
+                        const giris = document.getElementById('navGirisLink');
+                        const cikis = document.getElementById('navCikisLink');
+                        if (giris) giris.hidden = true;
+                        if (cikis) cikis.hidden = false;
+                    }
+                })
+                .catch(() => {});
+        })();
+
+        window.logout = async function(e) {
+            if (e) e.preventDefault();
+            const confirmed = await window.showConfirm({
+                title:   'Çıkış yapmak istiyor musun?',
+                message: 'Aktif oturum sonlandırılacak ve giriş sayfasına yönlendirileceksin.',
+                okLabel: 'Çıkış Yap',
+                type:    'danger',
+                icon:    'right-from-bracket'
+            });
+            if (!confirmed) return;
+            try {
+                await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'same-origin' });
+            } catch (e) { /* ignore */ }
+            window.location.href = '{{ url_for("main.giris") }}';
+        };
+
         document.getElementById('themeToggle').addEventListener('click', function() {
             const html = document.documentElement;
             const current = html.getAttribute('data-theme');
@@ -558,20 +1128,148 @@
                 maximumFractionDigits: 2 
             }).format(amount);
         }
-        
-        // Silme onayı
-        function confirmDelete(formId, message) {
-            if (confirm(message || 'Bu kaydı silmek istediğinizden emin misiniz?')) {
+
+        // ── Undo Toast (Sprint 3) — gerçek undo akışı ────────────────
+        // window.showUndoToast({ message, duration?, onUndo? }) → Promise<bool>
+        // Promise true → kullanıcı "Geri Al"a bastı, false → süresi doldu.
+        (function() {
+            const toast    = document.getElementById('undoToast');
+            const msgEl    = document.getElementById('undoToastMsg');
+            const btn      = document.getElementById('undoToastBtn');
+            const progress = document.getElementById('undoToastProgress');
+            if (!toast || !btn) return;
+
+            let activeTimer = null;
+            let activeResolver = null;
+            let activeAnimationFrame = null;
+
+            function hide(undoClicked) {
+                toast.classList.remove('is-visible');
+                if (activeTimer) { clearTimeout(activeTimer); activeTimer = null; }
+                if (activeAnimationFrame) { cancelAnimationFrame(activeAnimationFrame); activeAnimationFrame = null; }
+                progress.style.width = '100%';
+                const resolver = activeResolver;
+                activeResolver = null;
+                if (resolver) resolver(undoClicked === true);
+            }
+
+            btn.addEventListener('click', () => hide(true));
+
+            window.showUndoToast = function(opts) {
+                opts = opts || {};
+                // Önceki toast varsa kapat (false döndürür)
+                if (activeResolver) hide(false);
+
+                msgEl.textContent = opts.message || 'Kayıt silindi.';
+                const duration = Math.max(1000, opts.duration || 5000);
+                toast.classList.add('is-visible');
+                progress.style.width = '100%';
+
+                const start = performance.now();
+                function tick(now) {
+                    const elapsed = now - start;
+                    const remaining = Math.max(0, 1 - elapsed / duration);
+                    progress.style.width = (remaining * 100) + '%';
+                    if (remaining > 0 && activeResolver) {
+                        activeAnimationFrame = requestAnimationFrame(tick);
+                    }
+                }
+                activeAnimationFrame = requestAnimationFrame(tick);
+
+                return new Promise((resolve) => {
+                    activeResolver = resolve;
+                    activeTimer = setTimeout(() => hide(false), duration);
+                }).then(undoClicked => {
+                    if (undoClicked && typeof opts.onUndo === 'function') {
+                        try { opts.onUndo(); } catch (e) { console.error(e); }
+                    }
+                    return undoClicked;
+                });
+            };
+        })();
+
+        // ── Custom Confirm Modal (Sprint 3) ──────────────────────────
+        (function() {
+            const overlay  = document.getElementById('confirmModalOverlay');
+            const okBtn    = document.getElementById('confirmModalOkBtn');
+            const cancelBtn = document.getElementById('confirmModalCancelBtn');
+            let _resolve   = null;
+
+            function openModal(opts) {
+                const { title = 'Silmek istediğinize emin misiniz?',
+                        message = 'Bu işlem geri alınamaz.',
+                        itemName = '',
+                        okLabel = 'Sil',
+                        type = 'danger',
+                        icon = 'trash-alt' } = opts || {};
+
+                document.getElementById('confirmModalTitle').textContent   = title;
+                document.getElementById('confirmModalMessage').textContent = message;
+                document.getElementById('confirmModalOkLabel').textContent = okLabel;
+
+                const iconEl = document.getElementById('confirmModalIcon');
+                iconEl.className = 'confirm-modal-icon ' + type;
+                document.getElementById('confirmModalIconInner').className = 'fas fa-' + icon;
+
+                const itemEl = document.getElementById('confirmModalItem');
+                if (itemName) {
+                    itemEl.textContent = itemName;
+                    itemEl.classList.remove('is-hidden');
+                } else {
+                    itemEl.classList.add('is-hidden');
+                }
+
+                const okBtnEl = document.getElementById('confirmModalOkBtn');
+                okBtnEl.className = 'btn btn--' + type;
+                okBtnEl.innerHTML = '<i class="fas fa-' + icon + '"></i> <span id="confirmModalOkLabel">' + okLabel + '</span>';
+
+                overlay.classList.add('is-open');
+                overlay.setAttribute('aria-hidden', 'false');
+                cancelBtn.focus();
+
+                return new Promise(function(resolve) { _resolve = resolve; });
+            }
+
+            function closeModal(result) {
+                overlay.classList.remove('is-open');
+                overlay.setAttribute('aria-hidden', 'true');
+                if (_resolve) { _resolve(result); _resolve = null; }
+            }
+
+            okBtn.addEventListener('click',     function() { closeModal(true);  });
+            cancelBtn.addEventListener('click', function() { closeModal(false); });
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) closeModal(false);
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && overlay.classList.contains('is-open')) closeModal(false);
+            });
+
+            window.showConfirm = openModal;
+            window.closeConfirm = function() { closeModal(false); };
+        })();
+
+        // Silme onayı — artık native confirm() yerine custom modal
+        async function confirmDelete(formId, message, itemName) {
+            const confirmed = await window.showConfirm({
+                title:   'Silmek istediğinize emin misiniz?',
+                message: message || 'Bu işlem geri alınamaz.',
+                itemName: itemName || '',
+                okLabel: 'Sil',
+                type:    'danger',
+                icon:    'trash-alt'
+            });
+            if (confirmed) {
                 document.getElementById(formId).submit();
             }
         }
         
-        // Sidebar Toggle
+        // ── Sidebar Toggle (masaüstü daralt/genişlet) ────────────────
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.querySelector('.main-content');
         const sidebarToggle = document.getElementById('sidebarToggle');
         const toggleIcon = document.getElementById('toggleIcon');
-        
+
         // LocalStorage'dan durumu yükle
         if (localStorage.getItem('sidebarCollapsed') === 'true') {
             sidebar.classList.add('collapsed');
@@ -579,11 +1277,11 @@
             toggleIcon.classList.remove('fa-angles-left');
             toggleIcon.classList.add('fa-angles-right');
         }
-        
+
         sidebarToggle.addEventListener('click', function() {
             sidebar.classList.toggle('collapsed');
             mainContent.classList.toggle('expanded');
-            
+
             if (sidebar.classList.contains('collapsed')) {
                 toggleIcon.classList.remove('fa-angles-left');
                 toggleIcon.classList.add('fa-angles-right');
@@ -594,8 +1292,84 @@
                 localStorage.setItem('sidebarCollapsed', 'false');
             }
         });
+
+        // ── Mobil Hamburger (Sprint 3) ───────────────────────────────
+        (function() {
+            const hamburgerBtn  = document.getElementById('hamburgerBtn');
+            const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+            if (!hamburgerBtn || !sidebarBackdrop) return;
+
+            function openSidebar() {
+                sidebar.classList.add('open');
+                sidebarBackdrop.classList.add('is-open');
+                hamburgerBtn.setAttribute('aria-expanded', 'true');
+                hamburgerBtn.querySelector('i').className = 'fas fa-times';
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeSidebar() {
+                sidebar.classList.remove('open');
+                sidebarBackdrop.classList.remove('is-open');
+                hamburgerBtn.setAttribute('aria-expanded', 'false');
+                hamburgerBtn.querySelector('i').className = 'fas fa-bars';
+                document.body.style.overflow = '';
+            }
+
+            hamburgerBtn.addEventListener('click', function() {
+                if (sidebar.classList.contains('open')) { closeSidebar(); }
+                else { openSidebar(); }
+            });
+
+            sidebarBackdrop.addEventListener('click', closeSidebar);
+
+            // Nav link tıklamasında sidebar kapat (mobilde)
+            sidebar.querySelectorAll('.nav-item').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    if (window.innerWidth <= 768) closeSidebar();
+                });
+            });
+
+            // Pencere boyutu değişince mobil sınıfları temizle
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768) { closeSidebar(); }
+            });
+        })();
     </script>
     
     {% block extra_js %}{% endblock %}
+
+    <script>
+        // İlk ziyarette Firebase + AI butonlarını "pulse" ile vurgula
+        (function() {
+            const seen = localStorage.getItem('emuhasebe_setup_seen');
+            if (seen) return;
+            const fb = document.getElementById('firebaseSetupBtn');
+            const ai = document.getElementById('aiSetupBtn');
+            if (fb) fb.classList.add('is-pulse');
+            if (ai) ai.classList.add('is-pulse');
+            // Tıklandıkları an pulse kaybolsun + işaret koy
+            [fb, ai].forEach(b => {
+                if (!b) return;
+                b.addEventListener('click', () => {
+                    fb && fb.classList.remove('is-pulse');
+                    ai && ai.classList.remove('is-pulse');
+                    localStorage.setItem('emuhasebe_setup_seen', '1');
+                }, { once: false });
+            });
+            // 20 saniye sonra pulse'ı otomatik kaldır (rahatsız etmesin)
+            setTimeout(() => {
+                fb && fb.classList.remove('is-pulse');
+                ai && ai.classList.remove('is-pulse');
+            }, 20000);
+        })();
+
+        // PWA Service Worker kaydı
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('{{ url_for("static", filename="service-worker.js") }}')
+                    .catch(err => console.warn('SW kayıt hatası:', err));
+            });
+        }
+    </script>
 </body>
 </html>

@@ -53,8 +53,9 @@ URUN_KATEGORILERI = {
     ]
 }
 
-BIRIMLER = ["Adet", "Kutu", "Paket", "Kg", "Metre", "Litre", "Set"]
-KDV_ORANLARI = [1, 10, 20]
+# Form (urunler/form_firebase.html) ile uyumlu birim ve KDV listesi
+BIRIMLER = ["Adet", "Kg", "Lt", "Mt", "M²", "Paket", "Kutu", "Saat"]
+KDV_ORANLARI = [0, 1, 8, 10, 18, 20]
 
 def generate_id():
     """Benzersiz ID oluştur"""

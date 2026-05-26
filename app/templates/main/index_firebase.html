@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}Dashboard - eMuhasebe Pro{% endblock %}
 
@@ -14,6 +14,14 @@
     <div class="notif-dropdown" id="notifDropdown" hidden>
         <div class="notif-dropdown-header">
             <span><i class="fas fa-bell"></i> Bildirimler</span>
+            <div class="notif-dropdown-actions">
+                <button type="button" class="notif-read-btn" id="notifReadBtn">
+                    <i class="fas fa-check"></i> Tümünü oku 
+                </button>
+                <a href="/bildirimler" class="notif-view-all-btn" id="notifViewAllBtn">
+                    <i class="fas fa-list"></i> Tüm Bildirimler
+                </a>
+            </div>
         </div>
         <div class="notification-list notification-list-dropdown" id="notificationList">
             <div class="empty-state">
@@ -390,7 +398,7 @@ function createPieChart(satisCount, alisCount, iadeCount) {
     
     if (pieChartInstance) pieChartInstance.destroy();
     
-    const colors = ['#22c55e', '#3b82f6', '#f59e0b'];
+    const colors = ['#22c55e', '#64748b', '#f59e0b'];
     const data = [satisCount, alisCount, iadeCount];
     const labels = ['Satış Faturaları', 'Alış Faturaları', 'İade Faturaları'];
     
@@ -490,6 +498,11 @@ function renderRecentInvoices(satisFaturalari, alisFaturalari, iadeFaturalari) {
         return;
     }
     
+    // XSS önlemek için escape ediyoruz
+    const esc = (s) => String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
     container.innerHTML = `
         <table class="premium-table">
             <thead>
@@ -508,21 +521,22 @@ function renderRecentInvoices(satisFaturalari, alisFaturalari, iadeFaturalari) {
                     const durumLabel = durum === 'odendi' ? 'Ödendi' : durum === 'beklemede' ? 'Beklemede' : 'Gecikmiş';
                     const tarih = new Date(f.fatura_tarihi || f.olusturma_tarihi).toLocaleDateString('tr-TR');
                     const detailUrl = detailUrlTemplates[f.tip]
-                        ? detailUrlTemplates[f.tip].replace('__ID__', f.id)
+                        ? detailUrlTemplates[f.tip].replace('__ID__', encodeURIComponent(f.id || ''))
                         : '#';
-                    
+                    const safeTipClass = (f.tip === 'satis' || f.tip === 'alis' || f.tip === 'iade') ? f.tip : 'satis';
+
                     return `
-                        <tr class="table-row-link" onclick="window.location.href='${detailUrl}'">
+                        <tr class="table-row-link" data-href="${esc(detailUrl)}" onclick="window.location.href=this.dataset.href">
                             <td>
                                 <div class="invoice-type">
-                                    <div class="invoice-type-icon ${f.tip}">
-                                        <i class="fas fa-${f.tip === 'satis' ? 'arrow-up' : f.tip === 'alis' ? 'arrow-down' : 'rotate-left'}"></i>
+                                    <div class="invoice-type-icon ${safeTipClass}">
+                                        <i class="fas fa-${safeTipClass === 'satis' ? 'arrow-up' : safeTipClass === 'alis' ? 'arrow-down' : 'rotate-left'}"></i>
                                     </div>
-                                    <span>${f.tipLabel}</span>
+                                    <span>${esc(f.tipLabel)}</span>
                                 </div>
                             </td>
-                            <td><strong>${f.fatura_no || 'FTR-' + f.id?.slice(-6)}</strong><br><small class="table-date">${tarih}</small></td>
-                            <td>${f.musteri_adi || f.tedarikci_adi || '-'}</td>
+                            <td><strong>${esc(f.fatura_no || ('FTR-' + (f.id?.slice(-6) || '')))}</strong><br><small class="table-date">${esc(tarih)}</small></td>
+                            <td>${esc(f.musteri_adi || f.tedarikci_adi || '-')}</td>
                             <td><strong>${formatCurrency(parseFloat(f.genel_toplam) || 0)}</strong></td>
                             <td><span class="table-badge ${durumClass}">${durumLabel}</span></td>
                         </tr>
@@ -604,13 +618,16 @@ function renderTopProducts(satisFaturalari, urunler) {
         return;
     }
     
+    const esc = (s) => String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     container.innerHTML = topProducts.map((product, index) => {
         const rankClass = index === 0 ? 'gold' : index === 1 ? 'silver' : index === 2 ? 'bronze' : 'normal';
         return `
             <div class="top-product-item">
                 <div class="product-rank ${rankClass}">${index + 1}</div>
                 <div class="product-info">
-                    <div class="product-name">${product.ad}</div>
+                    <div class="product-name">${esc(product.ad)}</div>
                     <div class="product-category">${Math.round(product.adet)} adet satıldı</div>
                 </div>
                 <div class="product-stats">
@@ -662,7 +679,10 @@ async function loadNotificationsAndActivity() {
             notifications.push({
                 type: 'warning',
                 icon: 'clock',
+                category: 'Ödeme',
                 text: `${bekleyenSatis.length} satış faturası ödeme bekliyor (${formatCurrency(toplam)})`,
+                detail: `Ödeme bekleyen ${bekleyenSatis.length} satış faturası var. Toplam ${formatCurrencyFull(toplam)} tutarında tahsilat yapılmamış durumda. Satış faturaları listesini inceleyerek ödeme durumlarını güncelleyin.`,
+                link: "{{ url_for('satis.liste') }}",
                 time: 'Bugün'
             });
         }
@@ -672,7 +692,10 @@ async function loadNotificationsAndActivity() {
             notifications.push({
                 type: 'danger',
                 icon: 'exclamation-triangle',
+                category: 'Ödeme',
                 text: `${bekleyenAlis.length} tedarikçi ödemesi bekliyor (${formatCurrency(toplam)})`,
+                detail: `${bekleyenAlis.length} alış faturası ödenmemiş durumda. Tedarikçilere toplam ${formatCurrencyFull(toplam)} borcunuz bulunuyor. Alış faturaları listesini inceleyerek ödeme yapın.`,
+                link: "{{ url_for('alis.liste') }}",
                 time: 'Bugün'
             });
         }
@@ -686,7 +709,10 @@ async function loadNotificationsAndActivity() {
             notifications.push({
                 type: 'success',
                 icon: 'user-plus',
+                category: 'Müşteri',
                 text: `Bu hafta ${yeniMusteriler.length} yeni müşteri eklendi`,
+                detail: `Bu hafta ${yeniMusteriler.length} yeni müşteri/tedarikçi kaydı oluşturuldu: ${yeniMusteriler.slice(0,3).map(m => m.ad || m.isim || 'İsimsiz').join(', ')}${yeniMusteriler.length > 3 ? ' ve diğerleri' : ''}.`,
+                link: "{{ url_for('musteriler.liste') }}",
                 time: 'Bu hafta'
             });
         }
@@ -700,68 +726,118 @@ async function loadNotificationsAndActivity() {
             notifications.push({
                 type: 'success',
                 icon: 'chart-line',
+                category: 'Finansal',
                 text: `Toplam kar: ${formatCurrency(kar)} - Harika gidiyorsunuz!`,
+                detail: `Toplam gelir ${formatCurrencyFull(toplamGelir)}, toplam gider ${formatCurrencyFull(toplamGider)}. Net kar ${formatCurrencyFull(kar)} ile olumlu seyirde. Kar marjınız: %${toplamGelir > 0 ? ((kar/toplamGelir)*100).toFixed(1) : 0}.`,
+                link: '/',
                 time: 'Genel'
             });
         } else if (kar < 0) {
             notifications.push({
                 type: 'danger',
                 icon: 'chart-line',
+                category: 'Finansal',
                 text: `Dikkat! Zarar durumu: ${formatCurrency(Math.abs(kar))}`,
+                detail: `Toplam gelir ${formatCurrencyFull(toplamGelir)}, toplam gider ${formatCurrencyFull(toplamGider)}. Net zarar ${formatCurrencyFull(Math.abs(kar))}. Giderlerinizi gözden geçirmenizi öneririz.`,
+                link: '/',
                 time: 'Genel'
             });
         }
 
         // ---- AI: Anomali Tespiti ----
-        const satisAnomali = anomaliTespiti(satisFaturalari, 2.5);
-        const alisAnomali  = anomaliTespiti(alisFaturalari, 2.5);
+        // Tipini her bir öğeye gömüyoruz — daha sonra includes() yerine güvenli
+        // şekilde okuyabilmek için (anomaliTespiti yeni nesneler döndürüyor).
+        const satisAnomali = anomaliTespiti(satisFaturalari, 2.5).map(a => ({ ...a, _tip: 'satis' }));
+        const alisAnomali  = anomaliTespiti(alisFaturalari, 2.5).map(a => ({ ...a, _tip: 'alis' }));
         const tumAnomali   = [...satisAnomali, ...alisAnomali];
 
         if (tumAnomali.length > 0) {
             notifications.push({
-                type: tumAnomali.some(a => a.seviye === 'kritik') ? 'danger' : 'warning',
+                type: 'danger',
                 icon: 'robot',
-                text: `Olağandışı ${tumAnomali.length} fatura tespit edildi. Detayları kontrol edin.`,
+                category: 'AI Anomali',
+                text: `Şüpheli ${tumAnomali.length} fatura bulundu. Lütfen kontrol edin.`,
+                detail: `Bu faturalar beklenen tutar aralığının dışında görünüyor. Fatura listelerini inceleyip doğrulayın.`,
+                link: '/bildirimler',
                 time: 'Bildirim'
             });
             tumAnomali.slice(0, 2).forEach(a => {
                 const toplam = getFaturaToplam(a);
+                const faturaTipi = a._tip;
                 notifications.push({
-                    type: a.seviye === 'kritik' ? 'danger' : 'warning',
+                    type: 'danger',
                     icon: a.seviye === 'kritik' ? 'exclamation-circle' : 'exclamation-triangle',
-                    text: `Uyarı: ${a.fatura_no || a.musteri_adi || 'Fatura'} — ${formatMoneySafe(toplam)}`,
+                    category: 'AI Anomali',
+                    text: `Şüpheli fatura: ${a.fatura_no || a.musteri_adi || 'Fatura'} — ${formatMoneySafe(toplam)}`,
+                    detail: `Fatura No: ${a.fatura_no || 'Bilinmiyor'} | Müşteri/Tedarikçi: ${a.musteri_adi || a.tedarikci_adi || 'Bilinmiyor'} | Tutar: ${formatMoneySafe(toplam)} | Durum: ${a.seviye === 'kritik' ? 'Kritik' : 'İnceleme'}.`,
+                    link: faturaTipi === 'satis' ? "{{ url_for('satis.liste') }}" : "{{ url_for('alis.liste') }}",
                     time: 'Bildirim'
                 });
             });
         }
         // ---- /Anomali Tespiti ----
         
+        // Bildirimleri localStorage'a kaydet (bildirimler sayfasi buradan okur)
+        try {
+            const notifData = notifications.map(n => ({ ...n, ts: Date.now() }));
+            localStorage.setItem('emuhasebe_notifications', JSON.stringify(notifData));
+        } catch(e) {}
+
         // Bildirimleri render et
-        const notifier = window.notify;
         const notifContainer = document.getElementById('notificationList');
         const notifBadge = document.getElementById('notifBadge');
+        const notifReadBtn = document.getElementById('notifReadBtn');
+        const readSignatureKey = 'emuhasebe_notifications_read_signature';
+        const buildSignature = (items) => items.map(n => [n.type, n.category, n.text, n.detail || '', n.link || ''].join('|')).join('||');
+        const currentSignature = buildSignature(notifications);
+        const lastReadSignature = localStorage.getItem(readSignatureKey) || '';
+        const unreadCount = currentSignature && currentSignature === lastReadSignature ? 0 : notifications.length;
 
-        if (notifier && typeof notifier.setList === 'function') {
-            notifier.setList(notifications);
-        } else if (notifContainer && notifBadge) {
-            notifBadge.textContent = notifications.length;
-            if (notifications.length === 0) {
-                notifBadge.style.display = 'none';
+        if (notifContainer && notifBadge) {
+            notifBadge.textContent = unreadCount;
+            if (unreadCount === 0) {
+                notifBadge.classList.add('is-hidden');
             } else {
-                notifBadge.style.display = 'inline-flex';
+                notifBadge.classList.remove('is-hidden');
             }
             if (notifications.length > 0) {
-                notifContainer.innerHTML = notifications.map(n => `
-                    <div class="notification-item">
-                        <div class="notification-icon ${n.type}">
-                            <i class="fas fa-${n.icon}"></i>
+                const esc = (s) => String(s == null ? '' : s)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                notifContainer.innerHTML = notifications.slice(0, 6).map(n => {
+                    const isUrgent = n.category === 'AI Anomali';
+                    return `
+                    <a class="notification-item notif-link${isUrgent ? ' is-urgent' : ''}" href="${esc(n.link || '/bildirimler')}">
+                        <div class="notification-icon ${esc(n.type)}${isUrgent ? ' is-urgent' : ''}">
+                            <i class="fas fa-${esc(n.icon)}"></i>
                         </div>
                         <div class="notification-content">
-                            <div class="notification-text">${n.text}</div>
-                            <div class="notification-time">${n.time}</div>
+                            <div class="notification-text">${esc(n.text)}</div>
+                            <div class="notification-time">${esc(n.time)}</div>
                         </div>
+                    </a>
+                `;
+                }).join('') + (notifications.length > 6 ? `
+                    <div class="notif-more-hint">+${notifications.length - 6} daha fazla bildirim</div>
+                ` : '');
+            } else {
+                notifContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle"></i>
+                        <p>Tum islemler yolunda!</p>
                     </div>
-                `).join('');
+                `;
+            }
+        }
+
+        if (notifReadBtn && notifBadge) {
+            if (!notifReadBtn.dataset.bound) {
+                notifReadBtn.dataset.bound = 'true';
+                notifReadBtn.addEventListener('click', () => {
+                    if (currentSignature) localStorage.setItem(readSignatureKey, currentSignature);
+                    notifBadge.textContent = '0';
+                    notifBadge.classList.add('is-hidden');
+                });
             }
         }
         
@@ -893,8 +969,11 @@ async function loadNakitAkisiTahmini() {
         // Veri yoksa bölümü gizle
         const toplamVeri = gecmis.reduce((s, g) => s + g.gelir + g.gider, 0);
         const section = document.getElementById('nakitTahminSection');
-        if (toplamVeri === 0) { section.style.display = 'none'; return; }
-        section.style.display = 'block';
+        if (toplamVeri === 0) {
+            section.classList.add('is-hidden');
+            return;
+        }
+        section.classList.remove('is-hidden');
 
         const tumAylar = [...gecmis, ...tahminler];
         const labels = tumAylar.map(v => v.ay.toLocaleDateString('tr-TR', { month: 'short', year: '2-digit' }));
@@ -948,7 +1027,7 @@ async function loadNakitAkisiTahmini() {
                     {
                         label: 'Net Kar/Zarar',
                         data: netVerisi,
-                        borderColor: '#6366f1',
+                        borderColor: '#334155',
                         borderWidth: 2, tension: 0.4,
                         pointRadius: 4, fill: false,
                         pointBackgroundColor: 'white', pointBorderWidth: 2
@@ -1014,8 +1093,7 @@ async function loadNakitAkisiTahmini() {
 }
 
 // ==================== AI ANALYSIS ====================
-
-const OPENROUTER_API_KEY = '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';
+// NOT: API anahtarı backend'de tutulur. Frontend `/api/ai/analyze` endpoint'ini çağırır.
 
 async function analyzeWithAI() {
     const btn = document.getElementById('aiAnalyzeBtn');
@@ -1079,27 +1157,27 @@ Lütfen şu formatta yanıt ver:
 
 Kısa ve pratik öneriler ver.`;
 
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        // UI'dan kaydedilmiş anahtar varsa header ile gönder
+        const aiHeaders = { 'Content-Type': 'application/json' };
+        try {
+            const k = localStorage.getItem('emuhasebe_ai_api_key');
+            const m = localStorage.getItem('emuhasebe_ai_model');
+            if (k) aiHeaders['X-OpenRouter-Key'] = k;
+            if (m) aiHeaders['X-OpenRouter-Model'] = m;
+        } catch (e) { /* ignore */ }
+
+        const response = await fetch('/api/ai/analyze', {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': window.location.origin,
-                'X-Title': 'eMuhasebe Pro'
-            },
-            body: JSON.stringify({
-                model: 'mistralai/devstral-2512:free',
-                messages: [{ role: 'user', content: prompt }],
-                max_tokens: 1000
-            })
+            headers: aiHeaders,
+            body: JSON.stringify({ prompt, summary: dataSummary })
         });
-        
+
         if (!response.ok) {
             throw new Error('API hatası: ' + response.status);
         }
-        
+
         const data = await response.json();
-        const aiResponse = data.choices?.[0]?.message?.content || 'Analiz tamamlanamadı.';
+        const aiResponse = data.text || data.error || 'Analiz tamamlanamadı.';
         
         // Skorları hesapla
         const karlilikSkoru = Math.min(100, Math.max(0, 50 + (netProfit / (totalIncome || 1)) * 100));
@@ -1115,10 +1193,6 @@ Kısa ve pratik öneriler ver.`;
         if (ortalamaSkor >= 80) { durumClass = 'excellent'; durumText = 'Mükemmel'; durumIcon = 'trophy'; }
         else if (ortalamaSkor >= 60) { durumClass = 'good'; durumText = 'İyi'; durumIcon = 'thumbs-up'; }
         else if (ortalamaSkor >= 40) { durumClass = 'warning'; durumText = 'Dikkat'; durumIcon = 'exclamation-circle'; }
-        
-        // AI yanıtından önerileri parse et
-        const recommendations = parseAIRecommendations(aiResponse);
-        const scoreClass = ortalamaSkor >= 70 ? 'score-good' : ortalamaSkor >= 40 ? 'score-warn' : 'score-bad';
         
         // Sonuçları göster
         loading.style.display = 'none';

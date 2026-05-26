@@ -10,14 +10,22 @@
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 {% endblock %}
 
-{% block header_actions %}
-<a href="{{ url_for('iade.liste') }}" class="btn btn-secondary">
-    <i class="fas fa-arrow-left"></i>
-    Geri Dön
-</a>
-{% endblock %}
+{% block header_actions %}{% endblock %}
 
 {% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'İade Faturası Düzenle' if fatura_id else 'Yeni İade Faturası' }}</h1>
+        <p class="page-subtitle">{{ 'Fatura bilgilerini güncelleyin' if fatura_id else 'Alış veya satış iade faturası oluşturun' }}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('iade.liste') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i>
+            Geri Dön
+        </a>
+    </div>
+</div>
+
 <form id="faturaForm" onsubmit="kaydet(event)">
     <input type="hidden" id="faturaId" value="{{ fatura_id or '' }}">
     
@@ -33,10 +41,12 @@
                 <div class="form-group">
                     <label class="form-label">Fatura No *</label>
                     <input type="text" id="fatura_no" name="fatura_no" class="form-control" placeholder="IDF-2026-0001" required>
+                    <div class="form-help">Ornek: IDF-2026-0001</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Fatura Tarihi *</label>
                     <input type="date" id="fatura_tarihi" name="fatura_tarihi" class="form-control" required>
+                    <div class="form-help">Iade faturasinin tarihini secin.</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">İade Tipi *</label>
@@ -45,6 +55,7 @@
                         <option value="alis_iade">Alış İadesi (Tedarikçiye)</option>
                         <option value="satis_iade">Satış İadesi (Müşteriden)</option>
                     </select>
+                    <div class="form-help">Iade turune gore cari listesi guncellenir.</div>
                 </div>
             </div>
             
@@ -54,6 +65,7 @@
                     <select id="cari_id" name="cari_id" class="form-control form-select" required>
                         <option value="">Önce iade tipi seçiniz</option>
                     </select>
+                    <div class="form-help">Iade edilen cari kaydini secin.</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Durum</label>
@@ -299,7 +311,7 @@ window.kaydet = async function(e) {
         } else {
             await IadeFaturalari.ekle(fatura);
         }
-        window.location.href = '/faturalar/iade/';
+        window.location.href = '/iade/';
     } catch (error) {
         alert('Kaydetme hatası: ' + error.message);
         btn.disabled = false;
@@ -341,7 +353,17 @@ window.excelYukle = async function(event) {
     event.target.value = '';
 };
 
+// XSS riskini engellemek için dinamik metinleri escape ediyoruz.
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+let _excelPendingVeriler = [];
+
 function excelOnizlemeGoster(veriler, dosyaAdi) {
+    _excelPendingVeriler = Array.isArray(veriler) ? veriler : [];
     const mevcutModal = document.getElementById('excelModal');
     if (mevcutModal) mevcutModal.remove();
     const modal = document.createElement('div');
@@ -352,7 +374,7 @@ function excelOnizlemeGoster(veriler, dosyaAdi) {
                 <div class="excel-modal-header warning">
                     <div>
                         <h3 class="excel-modal-title"><i class="fas fa-file-excel"></i> Excel Önizleme</h3>
-                        <p class="excel-modal-subtitle">${dosyaAdi} - ${veriler.length} satır</p>
+                        <p class="excel-modal-subtitle">${escapeHtml(dosyaAdi)} - ${veriler.length} satır</p>
                     </div>
                     <button onclick="document.getElementById('excelModal').remove()" class="excel-modal-close">×</button>
                 </div>
@@ -368,14 +390,14 @@ function excelOnizlemeGoster(veriler, dosyaAdi) {
                                 <th class="u-text-right">Toplam</th>
                             </tr>
                         </thead>
-                        <tbody>${veriler.map((v,i)=>{const m=parseFloat(v.miktar)||1;const f=parseFloat(v.birim_fiyat||v.fiyat)||0;const k=parseInt(v.kdv_orani||v.kdv)||20;const t=m*f*(1+k/100);return `<tr><td>${i+1}</td><td>${v.aciklama||'-'}</td><td class="u-text-right">${m}</td><td class="u-text-right">₺${paraFormat(f)}</td><td class="u-text-right">%${k}</td><td class="u-text-right u-font-semibold">₺${paraFormat(t)}</td></tr>`;}).join('')}</tbody>
+                        <tbody>${veriler.map((v,i)=>{const m=parseFloat(v.miktar)||1;const f=parseFloat(v.birim_fiyat||v.fiyat)||0;const k=parseInt(v.kdv_orani||v.kdv)||20;const t=m*f*(1+k/100);return `<tr><td>${i+1}</td><td>${escapeHtml(v.aciklama||'-')}</td><td class="u-text-right">${m}</td><td class="u-text-right">₺${paraFormat(f)}</td><td class="u-text-right">%${k}</td><td class="u-text-right u-font-semibold">₺${paraFormat(t)}</td></tr>`;}).join('')}</tbody>
                     </table>
                 </div>
                 <div class="excel-modal-footer">
                     <label class="excel-modal-checkbox"><input type="checkbox" id="mevcutuTemizle" checked> Mevcut kalemleri temizle</label>
                     <div class="excel-modal-actions">
                         <button onclick="document.getElementById('excelModal').remove()" class="excel-modal-btn excel-modal-btn-cancel">İptal</button>
-                        <button onclick='excelVerileriniEkle(${JSON.stringify(veriler)})' class="excel-modal-btn excel-modal-btn-confirm warning"><i class="fas fa-check excel-modal-confirm-icon"></i>${veriler.length} Kalemi Ekle</button>
+                        <button onclick="excelVerileriniEkle()" class="excel-modal-btn excel-modal-btn-confirm warning"><i class="fas fa-check excel-modal-confirm-icon"></i>${veriler.length} Kalemi Ekle</button>
                     </div>
                 </div>
             </div>
@@ -384,13 +406,15 @@ function excelOnizlemeGoster(veriler, dosyaAdi) {
     document.body.appendChild(modal);
 }
 
-window.excelVerileriniEkle = function(veriler) {
+window.excelVerileriniEkle = function() {
+    const veriler = _excelPendingVeriler || [];
     if (document.getElementById('mevcutuTemizle')?.checked) {
         document.getElementById('kalemlerContainer').innerHTML = '';
         kalemSayaci = 0;
     }
     veriler.forEach(v => kalemEkle({aciklama:v.aciklama||'',miktar:parseFloat(v.miktar)||1,birim_fiyat:parseFloat(v.birim_fiyat||v.fiyat)||0,kdv_orani:parseInt(v.kdv_orani||v.kdv)||20}));
     document.getElementById('excelModal')?.remove();
+    _excelPendingVeriler = [];
     toplamlariHesapla();
     if (window.Toast) Toast.success(`${veriler.length} kalem eklendi! 📊`);
 };

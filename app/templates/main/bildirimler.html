@@ -1,0 +1,610 @@
+{% extends 'base.html' %}
+
+{% block title %}Bildirimler - eMuhasebe Pro{% endblock %}
+
+{% block page_title %}Bildirimler{% endblock %}
+{% block page_subtitle %}Sistemdeki tüm uyarı ve bildirimler{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<style>
+/* ===== BİLDİRİMLER SAYFASI ===== */
+.notif-page-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.notif-page-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+}
+
+.notif-page-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.notif-page-title .notif-icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: var(--primary-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.3rem;
+    box-shadow: var(--shadow-md);
+}
+
+.notif-page-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-600);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    min-width: 24px;
+}
+
+.notif-filter-bar {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+.notif-filter-btn {
+    padding: 0.45rem 1rem;
+    border: 1px solid var(--bg-600);
+    border-radius: 20px;
+    background: var(--bg-900);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.notif-filter-btn:hover {
+    border-color: var(--primary-600);
+    color: var(--primary-600);
+}
+
+.notif-filter-btn.active {
+    background: var(--primary-600);
+    color: white;
+    border-color: transparent;
+}
+
+.notif-filter-btn .count-pill {
+    background: rgba(255,255,255,0.25);
+    border-radius: 12px;
+    padding: 0 0.4rem;
+    font-size: 0.7rem;
+    min-width: 18px;
+    text-align: center;
+}
+
+.notif-filter-btn:not(.active) .count-pill {
+    background: var(--bg-700);
+    color: var(--text-secondary);
+}
+
+/* Bildirim Kartı */
+.notif-card {
+    background: var(--bg-800);
+    border: 1px solid var(--bg-600);
+    border-radius: 18px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 0.85rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    cursor: pointer;
+    transition: all 0.25s;
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+    overflow: hidden;
+}
+
+.notif-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    border-radius: 18px 0 0 18px;
+}
+
+.notif-card.type-warning::before { background: var(--amber-500); }
+.notif-card.type-danger::before  { background: var(--rose-500); }
+.notif-card.type-success::before { background: var(--emerald-500); }
+.notif-card.type-info::before    { background: var(--primary-600); }
+
+.notif-card.ai-anomali::before { background: #dc2626; }
+.notif-card.ai-anomali { border-color: color-mix(in srgb, #dc2626 24%, var(--bg-600)); }
+
+.notif-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(15,23,42,0.12);
+    border-color: color-mix(in srgb, var(--primary-600) 18%, var(--bg-600));
+}
+
+.notif-card-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: white;
+    flex-shrink: 0;
+}
+
+.notif-card-icon.warning { background: color-mix(in srgb, var(--amber-500) 20%, transparent); color: var(--amber-500); }
+.notif-card-icon.danger  { background: color-mix(in srgb, var(--rose-500) 20%, transparent); color: var(--rose-500); }
+.notif-card-icon.success { background: color-mix(in srgb, var(--emerald-500) 20%, transparent); color: var(--emerald-500); }
+.notif-card-icon.info    { background: color-mix(in srgb, var(--primary-600) 20%, transparent); color: var(--primary-600); }
+
+.notif-card-icon.ai-anomali { background: rgba(220, 38, 38, 0.14); color: #dc2626; }
+
+.notif-card-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.notif-card-category {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.2rem 0.55rem;
+    border-radius: 8px;
+}
+
+.notif-card-category.warning { background: color-mix(in srgb, var(--amber-500) 15%, transparent); color: var(--amber-500); }
+.notif-card-category.danger  { background: color-mix(in srgb, var(--rose-500) 15%, transparent); color: var(--rose-500); }
+.notif-card-category.success { background: color-mix(in srgb, var(--emerald-500) 15%, transparent); color: var(--emerald-500); }
+.notif-card-category.info    { background: color-mix(in srgb, var(--primary-600) 15%, transparent); color: var(--primary-600); }
+
+.notif-card-category.ai-anomali { background: rgba(220, 38, 38, 0.12); color: #b91c1c; }
+
+.notif-card-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+.notif-card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.35rem;
+    line-height: 1.4;
+}
+
+.notif-card-detail {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+.notif-card-arrow {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+    transition: transform 0.2s;
+}
+
+.notif-card:hover .notif-card-arrow {
+    transform: translateX(4px);
+    color: var(--primary-600);
+}
+
+/* Boş durum */
+.notif-empty {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-secondary);
+}
+
+.notif-empty-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 24px;
+    background: var(--glass-05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    color: var(--text-muted);
+    margin: 0 auto 1.5rem;
+}
+
+.notif-empty h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.4rem;
+}
+
+.notif-empty p {
+    font-size: 0.88rem;
+}
+
+/* Grup başlığı */
+.notif-group-header {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    padding: 0.5rem 0 0.75rem;
+    border-bottom: 1px solid var(--bg-600);
+    margin-bottom: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.notif-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 3rem;
+    color: var(--text-secondary);
+}
+
+.notif-loading .spin {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--bg-600);
+    border-top-color: var(--primary-600);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Summary istatistik kartları */
+.notif-summary-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+}
+
+.notif-summary-card {
+    background: var(--bg-800);
+    border: 1px solid var(--bg-600);
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    text-align: center;
+}
+
+.notif-summary-num {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: 0.35rem;
+}
+
+.notif-summary-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.notif-summary-card.card-warning .notif-summary-num { color: var(--amber-500); }
+.notif-summary-card.card-danger  .notif-summary-num { color: var(--rose-500); }
+.notif-summary-card.card-success .notif-summary-num { color: var(--emerald-500); }
+
+.back-to-dashboard {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.back-to-dashboard:hover { color: var(--primary-600); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="notif-page-container">
+
+    <!-- Geri Butonu -->
+    <a href="/" class="back-to-dashboard" style="margin-bottom:1.5rem; display:inline-flex;">
+        <i class="fas fa-arrow-left"></i> Dashboard'a Dön
+    </a>
+
+    <!-- Sayfa Başlık -->
+    <div class="notif-page-top" style="margin-top:1rem;">
+        <div class="notif-page-title">
+            <div class="notif-icon-wrap"><i class="fas fa-bell"></i></div>
+            <div>
+                Tüm Bildirimler
+                <span class="notif-page-badge" id="totalBadge">…</span>
+            </div>
+        </div>
+        <button class="btn btn--ghost" onclick="refreshNotifications()" id="refreshBtn" title="Yenile">
+            <i class="fas fa-sync-alt" id="refreshIcon"></i> Yenile
+        </button>
+    </div>
+
+    <!-- Özet İstatistikler -->
+    <div class="notif-summary-row" id="summaryRow">
+        <div class="notif-summary-card">
+            <div class="notif-summary-num" id="sumTotal">—</div>
+            <div class="notif-summary-label">Toplam Bildirim</div>
+        </div>
+        <div class="notif-summary-card card-danger">
+            <div class="notif-summary-num" id="sumDanger">—</div>
+            <div class="notif-summary-label">Kritik</div>
+        </div>
+        <div class="notif-summary-card card-warning">
+            <div class="notif-summary-num" id="sumWarning">—</div>
+            <div class="notif-summary-label">Uyarı</div>
+        </div>
+        <div class="notif-summary-card card-success">
+            <div class="notif-summary-num" id="sumSuccess">—</div>
+            <div class="notif-summary-label">Bilgi</div>
+        </div>
+    </div>
+
+    <!-- Filtre Çubuğu -->
+    <div class="notif-filter-bar" id="filterBar">
+        <button class="notif-filter-btn active" data-filter="all" onclick="filterNotifs('all', this)">
+            <i class="fas fa-border-all"></i> Tümü <span class="count-pill" id="countAll">…</span>
+        </button>
+        <button class="notif-filter-btn" data-filter="danger" onclick="filterNotifs('danger', this)">
+            <i class="fas fa-circle-exclamation"></i> Kritik <span class="count-pill" id="countDanger">0</span>
+        </button>
+        <button class="notif-filter-btn" data-filter="warning" onclick="filterNotifs('warning', this)">
+            <i class="fas fa-triangle-exclamation"></i> Uyarı <span class="count-pill" id="countWarning">0</span>
+        </button>
+        <button class="notif-filter-btn" data-filter="success" onclick="filterNotifs('success', this)">
+            <i class="fas fa-check-circle"></i> Bilgi <span class="count-pill" id="countSuccess">0</span>
+        </button>
+        <button class="notif-filter-btn" data-filter="AI Anomali" onclick="filterNotifs('AI Anomali', this)">
+            <i class="fas fa-robot"></i> AI Anomali <span class="count-pill" id="countAI">0</span>
+        </button>
+        <button class="notif-filter-btn" data-filter="Ödeme" onclick="filterNotifs('Ödeme', this)">
+            <i class="fas fa-credit-card"></i> Ödeme <span class="count-pill" id="countOdeme">0</span>
+        </button>
+    </div>
+
+    <!-- Yükleniyor -->
+    <div class="notif-loading" id="notifLoading">
+        <div class="spin"></div>
+        <span>Bildirimler yükleniyor…</span>
+    </div>
+
+    <!-- Bildirim Listesi -->
+    <div id="notifList" style="display:none;"></div>
+
+    <!-- Boş Durum -->
+    <div class="notif-empty" id="notifEmpty" style="display:none;">
+        <div class="notif-empty-icon"><i class="fas fa-bell-slash"></i></div>
+        <h3>Bildirim Bulunamadı</h3>
+        <p>Bu kategoride herhangi bir bildirim yok.</p>
+    </div>
+
+    <!-- Veriler yoksa refresh uyarısı -->
+    <div class="notif-empty" id="noDataMsg" style="display:none;">
+        <div class="notif-empty-icon"><i class="fas fa-info-circle"></i></div>
+        <h3>Bildirimler Henüz Oluşmadı</h3>
+        <p>Dashboard'a gidip verilerin yüklenmesini bekleyin, ardından bu sayfayı yenileyin.</p>
+        <a href="/" class="btn btn--primary" style="margin-top:1rem; display:inline-flex; align-items:center; gap:0.5rem;">
+            <i class="fas fa-home"></i> Dashboard'a Git
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allNotifs = [];
+let currentFilter = 'all';
+
+// Tip -> CSS sınıfı haritası
+const typeClass = { danger: 'danger', warning: 'warning', success: 'success', info: 'info' };
+
+// Kategori -> ikon
+const catIcons = {
+    'Ödeme': 'credit-card',
+    'Müşteri': 'users',
+    'Finansal': 'chart-line',
+    'AI Anomali': 'robot'
+};
+
+// Bildirim text/detail kullanıcı kontrolündeki alanlardan oluşabilir → XSS önle
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function renderNotifCard(n) {
+    const tc = typeClass[n.type] || 'info';
+    const cat = n.category || n.type;
+    const isAnomali = cat === 'AI Anomali';
+    const anomaliClass = isAnomali ? 'ai-anomali' : '';
+    return `
+        <a class="notif-card type-${escapeHtml(tc)} ${anomaliClass}" href="${escapeHtml(n.link || '/bildirimler')}" title="İlgili sayfaya git">
+            <div class="notif-card-icon ${escapeHtml(tc)} ${anomaliClass}">
+                <i class="fas fa-${escapeHtml(n.icon || catIcons[cat] || 'bell')}"></i>
+            </div>
+            <div class="notif-card-body">
+                <div class="notif-card-head">
+                    <span class="notif-card-category ${escapeHtml(tc)} ${anomaliClass}">${escapeHtml(cat)}</span>
+                    <span class="notif-card-time"><i class="fas fa-clock" style="font-size:0.65rem;opacity:0.6;"></i> ${escapeHtml(n.time || '')}</span>
+                </div>
+                <div class="notif-card-title">${escapeHtml(n.text)}</div>
+                ${n.detail ? `<div class="notif-card-detail">${escapeHtml(n.detail)}</div>` : ''}
+            </div>
+            <i class="fas fa-chevron-right notif-card-arrow"></i>
+        </a>
+    `;
+}
+
+function filterNotifs(filter, btn) {
+    currentFilter = filter;
+
+    // Aktif buton
+    document.querySelectorAll('.notif-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    let filtered;
+    if (filter === 'all') {
+        filtered = allNotifs;
+    } else if (filter === 'danger' || filter === 'warning' || filter === 'success') {
+        filtered = allNotifs.filter(n => n.type === filter);
+    } else {
+        // Kategori filtresi
+        filtered = allNotifs.filter(n => n.category === filter);
+    }
+
+    renderList(filtered);
+}
+
+function renderList(list) {
+    const container = document.getElementById('notifList');
+    const emptyEl   = document.getElementById('notifEmpty');
+
+    if (list.length === 0) {
+        container.style.display = 'none';
+        emptyEl.style.display   = 'block';
+        return;
+    }
+
+    emptyEl.style.display   = 'none';
+    container.style.display = 'block';
+
+    // Kategorilere göre grupla
+    const groups = {};
+    list.forEach(n => {
+        const g = n.category || n.type;
+        if (!groups[g]) groups[g] = [];
+        groups[g].push(n);
+    });
+
+    const groupOrder = ['Ödeme', 'Finansal', 'Müşteri', 'AI Anomali'];
+    const sortedKeys = [...new Set([...groupOrder, ...Object.keys(groups)])].filter(k => groups[k]);
+
+    container.innerHTML = sortedKeys.map(groupKey => `
+        <div class="notif-group-header">
+            <i class="fas fa-${escapeHtml(catIcons[groupKey] || 'tag')}"></i>
+            ${escapeHtml(groupKey)}
+            <span style="margin-left:auto; background:var(--glass-05); border-radius:10px; padding:0.1rem 0.5rem; font-size:0.7rem;">
+                ${groups[groupKey].length}
+            </span>
+        </div>
+        ${groups[groupKey].map(renderNotifCard).join('')}
+    `).join('');
+}
+
+function updateCounts(notifs) {
+    const total   = notifs.length;
+    const danger  = notifs.filter(n => n.type === 'danger').length;
+    const warning = notifs.filter(n => n.type === 'warning').length;
+    const success = notifs.filter(n => n.type === 'success').length;
+    const ai      = notifs.filter(n => n.category === 'AI Anomali').length;
+    const odeme   = notifs.filter(n => n.category === 'Ödeme').length;
+
+    document.getElementById('totalBadge').textContent = total;
+    document.getElementById('sumTotal').textContent   = total;
+    document.getElementById('sumDanger').textContent  = danger;
+    document.getElementById('sumWarning').textContent = warning;
+    document.getElementById('sumSuccess').textContent = success;
+
+    document.getElementById('countAll').textContent    = total;
+    document.getElementById('countDanger').textContent = danger;
+    document.getElementById('countWarning').textContent = warning;
+    document.getElementById('countSuccess').textContent = success;
+    document.getElementById('countAI').textContent     = ai;
+    document.getElementById('countOdeme').textContent  = odeme;
+}
+
+function loadNotifications() {
+    const loadingEl  = document.getElementById('notifLoading');
+    const listEl     = document.getElementById('notifList');
+    const noDataEl   = document.getElementById('noDataMsg');
+
+    loadingEl.style.display = 'flex';
+    listEl.style.display    = 'none';
+    noDataEl.style.display  = 'none';
+
+    try {
+        const raw = localStorage.getItem('emuhasebe_notifications');
+        if (!raw) {
+            loadingEl.style.display = 'none';
+            noDataEl.style.display  = 'block';
+            return;
+        }
+
+        const notifs = JSON.parse(raw);
+        if (!Array.isArray(notifs) || notifs.length === 0) {
+            loadingEl.style.display = 'none';
+            noDataEl.style.display  = 'block';
+            return;
+        }
+
+        allNotifs = notifs;
+        updateCounts(allNotifs);
+        renderList(allNotifs);
+    } catch (e) {
+        console.error('Bildirimler okunamadı:', e);
+    } finally {
+        loadingEl.style.display = 'none';
+    }
+}
+
+function refreshNotifications() {
+    const btn  = document.getElementById('refreshBtn');
+    const icon = document.getElementById('refreshIcon');
+    icon.classList.add('fa-spin');
+    btn.disabled = true;
+    setTimeout(() => {
+        loadNotifications();
+        icon.classList.remove('fa-spin');
+        btn.disabled = false;
+    }, 600);
+}
+
+document.addEventListener('DOMContentLoaded', loadNotifications);
+</script>
+{% endblock %}

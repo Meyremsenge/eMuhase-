@@ -53,6 +53,21 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=JWT_ACCESS_TOKEN_MINUTES)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=JWT_REFRESH_TOKEN_DAYS)
 
+    # ━━━ JWT Cookie Ayarları ━━━
+    # JWT hem cookie hem header'dan kabul ediyor. Cookie tercih edilir (XSS dirençli);
+    # header geri uyumluluk için.
+    JWT_TOKEN_LOCATION = ['cookies', 'headers']
+    JWT_COOKIE_SECURE = os.environ.get('JWT_COOKIE_SECURE', 'False') == 'True'
+    JWT_COOKIE_HTTPONLY = True
+    JWT_COOKIE_SAMESITE = 'Lax'
+    JWT_ACCESS_COOKIE_NAME = 'emuhasebe_access_token'
+    JWT_REFRESH_COOKIE_NAME = 'emuhasebe_refresh_token'
+    JWT_ACCESS_COOKIE_PATH = '/'
+    JWT_REFRESH_COOKIE_PATH = '/api/v1/auth/refresh'
+    # CSRF korumasını şimdilik kapalı (header'lı testler için). Browser-only
+    # flow'da etkinleştirmek istersen True yapıp X-CSRF-TOKEN header'ı gönder.
+    JWT_COOKIE_CSRF_PROTECT = False
+
     # ━━━ Rate Limit ━━━
     RATELIMIT_STORAGE_URI = os.environ.get('RATELIMIT_STORAGE_URI', 'memory://')
     RATELIMIT_STRATEGY = os.environ.get('RATELIMIT_STRATEGY', 'fixed-window')
@@ -95,11 +110,13 @@ class ProductionConfig(Config):
             raise ValueError('❌ CRITICAL: RATELIMIT_STORAGE_URI memory:// olamaz, üretimde Redis zorunludur')
 
         jwt_blocklist_url = self.JWT_BLOCKLIST_REDIS_URL or ''
-        if not jwt_blocklist_url and str(self.RATELIMIT_STORAGE_URI).startswith('redis://'):
+        rl_uri = str(self.RATELIMIT_STORAGE_URI)
+        if not jwt_blocklist_url and (rl_uri.startswith('redis://') or rl_uri.startswith('rediss://')):
             jwt_blocklist_url = self.RATELIMIT_STORAGE_URI
             self.JWT_BLOCKLIST_REDIS_URL = jwt_blocklist_url
 
-        if not str(jwt_blocklist_url).startswith('redis://'):
+        blk = str(jwt_blocklist_url)
+        if not (blk.startswith('redis://') or blk.startswith('rediss://')):
             raise ValueError('❌ CRITICAL: JWT_BLOCKLIST_REDIS_URL Redis olmalı')
         
         print('✅ Production config: Tüm güvenlik kontrolleri geçildi')

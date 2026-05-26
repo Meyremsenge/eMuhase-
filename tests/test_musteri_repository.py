@@ -43,9 +43,12 @@ class TestMusteriRepository:
         musteri = MusteriRepository.create(unvan='Silinecek', vergi_no='3333333333')
         result = MusteriRepository.delete(musteri.id)
         assert result is True
-        deleted = MusteriRepository.get_by_id(musteri.id)
-        assert deleted is not None
-        assert deleted.silinme_tarihi is not None
+        # Soft-deleted artık normal get_by_id'den dönmüyor (gizli)
+        assert MusteriRepository.get_by_id(musteri.id) is None
+        # Ama with_deleted üzerinden hâlâ erişilebilir (restore / audit için)
+        raw = MusteriRepository.get_by_id_with_deleted(musteri.id)
+        assert raw is not None
+        assert raw.silinme_tarihi is not None
 
     def test_delete_not_found(self, app):
         result = MusteriRepository.delete(9999)

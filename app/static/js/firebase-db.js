@@ -1,11 +1,28 @@
-﻿// Firebase Realtime Database Operations
+﻿// ⚠️ DEPRECATED: Bu dosya artık kullanılmıyor. Aktif veri katmanı db.js içindedir.
+// Eski importları kırmamak için stub'lar bırakıldı. Yeni kod için db.js kullanın.
+//
+// Firebase Realtime Database Operations (legacy)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
 import { getDatabase, ref, push, set, get, update, remove, onValue, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js';
-import { firebaseConfig } from './firebase-config.js';
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+// Firebase'i lazy başlat — modül yüklenir yüklenmez null config ile çağırıp patlamasın.
+let app = null;
+let db = null;
+async function _ensureDb() {
+    if (db) return db;
+    try {
+        const response = await fetch('/api/config/firebase');
+        const data = response.ok ? await response.json() : null;
+        const cfg = data && data.config;
+        if (!cfg) throw new Error('Firebase yapılandırması yok');
+        app = initializeApp(cfg);
+        db = getDatabase(app);
+    } catch (e) {
+        console.warn('firebase-db.js: Firebase başlatılamadı —', e.message);
+        throw e;
+    }
+    return db;
+}
 
 // ==================== MÜŞTERİLER ====================
 export const Musteriler = {

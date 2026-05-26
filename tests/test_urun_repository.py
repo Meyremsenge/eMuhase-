@@ -47,9 +47,12 @@ class TestUrunRepository:
     def test_delete(self, app):
         urun = UrunRepository.create(kod='DEL1', ad='Silinecek')
         assert UrunRepository.delete(urun.id) is True
-        deleted = UrunRepository.get_by_id(urun.id)
-        assert deleted is not None
-        assert deleted.silinme_tarihi is not None
+        # Soft-deleted artık normal get_by_id'den dönmüyor
+        assert UrunRepository.get_by_id(urun.id) is None
+        # with_deleted ile hâlâ erişilebilir
+        raw = UrunRepository.get_by_id_with_deleted(urun.id)
+        assert raw is not None
+        assert raw.silinme_tarihi is not None
 
     def test_count(self, app):
         assert UrunRepository.count() == 0

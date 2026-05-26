@@ -32,7 +32,7 @@ class AuditLog(db.Model):
     eski_veriler = db.Column(db.JSON)  # Eski değerler JSON olarak
     yeni_veriler = db.Column(db.JSON)  # Yeni değerler JSON olarak
     degisen_alanlar = db.Column(db.JSON)  # Hangi alanlar değişti
-    olusturma_tarihi = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     
     def __repr__(self):
         return f'<AuditLog {self.islem_tipi} {self.tablo_adi}:{self.kayit_id}>'
@@ -44,7 +44,7 @@ class AuditLog(db.Model):
 
 class SoftDeleteMixin:
     """Soft delete mixin - silinmiş ama veri kalır"""
-    silinme_tarihi = db.Column(db.DateTime, nullable=True)  # NULL = aktif
+    silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)  # NULL = aktif
     
     def soft_delete(self):
         """Mantıksal silme (veri kaldırma değil)"""
@@ -84,10 +84,10 @@ class Musteri(db.Model, SoftDeleteMixin):
     aktif = db.Column(db.Boolean, default=True, nullable=False)
     
     # Soft delete
-    silinme_tarihi = db.Column(db.DateTime, nullable=True)
+    silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    olusturma_tarihi = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    guncelleme_tarihi = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    guncelleme_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     
     # İlişkiler
     alis_faturalari = db.relationship('AlisFatura', backref='tedarikci', lazy='select')
@@ -127,10 +127,10 @@ class Urun(db.Model, SoftDeleteMixin):
     aktif = db.Column(db.Boolean, default=True, nullable=False)
     
     # Soft delete
-    silinme_tarihi = db.Column(db.DateTime, nullable=True)
+    silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    olusturma_tarihi = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    guncelleme_tarihi = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    guncelleme_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     
     def __repr__(self):
         return f'<Urun {self.kod} - {self.ad}>'
@@ -168,25 +168,30 @@ class AlisFatura(db.Model, SoftDeleteMixin):
     aciklama = db.Column(db.Text)
     
     # Soft delete
-    silinme_tarihi = db.Column(db.DateTime, nullable=True)
+    silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    olusturma_tarihi = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    guncelleme_tarihi = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    guncelleme_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     
     # İlişkiler
     kalemler = db.relationship('AlisFaturaKalem', backref='fatura', lazy='select', cascade='all, delete-orphan')
     
     def hesapla(self):
-        """Fatura toplamlarını hesapla (Numeric doğruluğu)"""
+        """Fatura toplamlarını hesapla (Numeric doğruluğu).
+
+        İndirim, KDV matrahını orantısal olarak düşürür (iskontonun KDV
+        tabanını etkilediği varsayımı). assert yerine ValueError fırlatır.
+        """
+        indirim = getattr(self, 'indirim_toplam', None) or Decimal('0.00')
         self.ara_toplam = sum((k.toplam for k in self.kalemler), Decimal('0.00'))
         brut_kdv = sum((k.kdv_tutar for k in self.kalemler), Decimal('0.00'))
-        kdv_matrahi = max(self.ara_toplam - self.indirim_toplam, Decimal('0.00'))
+        kdv_matrahi = max(self.ara_toplam - indirim, Decimal('0.00'))
         oran = (kdv_matrahi / self.ara_toplam) if self.ara_toplam else Decimal('0.00')
         self.kdv_toplam = brut_kdv * oran
         self.genel_toplam = kdv_matrahi + self.kdv_toplam
-        
-        # Negatif olmadığını verify et
-        assert self.genel_toplam >= Decimal('0.00'), f'Geçersiz total: {self.genel_toplam}'
+
+        if self.genel_toplam < Decimal('0.00'):
+            raise ValueError(f'Geçersiz total: {self.genel_toplam}')
     
     def __repr__(self):
         return f'<AlisFatura {self.fatura_no}>'
@@ -263,25 +268,30 @@ class SatisFatura(db.Model, SoftDeleteMixin):
     aciklama = db.Column(db.Text)
     
     # Soft delete
-    silinme_tarihi = db.Column(db.DateTime, nullable=True)
+    silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    olusturma_tarihi = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    guncelleme_tarihi = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    guncelleme_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     # İlişkiler
     kalemler = db.relationship('SatisFaturaKalem', backref='fatura', lazy='select', cascade='all, delete-orphan')
     
     def hesapla(self):
-        """Fatura toplamlarını hesapla (Numeric doğruluğu)"""
+        """Fatura toplamlarını hesapla (Numeric doğruluğu).
+
+        İndirim, KDV matrahını orantısal olarak düşürür (iskontonun KDV
+        tabanını etkilediği varsayımı). assert yerine ValueError fırlatır.
+        """
+        indirim = getattr(self, 'indirim_toplam', None) or Decimal('0.00')
         self.ara_toplam = sum((k.toplam for k in self.kalemler), Decimal('0.00'))
         brut_kdv = sum((k.kdv_tutar for k in self.kalemler), Decimal('0.00'))
-        kdv_matrahi = max(self.ara_toplam - self.indirim_toplam, Decimal('0.00'))
+        kdv_matrahi = max(self.ara_toplam - indirim, Decimal('0.00'))
         oran = (kdv_matrahi / self.ara_toplam) if self.ara_toplam else Decimal('0.00')
         self.kdv_toplam = brut_kdv * oran
         self.genel_toplam = kdv_matrahi + self.kdv_toplam
-        
-        # Negatif olmadığını verify et
-        assert self.genel_toplam >= Decimal('0.00'), f'Geçersiz total: {self.genel_toplam}'
+
+        if self.genel_toplam < Decimal('0.00'):
+            raise ValueError(f'Geçersiz total: {self.genel_toplam}')
     
     def __repr__(self):
         return f'<SatisFatura {self.fatura_no}>'
@@ -361,10 +371,10 @@ class IadeFatura(db.Model, SoftDeleteMixin):
     aciklama = db.Column(db.Text)
     
     # Soft delete
-    silinme_tarihi = db.Column(db.DateTime, nullable=True)
+    silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)
 
-    olusturma_tarihi = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
-    guncelleme_tarihi = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    guncelleme_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     # İlişkiler
     kalemler = db.relationship('IadeFaturaKalem', backref='fatura', lazy='select', cascade='all, delete-orphan')

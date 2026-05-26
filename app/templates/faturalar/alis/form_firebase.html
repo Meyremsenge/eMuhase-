@@ -10,14 +10,22 @@
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 {% endblock %}
 
-{% block header_actions %}
-<a href="{{ url_for('alis.liste') }}" class="btn btn-secondary">
-    <i class="fas fa-arrow-left"></i>
-    Geri Dön
-</a>
-{% endblock %}
+{% block header_actions %}{% endblock %}
 
 {% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Alış Faturası Düzenle' if fatura_id else 'Yeni Alış Faturası' }}</h1>
+        <p class="page-subtitle">{{ 'Fatura bilgilerini güncelleyin' if fatura_id else 'Tedarikçiden alış faturası oluşturun' }}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('alis.liste') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i>
+            Geri Dön
+        </a>
+    </div>
+</div>
+
 <form id="faturaForm" onsubmit="kaydet(event)">
     <input type="hidden" id="faturaId" value="{{ fatura_id or '' }}">
     
@@ -33,10 +41,12 @@
                 <div class="form-group">
                     <label class="form-label">Fatura No *</label>
                     <input type="text" id="fatura_no" name="fatura_no" class="form-control" placeholder="ALF-2026-0001" required>
+                    <div class="form-help">Ornek: ALF-2026-0001</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Fatura Tarihi *</label>
                     <input type="date" id="fatura_tarihi" name="fatura_tarihi" class="form-control" required>
+                    <div class="form-help">Tedarikci fatura tarihini secin.</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Vade Tarihi</label>
@@ -50,6 +60,7 @@
                     <select id="tedarikci_id" name="tedarikci_id" class="form-control form-select" required>
                         <option value="">Seçiniz</option>
                     </select>
+                    <div class="form-help">Faturayi kesen tedarikciyi secin.</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Durum</label>
@@ -353,8 +364,18 @@ window.excelYukle = async function(event) {
     event.target.value = '';
 };
 
+// XSS riskini engellemek için dinamik metinleri escape ediyoruz.
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+let _excelPendingVeriler = [];
+
 // Excel önizleme modal
 function excelOnizlemeGoster(veriler, dosyaAdi) {
+    _excelPendingVeriler = Array.isArray(veriler) ? veriler : [];
     const mevcutModal = document.getElementById('excelModal');
     if (mevcutModal) mevcutModal.remove();
     const modal = document.createElement('div');
@@ -369,7 +390,7 @@ function excelOnizlemeGoster(veriler, dosyaAdi) {
                             Excel Önizleme
                         </h3>
                         <p class="excel-modal-subtitle">
-                            ${dosyaAdi} - ${veriler.length} satır bulundu
+                            ${escapeHtml(dosyaAdi)} - ${veriler.length} satır bulundu
                         </p>
                     </div>
                     <button onclick="document.getElementById('excelModal').remove()" class="excel-modal-close">×</button>
@@ -395,7 +416,7 @@ function excelOnizlemeGoster(veriler, dosyaAdi) {
                                 return `
                                     <tr>
                                         <td>${i + 1}</td>
-                                        <td>${v.aciklama || '-'}</td>
+                                        <td>${escapeHtml(v.aciklama || '-')}</td>
                                         <td class="u-text-right">${miktar}</td>
                                         <td class="u-text-right">₺${paraFormat(fiyat)}</td>
                                         <td class="u-text-right">%${kdv}</td>
@@ -412,7 +433,7 @@ function excelOnizlemeGoster(veriler, dosyaAdi) {
                     </label>
                     <div class="excel-modal-actions">
                         <button onclick="document.getElementById('excelModal').remove()" class="excel-modal-btn excel-modal-btn-cancel">İptal</button>
-                        <button onclick='excelVerileriniEkle(${JSON.stringify(veriler)})' class="excel-modal-btn excel-modal-btn-confirm success">
+                        <button onclick="excelVerileriniEkle()" class="excel-modal-btn excel-modal-btn-confirm success">
                             <i class="fas fa-check excel-modal-confirm-icon"></i>
                             ${veriler.length} Kalemi Ekle
                         </button>
@@ -425,15 +446,16 @@ function excelOnizlemeGoster(veriler, dosyaAdi) {
 }
 
 // Excel verilerini faturaya ekle
-window.excelVerileriniEkle = function(veriler) {
+window.excelVerileriniEkle = function() {
+    const veriler = _excelPendingVeriler || [];
     const mevcutuTemizle = document.getElementById('mevcutuTemizle')?.checked ?? true;
-    
+
     // Mevcut kalemleri temizle
     if (mevcutuTemizle) {
         document.getElementById('kalemlerContainer').innerHTML = '';
         kalemSayaci = 0;
     }
-    
+
     // Yeni kalemleri ekle
     veriler.forEach(v => {
         kalemEkle({
@@ -446,7 +468,8 @@ window.excelVerileriniEkle = function(veriler) {
     
     // Modal kapat
     document.getElementById('excelModal')?.remove();
-    
+    _excelPendingVeriler = [];
+
     // Toplamları hesapla
     toplamlariHesapla();
     
@@ -527,7 +550,7 @@ window.kaydet = async function(e) {
             await AlisFaturalari.ekle(fatura);
         }
         
-        window.location.href = '/faturalar/alis/';
+        window.location.href = '/alis/';
     } catch (error) {
         alert('Kaydetme hatası: ' + error.message);
         btn.disabled = false;

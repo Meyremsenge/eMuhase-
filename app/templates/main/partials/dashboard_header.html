@@ -14,14 +14,14 @@
 
 <!-- Stats Header - 5 Premium Cards -->
 <div class="stats-header">
-    <div class="stat-card primary" onclick="window.location.href='/musteriler'">
+    <div class="stat-card primary" onclick="window.location.href='{{ url_for('musteriler.liste') }}'">
         <div class="stat-card-icon"><i class="fas fa-users"></i></div>
         <div class="stat-card-label">Toplam Müşteri</div>
         <div class="stat-card-value" id="totalCustomers"><div class="skeleton skeleton-value"></div></div>
         <div class="stat-card-change" id="customerChange"><i class="fas fa-arrow-up"></i><span>Bu ay +<span id="newCustomersCount">0</span></span></div>
     </div>
 
-    <div class="stat-card info" onclick="window.location.href='/urunler'">
+    <div class="stat-card info" onclick="window.location.href='{{ url_for('urunler.liste') }}'">
         <div class="stat-card-icon"><i class="fas fa-boxes-stacked"></i></div>
         <div class="stat-card-label">Toplam Ürün</div>
         <div class="stat-card-value" id="totalProducts"><div class="skeleton skeleton-value"></div></div>

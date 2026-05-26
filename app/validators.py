@@ -10,7 +10,8 @@ from datetime import datetime, date
 
 
 GECERLI_KDV_ORANLARI = {0, 1, 8, 10, 18, 20}
-GECERLI_BIRIMLER = {'Adet', 'Kg', 'Litre', 'Metre'}
+# Form (urunler/form_firebase.html) ile uyumlu birim listesi
+GECERLI_BIRIMLER = {'Adet', 'Kg', 'Lt', 'Mt', 'M²', 'Paket', 'Kutu', 'Saat'}
 GECERLI_MUSTERI_TIPLERI = {'musteri', 'tedarikci', 'her_ikisi'}
 
 
@@ -367,9 +368,12 @@ class IadeFaturaKalemRequest(BaseModel):
 
 
 class IadeFaturaCreateRequest(BaseModel):
-    firma_id: int = Field(..., gt=0)
-    iade_turu: str = Field(..., min_length=1, max_length=20)
-    referans_fatura_no: str = Field(..., min_length=1, max_length=50)
+    # Frontend `iade_tipi`/`cari_id` adlarıyla gönderiyor — alias ile kabul ediyoruz.
+    model_config = {"populate_by_name": True}
+
+    firma_id: int = Field(..., gt=0, alias='cari_id')
+    iade_turu: str = Field(..., min_length=1, max_length=20, alias='iade_tipi')
+    referans_fatura_no: Optional[str] = Field(None, max_length=50)
     fatura_no: str = Field(..., min_length=1, max_length=50)
     fatura_tarihi: date = Field(...)
     iade_nedeni: Optional[str] = Field(None, max_length=500)

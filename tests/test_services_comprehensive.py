@@ -73,11 +73,14 @@ class TestMusteriService:
 
     def test_delete_musteri(self, sample_musteri):
         """Müşteri sil."""
+        from app.repositories.musteri_repository import MusteriRepository
         result = MusteriService.delete(sample_musteri.id)
-        # Soft delete olması gerekir, kontrol et
-        deleted = MusteriService.get_by_id(sample_musteri.id)
-        assert deleted is not None  # Soft delete
-        assert deleted.silinme_tarihi is not None
+        # Soft-deleted artık get_by_id'den dönmüyor
+        assert MusteriService.get_by_id(sample_musteri.id) is None
+        # Ham erişimle silinme_tarihi'nin doldurulduğunu doğrula
+        raw = MusteriRepository.get_by_id_with_deleted(sample_musteri.id)
+        assert raw is not None
+        assert raw.silinme_tarihi is not None
 
     def test_delete_nonexistent_musteri(self, db):
         """Olmayan müşteri silme."""
@@ -142,9 +145,13 @@ class TestUrunService:
 
     def test_delete_urun(self, sample_urun):
         """Ürün sil."""
+        from app.repositories.urun_repository import UrunRepository
         UrunService.delete(sample_urun.id)
-        deleted = UrunService.get_by_id(sample_urun.id)
-        assert deleted.silinme_tarihi is not None  # Soft delete
+        # Soft-deleted artık get_by_id'den dönmüyor
+        assert UrunService.get_by_id(sample_urun.id) is None
+        raw = UrunRepository.get_by_id_with_deleted(sample_urun.id)
+        assert raw is not None
+        assert raw.silinme_tarihi is not None
 
 
 class TestMusteriServiceEdgeCases:

@@ -8,31 +8,32 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
         :root {
-            --ink: #0b0b0f;
-            --bg: #f8f5f2;
-            --accent: #ff7a18;
-            --accent-2: #facc15;
-            --shadow: rgba(15, 23, 42, 0.2);
+            --ink: #0f172a;
+            --bg: #f8fafc;
+            --panel: #ffffff;
+            --accent: #334155;
+            --accent-strong: #1e293b;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --shadow: rgba(15, 23, 42, 0.12);
         }
-
         * { box-sizing: border-box; }
-
         body {
-            margin: 0;
-            min-height: 100vh;
+            margin: 0; min-height: 100vh;
             font-family: "Plus Jakarta Sans", sans-serif;
-            background: radial-gradient(1200px 800px at 10% -10%, #fff2e5, transparent),
-                        radial-gradient(1200px 800px at 90% 10%, #e5f0ff, transparent),
-                        var(--bg);
+            background-color: var(--bg);
+            background-image:
+                linear-gradient(180deg, rgba(248,250,252,1) 0%, rgba(241,245,249,1) 100%),
+                repeating-linear-gradient(90deg, rgba(15,23,42,0.04) 0 1px, transparent 1px 36px),
+                repeating-linear-gradient(0deg, rgba(15,23,42,0.04) 0 1px, transparent 1px 36px);
             color: var(--ink);
-            display: grid;
-            place-items: center;
+            display: grid; place-items: center;
             padding: 2rem 1.5rem;
         }
-
         .shell {
             width: min(980px, 100%);
             display: grid;
@@ -40,134 +41,129 @@
             gap: 2rem;
             align-items: stretch;
         }
-
         .hero {
-            background: linear-gradient(135deg, #111827, #0f172a 60%, #1f2937);
-            color: #fff;
+            background: linear-gradient(135deg, #0f172a, #1e293b 60%, #111827);
+            color: #f8fafc;
             border-radius: 24px;
             padding: 2.5rem;
-            position: relative;
-            overflow: hidden;
+            position: relative; overflow: hidden;
             box-shadow: 0 20px 60px rgba(2, 6, 23, 0.35);
         }
-
-        .hero::before {
-            content: "";
-            position: absolute;
-            inset: -40% -20% auto auto;
-            width: 280px;
-            height: 280px;
-            background: radial-gradient(circle, rgba(255, 122, 24, 0.8), transparent 60%);
-            opacity: 0.6;
-            transform: rotate(15deg);
-        }
-
-        .hero h1 {
-            font-size: 2.2rem;
-            margin: 0 0 1rem 0;
-            letter-spacing: -0.02em;
-        }
-
-        .hero p {
-            margin: 0 0 2rem 0;
-            line-height: 1.6;
-            color: #cbd5f5;
-        }
-
-        .hero-list {
-            display: grid;
-            gap: 0.75rem;
-            font-size: 0.95rem;
-        }
-
-        .hero-list span {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
+        .hero h1 { font-size: 2.2rem; margin: 0 0 1rem; letter-spacing: -0.02em; }
+        .hero p { margin: 0 0 1.5rem; line-height: 1.6; color: #cbd5e1; }
+        .hero-list { display: grid; gap: 0.6rem; font-size: 0.95rem; }
         .hero-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: rgba(255, 255, 255, 0.1);
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.12);
             padding: 0.45rem 0.9rem;
             border-radius: 999px;
-            font-size: 0.85rem;
-            color: #fef3c7;
+            font-size: 0.85rem; color: #e2e8f0;
             margin-bottom: 1.5rem;
         }
-
         .card {
-            background: #fff;
+            background: var(--panel);
             border-radius: 24px;
-            padding: 2.4rem;
-            box-shadow: 0 16px 40px var(--shadow);
-            display: grid;
-            gap: 1.5rem;
+            padding: 2.2rem;
+            box-shadow: 0 16px 32px var(--shadow);
+            border: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 1rem;
         }
+        .card h2 { margin: 0; font-size: 1.4rem; }
+        .card .lede { margin: 0; color: var(--muted); font-size: 0.92rem; line-height: 1.5; }
 
-        .card h2 {
-            margin: 0;
-            font-size: 1.5rem;
+        .primary-action {
+            display: flex; flex-direction: column; gap: 0.5rem;
+            background: linear-gradient(135deg, rgba(34,197,94,0.06), rgba(16,185,129,0.04));
+            border: 1px solid rgba(34,197,94,0.18);
+            border-radius: 14px;
+            padding: 1rem 1.1rem;
         }
-
-        .card p {
-            margin: 0;
-            color: #6b7280;
+        .primary-action-title {
+            display: flex; align-items: center; gap: 0.5rem;
+            font-weight: 700; color: #065f46;
         }
-
-        label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 0.4rem;
-        }
-
-        input {
-            width: 100%;
-            padding: 0.85rem 1rem;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-            font-size: 1rem;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        input:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(255, 122, 24, 0.2);
-        }
+        .primary-action small { font-size: 0.78rem; color: #047857; line-height: 1.45; }
 
         .btn {
-            width: 100%;
-            padding: 0.95rem 1.2rem;
-            border-radius: 14px;
-            border: none;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
-            background: linear-gradient(120deg, var(--accent), var(--accent-2));
-            color: #111827;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            width: 100%; padding: 0.9rem 1.1rem;
+            border-radius: 12px; border: none;
+            font-size: 0.98rem; font-weight: 700; cursor: pointer;
+            background: var(--accent); color: #fff;
+            transition: transform .15s, box-shadow .15s, background .15s;
         }
+        .btn:hover { background: var(--accent-strong); transform: translateY(-1px); }
+        .btn-primary { background: #059669; }
+        .btn-primary:hover { background: #047857; }
+        .btn-secondary {
+            background: #f1f5f9; color: var(--ink); border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { background: #e2e8f0; }
+        .btn-link {
+            background: transparent; color: var(--accent); border: none;
+            font-weight: 600; cursor: pointer; padding: 0.4rem 0.6rem;
+            font-size: 0.88rem;
+            display: inline-flex; align-items: center; gap: 0.3rem;
+        }
+        .btn-link:hover { color: var(--accent-strong); text-decoration: underline; }
 
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 20px rgba(255, 122, 24, 0.3);
+        details.advanced {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 0.6rem 1rem;
+            background: #fafbfc;
         }
+        details.advanced summary {
+            cursor: pointer; font-weight: 600; color: var(--accent);
+            font-size: 0.92rem;
+        }
+        details.advanced[open] { padding-bottom: 1rem; }
+
+        .auth-form { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.85rem; }
+        .auth-form-row { display: grid; gap: 0.3rem; }
+        .auth-form label { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+        .auth-form input {
+            padding: 0.7rem 0.9rem;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 0.92rem;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .auth-form input:focus {
+            outline: none; border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(51, 65, 85, 0.15);
+        }
+        .auth-tabs { display: flex; gap: 0.3rem; margin-bottom: 0.5rem; }
+        .auth-tab {
+            flex: 1; padding: 0.45rem 0.6rem;
+            border: 1px solid var(--border); background: #f8fafc;
+            border-radius: 8px; cursor: pointer;
+            font-size: 0.85rem; font-weight: 600; color: var(--muted);
+        }
+        .auth-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
         .message {
-            padding: 0.85rem 1rem;
-            border-radius: 12px;
-            background: #fef2f2;
-            color: #b91c1c;
-            font-size: 0.95rem;
+            padding: 0.75rem 0.9rem;
+            border-radius: 10px;
+            font-size: 0.88rem;
             display: none;
         }
+        .message.is-error   { background: #fef2f2; color: #b91c1c; }
+        .message.is-success { background: #f0fdf4; color: #16a34a; }
+        .message.is-info    { background: #eff6ff; color: #1d4ed8; }
 
-        .small {
-            font-size: 0.85rem;
-            color: #6b7280;
+        .forgot-section {
+            border-top: 1px dashed var(--border);
+            padding-top: 0.85rem;
+            font-size: 0.8rem;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+        .forgot-section code {
+            display: inline-block;
+            background: #0f172a; color: #f1f5f9;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.78rem;
         }
 
         @media (max-width: 880px) {
@@ -177,109 +173,241 @@
     </style>
 </head>
 <body>
-    <div class="shell">
-        <section class="hero">
-            <div class="hero-badge">🔐 Guvenli Giris</div>
-            <h1>eMuhasebe Pro</h1>
-            <p>Finansal verilerinizi tek merkezden yonetin. Giris yaparak tum modullere erisin ve hareketlerinizi guvende tutun.</p>
-            <div class="hero-list">
-                <span>✅ Mustriler ve tedarikciler tek ekranda</span>
-                <span>✅ Satis, alis ve iade faturalarinda tam kontrol</span>
-                <span>✅ Anlik raporlar ve net kar/zarar takibi</span>
+<div class="shell">
+
+    <!-- Sol: bilgi paneli -->
+    <section class="hero">
+        <div class="hero-badge">🔐 Opsiyonel Giriş</div>
+        <h1>eMuhasebe Pro</h1>
+        <p>
+            <b>Bu sayfaya giriş yapmak ZORUNLU değildir.</b>
+            Web arayüzü Firebase / tarayıcı belleğiyle çalışır — uygulamayı kullanmak için
+            sadece "Devam Et"e bastırmak yeterli.
+        </p>
+        <p style="font-size: 0.85rem; color: #94a3b8;">
+            Giriş yalnızca <b>backend REST API'sine</b> erişmek isteyen kullanıcılar için.
+            Bir muhasebe yazılımı, mobil uygulama veya 3. parti araç eMuhasebe API'sine
+            bağlanacaksa burada hesap oluşturulup token alınır.
+        </p>
+        <div class="hero-list">
+            <span>✅ Müşteri & tedarikçi yönetimi</span>
+            <span>✅ Satış / alış / iade faturaları</span>
+            <span>✅ AI Analiz + Nakit akışı tahmini</span>
+            <span>✅ Yerel veya Firebase Realtime DB</span>
+        </div>
+    </section>
+
+    <!-- Sağ: kart -->
+    <section class="card">
+
+        <!-- Birincil aksiyon: girişsiz devam -->
+        <div class="primary-action">
+            <div class="primary-action-title">
+                <i class="fas fa-rocket"></i>
+                Doğrudan Kullanım
             </div>
-        </section>
+            <small>
+                Çoğu kullanıcı için önerilen yol. Hesap, şifre veya kayıt gerekmiyor.
+                Verilerin tarayıcına/Firebase'ine kaydedilir.
+            </small>
+            <button class="btn btn-primary" type="button" id="skipLoginBtn">
+                <i class="fas fa-arrow-right"></i> Uygulamaya Geç
+            </button>
+        </div>
 
-        <section class="card">
-            <div>
-                <h2>Hesabina Giris Yap</h2>
-                <p>Yetkili bir kullanici ile devam et.</p>
+        <!-- Ayrılma çizgisi -->
+        <div style="display:flex; align-items:center; gap:0.5rem; color:var(--muted); font-size:0.78rem;">
+            <span style="flex:1; height:1px; background:var(--border);"></span>
+            <span>API erişimi gerekiyorsa</span>
+            <span style="flex:1; height:1px; background:var(--border);"></span>
+        </div>
+
+        <!-- Gelişmiş: hesap ile giriş -->
+        <details class="advanced">
+            <summary>
+                <i class="fas fa-key"></i> Hesap ile giriş yap / kayıt ol
+            </summary>
+
+            <!-- Tab switcher -->
+            <div class="auth-tabs" style="margin-top:0.8rem;">
+                <button type="button" class="auth-tab active" data-tab="login">
+                    <i class="fas fa-right-to-bracket"></i> Giriş
+                </button>
+                <button type="button" class="auth-tab" data-tab="register">
+                    <i class="fas fa-user-plus"></i> Yeni Hesap
+                </button>
             </div>
 
-            <div class="message" id="loginError"></div>
+            <div class="message" id="authError"></div>
+            <div class="message" id="authInfo"></div>
 
-            <form id="loginForm" autocomplete="on">
-                <div>
-                    <label for="email">E-posta</label>
-                    <input id="email" name="email" type="email" placeholder="ornek@firma.com" required>
+            <!-- Giriş formu -->
+            <form id="loginForm" class="auth-form" autocomplete="on">
+                <div class="auth-form-row">
+                    <label for="loginEmail">E-posta</label>
+                    <input id="loginEmail" name="email" type="email" placeholder="ornek@firma.com" required autocomplete="email">
                 </div>
-                <div>
-                    <label for="password">Sifre</label>
-                    <input id="password" name="password" type="password" placeholder="••••••••" required>
+                <div class="auth-form-row">
+                    <label for="loginPassword">Şifre</label>
+                    <input id="loginPassword" name="password" type="password" placeholder="••••••••" minlength="6" required autocomplete="current-password">
                 </div>
-                <button class="btn" type="submit" id="loginBtn">Giris Yap</button>
+                <button class="btn" type="submit" id="loginBtn">
+                    <i class="fas fa-sign-in-alt"></i> Giriş Yap
+                </button>
             </form>
 
-            <button class="btn" type="button" id="skipLoginBtn">Giris olmadan devam et</button>
+            <!-- Kayıt formu -->
+            <form id="registerForm" class="auth-form" autocomplete="on" hidden>
+                <div class="auth-form-row">
+                    <label for="regUsername">Kullanıcı Adı</label>
+                    <input id="regUsername" name="username" type="text" placeholder="meyrem" required autocomplete="username">
+                </div>
+                <div class="auth-form-row">
+                    <label for="regEmail">E-posta</label>
+                    <input id="regEmail" name="email" type="email" placeholder="ornek@firma.com" required autocomplete="email">
+                </div>
+                <div class="auth-form-row">
+                    <label for="regPassword">Şifre (en az 6 karakter)</label>
+                    <input id="regPassword" name="password" type="password" placeholder="••••••••" minlength="6" required autocomplete="new-password">
+                </div>
+                <p style="font-size:0.78rem; color:var(--muted); margin:0.2rem 0 0;">
+                    <i class="fas fa-info-circle"></i>
+                    İlk kullanıcı otomatik <b>admin</b> olur.
+                    Sonraki kullanıcıları sadece admin oluşturabilir.
+                </p>
+                <button class="btn btn-primary" type="submit" id="registerBtn">
+                    <i class="fas fa-user-plus"></i> Hesap Oluştur
+                </button>
+            </form>
 
-            <div class="small">Giris yapinca tokenlar tarayiciya kaydedilir.</div>
-        </section>
-    </div>
+            <!-- Şifre kurtarma -->
+            <div class="forgot-section">
+                <b><i class="fas fa-question-circle"></i> Şifremi unuttum:</b>
+                Bu tekil kullanıcılı kurulumda otomatik e-posta kurtarma yok.
+                Sunucu erişimin varsa terminalden şifre sıfırla:
+                <br>
+                <code>flask --app run.py reset-password ornek@firma.com yeniSifre</code>
+                <br>
+                <span style="font-size:0.75rem;">
+                    Veya tüm hesapları silmek istersen: <code>flask --app run.py reset-users</code>
+                </span>
+            </div>
+        </details>
 
-    <script>
-        (function() {
-            const token = localStorage.getItem('emuhasebe_access_token');
-            if (token) {
-                const next = new URLSearchParams(window.location.search).get('next') || '/';
-                window.location.href = next;
-                return;
-            }
+    </section>
 
-            const form = document.getElementById('loginForm');
-            const btn = document.getElementById('loginBtn');
-            const skipBtn = document.getElementById('skipLoginBtn');
-            const errorBox = document.getElementById('loginError');
+</div>
 
-            skipBtn.addEventListener('click', () => {
-                localStorage.setItem('emuhasebe_auth_disabled', '1');
-                const next = new URLSearchParams(window.location.search).get('next') || '/';
-                window.location.href = next;
-            });
+<script>
+(function() {
+    const tabs       = document.querySelectorAll('.auth-tab');
+    const loginForm  = document.getElementById('loginForm');
+    const regForm    = document.getElementById('registerForm');
+    const errBox     = document.getElementById('authError');
+    const infoBox    = document.getElementById('authInfo');
+    const skipBtn    = document.getElementById('skipLoginBtn');
+    const loginBtn   = document.getElementById('loginBtn');
+    const regBtn     = document.getElementById('registerBtn');
 
-            form.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                errorBox.style.display = 'none';
+    function showError(msg)   { errBox.className = 'message is-error';   errBox.textContent = msg;  errBox.style.display = 'block';  infoBox.style.display = 'none'; }
+    function showSuccess(msg) { infoBox.className = 'message is-success'; infoBox.textContent = msg; infoBox.style.display = 'block'; errBox.style.display = 'none'; }
+    function clearMessages()  { errBox.style.display = 'none'; infoBox.style.display = 'none'; }
 
-                const email = document.getElementById('email').value.trim();
-                const password = document.getElementById('password').value;
+    // Tab değiştirme
+    tabs.forEach(t => t.addEventListener('click', () => {
+        clearMessages();
+        tabs.forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        if (t.dataset.tab === 'login') { loginForm.hidden = false; regForm.hidden = true; }
+        else                            { loginForm.hidden = true;  regForm.hidden = false; }
+    }));
 
-                btn.disabled = true;
-                btn.textContent = 'Giris yapiliyor...';
+    // Girişsiz devam
+    skipBtn.addEventListener('click', () => {
+        const next = new URLSearchParams(window.location.search).get('next') || '/';
+        window.location.href = next;
+    });
 
-                try {
-                    const response = await fetch('/api/v1/auth/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email, password })
-                    });
-
-                    let data = null;
-                    try {
-                        data = await response.json();
-                    } catch (parseError) {
-                        data = null;
-                    }
-
-                    if (!response.ok) {
-                        const msg = data?.error || data?.message || 'Giris basarisiz.';
-                        throw new Error(msg);
-                    }
-
-                    localStorage.setItem('emuhasebe_access_token', data.access_token);
-                    if (data.refresh_token) {
-                        localStorage.setItem('emuhasebe_refresh_token', data.refresh_token);
-                    }
-
+    // Eğer aktif cookie oturum varsa dashboard'a yönlendir
+    fetch('/api/v1/auth/me', { credentials: 'same-origin' })
+        .then(r => r.ok ? r.json() : null)
+        .then(user => {
+            if (user && user.id) {
+                showSuccess('Zaten giriş yapmışsın: ' + user.email);
+                setTimeout(() => {
                     const next = new URLSearchParams(window.location.search).get('next') || '/';
                     window.location.href = next;
-                } catch (err) {
-                    errorBox.textContent = err.message || 'Bir hata olustu.';
-                    errorBox.style.display = 'block';
-                } finally {
-                    btn.disabled = false;
-                    btn.textContent = 'Giris Yap';
-                }
+                }, 800);
+            }
+        })
+        .catch(() => {});
+
+    // Giriş
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearMessages();
+        loginBtn.disabled = true;
+        const origLabel = loginBtn.innerHTML;
+        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Giriş yapılıyor...';
+        try {
+            const r = await fetch('/api/v1/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    email: document.getElementById('loginEmail').value.trim(),
+                    password: document.getElementById('loginPassword').value
+                })
             });
-        })();
-    </script>
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(data.error || data.message || 'Giriş başarısız');
+            showSuccess('✅ Giriş başarılı, yönlendiriliyorsun...');
+            setTimeout(() => {
+                const next = new URLSearchParams(window.location.search).get('next') || '/';
+                window.location.href = next;
+            }, 600);
+        } catch (err) {
+            showError('❌ ' + (err.message || 'Bilinmeyen hata'));
+        } finally {
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = origLabel;
+        }
+    });
+
+    // Kayıt
+    regForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearMessages();
+        regBtn.disabled = true;
+        const origLabel = regBtn.innerHTML;
+        regBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Hesap oluşturuluyor...';
+        try {
+            const r = await fetch('/api/v1/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    username: document.getElementById('regUsername').value.trim(),
+                    email: document.getElementById('regEmail').value.trim(),
+                    password: document.getElementById('regPassword').value,
+                    role: 'admin'
+                })
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(data.error || data.message || 'Kayıt başarısız');
+            showSuccess('✅ Hesap oluşturuldu! Şimdi giriş yapabilirsin.');
+            // Login tab'ına dön, alanları doldur
+            document.querySelector('[data-tab="login"]').click();
+            document.getElementById('loginEmail').value = document.getElementById('regEmail').value;
+            document.getElementById('loginPassword').focus();
+        } catch (err) {
+            showError('❌ ' + (err.message || 'Bilinmeyen hata'));
+        } finally {
+            regBtn.disabled = false;
+            regBtn.innerHTML = origLabel;
+        }
+    });
+})();
+</script>
 </body>
 </html>

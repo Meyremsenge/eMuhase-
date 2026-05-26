@@ -30,18 +30,22 @@ class MusteriService:
         return musteri
 
     @staticmethod
-    def update(musteri: Musteri, changes: Dict[str, Any]) -> Musteri:
-        if not isinstance(musteri, Musteri):
-            musteri = MusteriRepository.get_by_id(musteri)
+    def update(musteri_or_id, changes: Dict[str, Any]) -> Musteri:
+        """Müşteri günceller. İlk argüman ID veya Musteri instance olabilir."""
+        if isinstance(musteri_or_id, Musteri):
+            musteri = musteri_or_id
+        else:
+            musteri = MusteriRepository.get_by_id(musteri_or_id)
         if musteri is None:
             raise ValueError('Müşteri bulunamadı')
+
         # duplicate checks
-        if 'vergi_no' in changes and changes.get('vergi_no'):
-            existing = MusteriRepository.get_by_vergi_no(changes.get('vergi_no'))
+        if changes.get('vergi_no'):
+            existing = MusteriRepository.get_by_vergi_no(changes['vergi_no'])
             if existing and existing.id != musteri.id:
                 raise ValueError('Vergi numarası başka bir müşteriye ait')
-        if 'email' in changes and changes.get('email'):
-            existing = MusteriRepository.get_by_email(changes.get('email'))
+        if changes.get('email'):
+            existing = MusteriRepository.get_by_email(changes['email'])
             if existing and existing.id != musteri.id:
                 raise ValueError('Email başka bir kayıtta mevcut')
 
@@ -52,12 +56,14 @@ class MusteriService:
         return musteri
 
     @staticmethod
-    def delete(musteri: Musteri) -> bool:
-        if not isinstance(musteri, Musteri):
-            musteri = MusteriRepository.get_by_id(musteri)
+    def delete(musteri_or_id) -> bool:
+        """Müşteri soft-delete eder. İlk argüman ID veya Musteri instance olabilir."""
+        if isinstance(musteri_or_id, Musteri):
+            musteri = musteri_or_id
+        else:
+            musteri = MusteriRepository.get_by_id(musteri_or_id)
         if musteri is None:
             raise ValueError('Müşteri bulunamadı')
-        # soft-delete
         musteri.soft_delete()
         db.session.add(musteri)
         db.session.commit()

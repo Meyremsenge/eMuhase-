@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#1f2937"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+    </filter>
+    <linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#dbeafe"/><stop offset="100%" stop-color="#bfdbfe"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#dcfce7"/><stop offset="100%" stop-color="#bbf7d0"/>
+    </linearGradient>
+    <linearGradient id="g3" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fef3c7"/><stop offset="100%" stop-color="#fde68a"/>
+    </linearGradient>
+    <linearGradient id="g4" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fce7f3"/><stop offset="100%" stop-color="#fbcfe8"/>
+    </linearGradient>
+    <linearGradient id="gx" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#ede9fe"/><stop offset="100%" stop-color="#ddd6fe"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="960" height="720" fill="#f8fafc"/>
+
+  <text x="480" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">
+    eMuhasebe Pro — Katmanlı Yazılım Mimarisi
+  </text>
+  <text x="480" y="60" text-anchor="middle" font-size="13" fill="#475569">
+    Flask (Python) + SQLAlchemy + Firebase Realtime Database hibrit yapısı
+  </text>
+
+  <!-- Layer 1: Presentation -->
+  <g filter="url(#shadow)">
+    <rect x="120" y="90" width="640" height="110" rx="12" fill="url(#g1)" stroke="#3b82f6" stroke-width="2"/>
+    <text x="440" y="118" text-anchor="middle" font-size="17" font-weight="700" fill="#1e3a8a">1. Sunum Katmanı (Presentation Layer)</text>
+    <text x="440" y="145" text-anchor="middle" font-size="12" fill="#1e40af">Flask Blueprints: main · musteriler · urunler · satis · alis · iade · auth · api</text>
+    <text x="440" y="165" text-anchor="middle" font-size="12" fill="#1e40af">Jinja2 Templates · Vanilla JS · Firebase Realtime DB (client-side)</text>
+    <text x="440" y="185" text-anchor="middle" font-size="11" font-style="italic" fill="#3730a3">Sorumluluk: Routing, render, JSON yanıtı, kullanıcı arayüzü</text>
+  </g>
+
+  <!-- Cross-cutting box right -->
+  <g filter="url(#shadow)">
+    <rect x="780" y="90" width="160" height="540" rx="12" fill="url(#gx)" stroke="#8b5cf6" stroke-width="2"/>
+    <text x="860" y="120" text-anchor="middle" font-size="13" font-weight="700" fill="#5b21b6">Yatay Katmanlar</text>
+    <line x1="800" y1="135" x2="920" y2="135" stroke="#8b5cf6" stroke-dasharray="3 3"/>
+
+    <text x="860" y="165" text-anchor="middle" font-size="12" font-weight="600" fill="#5b21b6">Güvenlik</text>
+    <text x="860" y="182" text-anchor="middle" font-size="10" fill="#6d28d9">JWT + httpOnly</text>
+    <text x="860" y="196" text-anchor="middle" font-size="10" fill="#6d28d9">cookie</text>
+    <text x="860" y="210" text-anchor="middle" font-size="10" fill="#6d28d9">@jwt_required</text>
+
+    <text x="860" y="245" text-anchor="middle" font-size="12" font-weight="600" fill="#5b21b6">Loglama</text>
+    <text x="860" y="262" text-anchor="middle" font-size="10" fill="#6d28d9">Middleware</text>
+    <text x="860" y="276" text-anchor="middle" font-size="10" fill="#6d28d9">Audit Logs</text>
+
+    <text x="860" y="310" text-anchor="middle" font-size="12" font-weight="600" fill="#5b21b6">Rate Limit</text>
+    <text x="860" y="327" text-anchor="middle" font-size="10" fill="#6d28d9">Flask-Limiter</text>
+    <text x="860" y="341" text-anchor="middle" font-size="10" fill="#6d28d9">Redis</text>
+
+    <text x="860" y="375" text-anchor="middle" font-size="12" font-weight="600" fill="#5b21b6">Validasyon</text>
+    <text x="860" y="392" text-anchor="middle" font-size="10" fill="#6d28d9">validators.py</text>
+    <text x="860" y="406" text-anchor="middle" font-size="10" fill="#6d28d9">Pydantic-like</text>
+
+    <text x="860" y="440" text-anchor="middle" font-size="12" font-weight="600" fill="#5b21b6">AI Proxy</text>
+    <text x="860" y="457" text-anchor="middle" font-size="10" fill="#6d28d9">OpenRouter</text>
+    <text x="860" y="471" text-anchor="middle" font-size="10" fill="#6d28d9">/api/ai/*</text>
+
+    <text x="860" y="505" text-anchor="middle" font-size="12" font-weight="600" fill="#5b21b6">Hata Yön.</text>
+    <text x="860" y="522" text-anchor="middle" font-size="10" fill="#6d28d9">errorhandlers</text>
+    <text x="860" y="536" text-anchor="middle" font-size="10" fill="#6d28d9">4xx · 5xx</text>
+
+    <text x="860" y="570" text-anchor="middle" font-size="12" font-weight="600" fill="#5b21b6">PWA</text>
+    <text x="860" y="587" text-anchor="middle" font-size="10" fill="#6d28d9">manifest.json</text>
+    <text x="860" y="601" text-anchor="middle" font-size="10" fill="#6d28d9">service-worker</text>
+  </g>
+
+  <!-- Arrow 1->2 -->
+  <line x1="440" y1="200" x2="440" y2="240" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="455" y="225" font-size="10" fill="#475569" font-style="italic">çağrı</text>
+
+  <!-- Layer 2: Service -->
+  <g filter="url(#shadow)">
+    <rect x="120" y="240" width="640" height="110" rx="12" fill="url(#g2)" stroke="#22c55e" stroke-width="2"/>
+    <text x="440" y="268" text-anchor="middle" font-size="17" font-weight="700" fill="#14532d">2. İş Mantığı Katmanı (Service Layer)</text>
+    <text x="440" y="295" text-anchor="middle" font-size="12" fill="#166534">MusteriService · UrunService · FaturaService</text>
+    <text x="440" y="315" text-anchor="middle" font-size="12" fill="#166534">İş kuralları · Duplicate kontrolü · Stok güncelleme · Hesaplama</text>
+    <text x="440" y="335" text-anchor="middle" font-size="11" font-style="italic" fill="#15803d">Sorumluluk: İş kurallarının tek noktada uygulanması</text>
+  </g>
+
+  <line x1="440" y1="350" x2="440" y2="390" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="455" y="375" font-size="10" fill="#475569" font-style="italic">CRUD</text>
+
+  <!-- Layer 3: Repository -->
+  <g filter="url(#shadow)">
+    <rect x="120" y="390" width="640" height="110" rx="12" fill="url(#g3)" stroke="#f59e0b" stroke-width="2"/>
+    <text x="440" y="418" text-anchor="middle" font-size="17" font-weight="700" fill="#78350f">3. Veri Erişim Katmanı (Repository Layer)</text>
+    <text x="440" y="445" text-anchor="middle" font-size="12" fill="#92400e">BaseRepository → MusteriRepository · UrunRepository</text>
+    <text x="440" y="465" text-anchor="middle" font-size="12" fill="#92400e">SatisFaturaRepository · AlisFaturaRepository · IadeFaturaRepository</text>
+    <text x="440" y="485" text-anchor="middle" font-size="11" font-style="italic" fill="#b45309">Sorumluluk: Soft delete, sayfalama, arama, filtreleme</text>
+  </g>
+
+  <line x1="440" y1="500" x2="440" y2="540" stroke="#1f2937" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="455" y="525" font-size="10" fill="#475569" font-style="italic">SQL</text>
+
+  <!-- Layer 4: Database -->
+  <g filter="url(#shadow)">
+    <rect x="120" y="540" width="640" height="110" rx="12" fill="url(#g4)" stroke="#ec4899" stroke-width="2"/>
+    <text x="440" y="568" text-anchor="middle" font-size="17" font-weight="700" fill="#831843">4. Veritabanı Katmanı (Database Layer)</text>
+    <text x="440" y="595" text-anchor="middle" font-size="12" fill="#9d174d">SQLAlchemy ORM · Flask-Migrate (Alembic)</text>
+    <text x="440" y="615" text-anchor="middle" font-size="12" fill="#9d174d">SQLite (geliştirme) · PostgreSQL (üretim) · Firebase Realtime DB</text>
+    <text x="440" y="635" text-anchor="middle" font-size="11" font-style="italic" fill="#be185d">Sorumluluk: Kalıcı veri saklama, migration, audit trail</text>
+  </g>
+
+  <!-- Side labels -->
+  <g font-size="11" fill="#64748b">
+    <text x="60" y="150" text-anchor="middle">HTTP</text>
+    <text x="60" y="300" text-anchor="middle">Method</text>
+    <text x="60" y="450" text-anchor="middle">Call</text>
+    <text x="60" y="600" text-anchor="middle">Driver</text>
+    <line x1="60" y1="155" x2="60" y2="290" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2 3"/>
+    <line x1="60" y1="305" x2="60" y2="440" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2 3"/>
+    <line x1="60" y1="455" x2="60" y2="590" stroke="#94a3b8" stroke-width="1" stroke-dasharray="2 3"/>
+  </g>
+
+  <!-- Bottom note -->
+  <text x="480" y="685" text-anchor="middle" font-size="11" fill="#475569" font-style="italic">
+    Her katman yalnızca bir alt katmana bağımlıdır; üst katmanların alt katmanları doğrudan çağırması engellenmiştir.
+  </text>
+  <text x="480" y="703" text-anchor="middle" font-size="10" fill="#94a3b8">
+    Hazırlayan: Meyrem Şenge · BMÜ326 Yazılım Mühendisliği Dönem Projesi
+  </text>
+</svg>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" font-family="Segoe UI, Arial, sans-serif">
+  <defs>
+    <marker id="a" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto">
+      <path d="M0,0 L12,6 L0,12 Z" fill="#1f2937"/>
+    </marker>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <rect width="1000" height="480" fill="#f8fafc"/>
+
+  <text x="500" y="32" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">
+    Örnek İstek Akışı — Yeni Satış Faturası Oluşturma
+  </text>
+  <text x="500" y="52" text-anchor="middle" font-size="11" fill="#475569">
+    Kullanıcının "Kaydet" butonuna basmasından stok güncellemesine kadar geçen süreç
+  </text>
+
+  <!-- Aktörler / katmanlar -->
+  <g font-size="11" font-weight="700" fill="#0f172a">
+    <text x="80" y="92" text-anchor="middle">Tarayıcı</text>
+    <text x="260" y="92" text-anchor="middle">Flask Route</text>
+    <text x="440" y="92" text-anchor="middle">FaturaService</text>
+    <text x="620" y="92" text-anchor="middle">Repository</text>
+    <text x="800" y="92" text-anchor="middle">SQLAlchemy</text>
+    <text x="930" y="92" text-anchor="middle">DB</text>
+  </g>
+
+  <!-- Dikey çizgiler -->
+  <g stroke="#cbd5e1" stroke-dasharray="3 4">
+    <line x1="80" y1="100" x2="80" y2="440"/>
+    <line x1="260" y1="100" x2="260" y2="440"/>
+    <line x1="440" y1="100" x2="440" y2="440"/>
+    <line x1="620" y1="100" x2="620" y2="440"/>
+    <line x1="800" y1="100" x2="800" y2="440"/>
+    <line x1="930" y1="100" x2="930" y2="440"/>
+  </g>
+
+  <!-- 1. POST -->
+  <line x1="80" y1="130" x2="260" y2="130" stroke="#1e40af" stroke-width="2" marker-end="url(#a)"/>
+  <text x="170" y="123" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="600">1. POST /satis/yeni  +  CSRF token</text>
+
+  <!-- 2. JWT kontrol -->
+  <rect x="220" y="140" width="80" height="22" rx="3" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="260" y="156" text-anchor="middle" font-size="10" fill="#78350f">@jwt_required</text>
+
+  <!-- 3. Service çağrısı -->
+  <line x1="260" y1="180" x2="440" y2="180" stroke="#166534" stroke-width="2" marker-end="url(#a)"/>
+  <text x="350" y="173" text-anchor="middle" font-size="11" fill="#166534" font-weight="600">2. FaturaService.create(data)</text>
+
+  <!-- 4. İş kuralı -->
+  <rect x="400" y="190" width="80" height="22" rx="3" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="440" y="206" text-anchor="middle" font-size="10" fill="#14532d">Validasyon</text>
+
+  <!-- 5. Repository -->
+  <line x1="440" y1="230" x2="620" y2="230" stroke="#92400e" stroke-width="2" marker-end="url(#a)"/>
+  <text x="530" y="223" text-anchor="middle" font-size="11" fill="#92400e" font-weight="600">3. SatisFaturaRepo.create_with_kalemler()</text>
+
+  <!-- Stok kontrol -->
+  <rect x="580" y="240" width="80" height="22" rx="3" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="620" y="256" text-anchor="middle" font-size="10" fill="#78350f">Stok kontrol</text>
+
+  <!-- 6. ORM insert -->
+  <line x1="620" y1="280" x2="800" y2="280" stroke="#7c2d12" stroke-width="2" marker-end="url(#a)"/>
+  <text x="710" y="273" text-anchor="middle" font-size="11" fill="#7c2d12" font-weight="600">4. db.session.add + flush</text>
+
+  <!-- 7. INSERT -->
+  <line x1="800" y1="310" x2="930" y2="310" stroke="#0f172a" stroke-width="2" marker-end="url(#a)"/>
+  <text x="865" y="303" text-anchor="middle" font-size="11" fill="#0f172a" font-weight="600">5. INSERT</text>
+
+  <!-- Audit log (otomatik) -->
+  <rect x="760" y="320" width="80" height="22" rx="3" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="800" y="336" text-anchor="middle" font-size="10" fill="#7f1d1d">audit_log yazımı</text>
+
+  <!-- Geri dönüş -->
+  <line x1="930" y1="360" x2="80" y2="360" stroke="#22c55e" stroke-width="2" marker-end="url(#a)"/>
+  <text x="500" y="353" text-anchor="middle" font-size="11" fill="#16a34a" font-weight="600">6. Commit + 201 Created · {"id": 42, "fatura_no": "SF-2026-0001"}</text>
+
+  <!-- Frontend güncelle -->
+  <rect x="40" y="380" width="80" height="22" rx="3" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="80" y="396" text-anchor="middle" font-size="10" fill="#1e3a8a">UI refresh</text>
+
+  <text x="500" y="430" text-anchor="middle" font-size="11" font-style="italic" fill="#475569">
+    Stok kontrolü başarısız olursa: ValueError → 400 Bad Request, transaction rollback edilir.
+  </text>
+  <text x="500" y="450" text-anchor="middle" font-size="11" font-style="italic" fill="#475569">
+    Tüm akış tek bir transaction içinde çalışır; bir adım başarısız olursa hiçbir değişiklik kalıcı olmaz.
+  </text>
+</svg>

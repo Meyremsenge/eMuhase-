@@ -385,6 +385,7 @@ def fatura_to_dict(fatura):
         'firma_adi': firma_adi,
         'cari_adi': musteri_adi or tedarikci_adi or firma_adi,
         'iade_turu': getattr(fatura, 'iade_turu', None),
+        'iade_tipi': getattr(fatura, 'iade_turu', None),  # frontend alias
         'iade_nedeni': getattr(fatura, 'iade_nedeni', None),
         'ara_toplam': _decimal_or_none(getattr(fatura, 'ara_toplam', None)),
         'kdv_toplam': _decimal_or_none(getattr(fatura, 'kdv_toplam', None)),

@@ -1,86 +1,120 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}İade Faturaları - eMuhasebe Pro{% endblock %}
 
 {% block page_title %}İade Faturaları{% endblock %}
 {% block page_subtitle %}Alış ve satış iadeleri{% endblock %}
 
-{% block header_actions %}
-<a href="{{ url_for('iade.yeni') }}" class="btn btn-primary">
-    <i class="fas fa-plus"></i>
-    Yeni İade Faturası
-</a>
-{% endblock %}
+{% block header_actions %}{% endblock %}
 
 {% block content %}
-<div class="filter-bar">
-    <div class="u-flex u-flex-wrap u-gap-1 u-w-full u-align-end">
+<div class="page-header">
+    <div>
+        <h1 class="page-title">İade Faturaları</h1>
+        <p class="page-subtitle">Alış ve satış iadeleri</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('iade.yeni') }}" class="btn btn-primary" aria-label="Yeni iade faturası oluştur">
+            <i class="fas fa-plus" aria-hidden="true"></i>
+            Yeni İade Faturası
+        </a>
+    </div>
+</div>
+
+<div class="filter-bar" role="search" aria-label="İade fatura filtreleme">
+    <div class="flex flex-wrap gap-1 w-full items-end">
         <div class="form-group">
-            <label class="form-label">Arama</label>
-            <input type="text" id="aramaInput" class="form-control" placeholder="Fatura no...">
+            <label class="form-label" for="aramaInput">Arama</label>
+            <input type="text" id="aramaInput" class="form-control" placeholder="Fatura no..."
+                   aria-label="Fatura no ara">
         </div>
         <div class="form-group">
-            <label class="form-label">İade Tipi</label>
-            <select id="tipSelect" class="form-control form-select">
+            <label class="form-label" for="tipSelect">İade Tipi</label>
+            <select id="tipSelect" class="form-control form-select" aria-label="İade tipi filtrele">
                 <option value="">Tümü</option>
                 <option value="alis_iade">Alış İadesi</option>
                 <option value="satis_iade">Satış İadesi</option>
             </select>
         </div>
         <div class="form-group">
-            <button type="button" onclick="filtrele()" class="btn btn-primary">
-                <i class="fas fa-search"></i>
+            <button type="button" onclick="filtrele()" class="btn btn-primary" aria-label="Filtrele">
+                <i class="fas fa-search" aria-hidden="true"></i>
                 Filtrele
             </button>
-            <button type="button" onclick="temizle()" class="btn btn-secondary">
-                <i class="fas fa-times"></i>
+            <button type="button" onclick="temizle()" class="btn btn-secondary" aria-label="Filtreleri temizle">
+                <i class="fas fa-times" aria-hidden="true"></i>
                 Temizle
             </button>
         </div>
     </div>
 </div>
 
-<div id="yukleniyorDiv" class="card is-hidden">
-    <div class="card-body u-text-center u-p-3">
-        <i class="fas fa-spinner fa-spin fa-2x u-text-primary-500"></i>
-        <p class="u-mt-1 u-text-muted">Veriler yükleniyor...</p>
+<!-- Skeleton Loader (Sprint 3) -->
+<div id="yukleniyorDiv" class="card is-hidden" aria-label="Veriler yükleniyor" aria-live="polite" role="status">
+    <div class="card-body p-0">
+        <div style="padding:1rem 1rem 0.5rem; border-bottom:1px solid var(--glass-border)">
+            <div class="skeleton-base skeleton-text skeleton-text-lg skeleton-w-1-4"></div>
+        </div>
+        {% for _ in range(4) %}
+        <div class="skeleton-row">
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:80px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:90px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-2" style="min-width:120px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:80px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:80px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:60px"></div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 
 <div class="card" id="listeCard">
-    <div class="card-body u-p-0">
-        <div class="table-container">
-            <table class="table">
+    <div class="card-body p-0">
+        <div class="table-container" id="tblContainer">
+            <table class="table" aria-label="İade Faturası Listesi">
                 <thead>
                     <tr>
-                        <th>Fatura No</th>
-                        <th>İade Tipi</th>
-                        <th>Cari</th>
-                        <th>Tarih</th>
-                        <th>Tutar</th>
-                        <th>Durum</th>
-                        <th>İşlemler</th>
+                        <th scope="col">Fatura No</th>
+                        <th scope="col">İade Tipi</th>
+                        <th scope="col">Cari</th>
+                        <th scope="col">Tarih</th>
+                        <th scope="col">Tutar</th>
+                        <th scope="col">Durum</th>
+                        <th scope="col">İşlemler</th>
                     </tr>
                 </thead>
                 <tbody id="faturaListesi"></tbody>
             </table>
         </div>
-        
-        <div id="bosState" class="empty-state is-hidden">
+
+        <!-- Empty State: Hiç kayıt yok -->
+        <div id="bosState" class="empty-state is-hidden" role="status">
             <div class="empty-state-icon">
-                <i class="fas fa-undo-alt"></i>
+                <i class="fas fa-rotate-left" aria-hidden="true"></i>
             </div>
             <h3>Henüz iade faturası yok</h3>
             <p>İlk iade faturanızı oluşturarak başlayın.</p>
             <a href="{{ url_for('iade.yeni') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i>
+                <i class="fas fa-plus" aria-hidden="true"></i>
                 Yeni İade Faturası
             </a>
+        </div>
+
+        <!-- Empty State: Filtre sonucu boş (Sprint 3) -->
+        <div id="filterBosState" class="empty-state-filter is-hidden" role="status">
+            <div class="empty-state-filter-icon">
+                <i class="fas fa-filter" aria-hidden="true"></i>
+            </div>
+            <h4>Filtreyle eşleşen iade faturası bulunamadı</h4>
+            <p>Arama veya filtre kriterlerinize uygun kayıt yok.</p>
+            <button type="button" class="btn btn--ghost" onclick="temizle()" aria-label="Filtreleri temizle">
+                <i class="fas fa-times" aria-hidden="true"></i> Filtreleri Temizle
+            </button>
         </div>
     </div>
 </div>
 
-<div id="sonucSayisi" class="u-mt-1 u-text-center u-text-muted"></div>
+<div id="sonucSayisi" class="mt-1 text-center text-muted" aria-live="polite" aria-atomic="true"></div>
 {% endblock %}
 
 {% block extra_js %}
@@ -91,18 +125,31 @@ let tumFaturalar = [];
 let cariler = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
-    document.getElementById('yukleniyorDiv').style.display = 'block';
-    document.getElementById('listeCard').style.display = 'none';
-    
+    const yukleniyorDiv = document.getElementById('yukleniyorDiv');
+    const listeCard     = document.getElementById('listeCard');
+    yukleniyorDiv.classList.remove('is-hidden');
+    listeCard.style.display = 'none';
+
+    await init();
     const cariListesi = await Musteriler.hepsiniGetir();
-    cariListesi.forEach(m => cariler[m.id] = m.unvan);
-    
+    cariListesi.forEach(m => { cariler[m.id] = m.unvan; });
+
     IadeFaturalari.dinle((faturalar) => {
         tumFaturalar = faturalar.sort((a, b) => new Date(b.fatura_tarihi) - new Date(a.fatura_tarihi));
-        document.getElementById('yukleniyorDiv').style.display = 'none';
-        document.getElementById('listeCard').style.display = 'block';
-        listeyiGuncelle(tumFaturalar);
+        yukleniyorDiv.classList.add('is-hidden');
+        listeCard.style.display = 'block';
+        listeyiGuncelle(tumFaturalar, false);
     });
+
+    // Arama: 250ms debounce
+    const aramaInput = document.getElementById('aramaInput');
+    const tipSelect = document.getElementById('tipSelect');
+    let _debounceTimer = null;
+    if (aramaInput) aramaInput.addEventListener('input', () => {
+        clearTimeout(_debounceTimer);
+        _debounceTimer = setTimeout(() => window.filtrele(), 250);
+    });
+    if (tipSelect) tipSelect.addEventListener('change', () => window.filtrele());
 });
 
 function paraFormat(tutar) {
@@ -114,78 +161,139 @@ function tarihFormat(tarih) {
 }
 
 function tipBadge(tip) {
-    return tip === 'alis_iade' 
-        ? '<span class="badge badge-primary">Alış İadesi</span>' 
+    return tip === 'alis_iade'
+        ? '<span class="badge badge-primary">Alış İadesi</span>'
         : '<span class="badge badge-success">Satış İadesi</span>';
 }
 
 function durumBadge(durum) {
     switch (durum) {
         case 'tamamlandi': return '<span class="badge badge-success">Tamamlandı</span>';
-        case 'iptal': return '<span class="badge badge-danger">İptal</span>';
-        default: return '<span class="badge badge-warning">Beklemede</span>';
+        case 'iptal':      return '<span class="badge badge-danger">İptal</span>';
+        default:           return '<span class="badge badge-warning">Beklemede</span>';
     }
 }
 
-function listeyiGuncelle(faturalar) {
-    const tbody = document.getElementById('faturaListesi');
-    const bosState = document.getElementById('bosState');
-    const sonucSayisi = document.getElementById('sonucSayisi');
-    
+function listeyiGuncelle(faturalar, filtreUygulanmis) {
+    const tbody          = document.getElementById('faturaListesi');
+    const bosState       = document.getElementById('bosState');
+    const filterBosState = document.getElementById('filterBosState');
+    const sonucSayisi    = document.getElementById('sonucSayisi');
+    const tblContainer   = document.getElementById('tblContainer');
+
+    bosState.classList.add('is-hidden');
+    filterBosState.classList.add('is-hidden');
+
     if (faturalar.length === 0) {
         tbody.innerHTML = '';
-        bosState.style.display = 'block';
+        tblContainer.style.display = 'none';
+        if (filtreUygulanmis) {
+            filterBosState.classList.remove('is-hidden');
+        } else {
+            bosState.classList.remove('is-hidden');
+        }
         sonucSayisi.textContent = '';
         return;
     }
-    
-    bosState.style.display = 'none';
+
+    tblContainer.style.display = '';
     const toplam = faturalar.reduce((t, f) => t + (parseFloat(f.genel_toplam) || 0), 0);
-    sonucSayisi.textContent = `Toplam ${faturalar.length} iade faturası - ₺${paraFormat(toplam)}`;
-    
-    tbody.innerHTML = faturalar.map(fatura => `
+    sonucSayisi.textContent = `Toplam ${faturalar.length} iade faturası — ₺${paraFormat(toplam)}`;
+
+    const esc = (s) => String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    tbody.innerHTML = faturalar.map(fatura => {
+        const safeId = encodeURIComponent(fatura.id || '');
+        return `
         <tr>
-            <td><strong>${fatura.fatura_no || '-'}</strong></td>
+            <td><strong>${esc(fatura.fatura_no || '-')}</strong></td>
             <td>${tipBadge(fatura.iade_tipi)}</td>
-            <td>${cariler[fatura.cari_id] || fatura.cari_adi || '-'}</td>
-            <td>${tarihFormat(fatura.fatura_tarihi)}</td>
-            <td class="u-font-semibold">₺${paraFormat(fatura.genel_toplam)}</td>
+            <td>${esc(cariler[fatura.cari_id] || fatura.cari_adi || '-')}</td>
+            <td>${esc(tarihFormat(fatura.fatura_tarihi))}</td>
+            <td class="font-semibold">₺${paraFormat(fatura.genel_toplam)}</td>
             <td>${durumBadge(fatura.durum)}</td>
             <td>
                 <div class="table-actions">
-                    <a href="/faturalar/iade/duzenle/${fatura.id}" class="btn btn-sm btn-secondary" title="Düzenle">
-                        <i class="fas fa-edit"></i>
+                    <a href="/iade/detay/${safeId}"
+                       class="btn btn-sm btn-primary" title="Detay" aria-label="Fatura detayına git">
+                        <i class="fas fa-eye" aria-hidden="true"></i>
                     </a>
-                    <button type="button" onclick="faturaSil('${fatura.id}', '${fatura.fatura_no}')" class="btn btn-sm btn-danger" title="Sil">
-                        <i class="fas fa-trash"></i>
+                    <a href="/iade/duzenle/${safeId}"
+                       class="btn btn-sm btn-secondary" title="Düzenle" aria-label="Faturayı düzenle">
+                        <i class="fas fa-edit" aria-hidden="true"></i>
+                    </a>
+                    <button type="button"
+                            data-id="${esc(fatura.id || '')}"
+                            data-no="${esc(fatura.fatura_no || '')}"
+                            onclick="faturaSil(this.dataset.id, this.dataset.no)"
+                            class="btn btn-sm btn-danger" title="Sil" aria-label="Faturayı sil">
+                        <i class="fas fa-trash" aria-hidden="true"></i>
                     </button>
                 </div>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 }
 
 window.filtrele = function() {
-    const arama = document.getElementById('aramaInput').value.toLowerCase();
-    const tip = document.getElementById('tipSelect').value;
-    
+    const arama = document.getElementById('aramaInput').value.toLowerCase().trim();
+    const tip   = document.getElementById('tipSelect').value;
+    const filtreUygulanmis = !!(arama || tip);
+
     let filtrelenmis = tumFaturalar;
     if (arama) filtrelenmis = filtrelenmis.filter(f => f.fatura_no?.toLowerCase().includes(arama));
-    if (tip) filtrelenmis = filtrelenmis.filter(f => f.iade_tipi === tip);
-    
-    listeyiGuncelle(filtrelenmis);
+    if (tip)   filtrelenmis = filtrelenmis.filter(f => f.iade_tipi === tip);
+
+    listeyiGuncelle(filtrelenmis, filtreUygulanmis);
 };
 
 window.temizle = function() {
     document.getElementById('aramaInput').value = '';
-    document.getElementById('tipSelect').value = '';
-    listeyiGuncelle(tumFaturalar);
+    document.getElementById('tipSelect').value  = '';
+    listeyiGuncelle(tumFaturalar, false);
 };
 
 window.faturaSil = async function(id, faturaNo) {
-    if (confirm(`"${faturaNo}" numaralı faturayı silmek istediğinizden emin misiniz?`)) {
-        try { await IadeFaturalari.sil(id); } 
-        catch (error) { alert('Silme hatası: ' + error.message); }
+    const confirmed = await window.showConfirm({
+        title:    'İade faturasını silmek istediğinize emin misiniz?',
+        message:  'Bu işlem 5 saniye içinde geri alınabilir.',
+        itemName: faturaNo || id,
+        okLabel:  'Faturayı Sil',
+        type:     'danger',
+        icon:     'undo-alt'
+    });
+    if (!confirmed) return;
+
+    let snapshot = null;
+    try { snapshot = await IadeFaturalari.getir(id); } catch (e) { snapshot = null; }
+
+    try {
+        await IadeFaturalari.sil(id);
+    } catch (error) {
+        if (window.notify) notify.error('Silme hatası: ' + error.message, 6000);
+        return;
+    }
+
+    if (window.showUndoToast && snapshot) {
+        const undoClicked = await window.showUndoToast({
+            message: `"${faturaNo || 'İade'}" silindi.`,
+            duration: 5000
+        });
+        if (undoClicked) {
+            try {
+                const { id: _omitId, olusturma_tarihi, guncelleme_tarihi, ...veri } = snapshot;
+                await IadeFaturalari.ekle(veri);
+                if (window.notify) notify.success('İade faturası geri alındı.', 3000);
+            } catch (e) {
+                if (window.notify) notify.error('Geri alma başarısız: ' + e.message, 5000);
+            }
+        } else {
+            if (window.notify) notify.success('İade faturası silindi.', 3000);
+        }
+    } else {
+        if (window.notify) notify.success('İade faturası başarıyla silindi.', 4000);
     }
 };
 </script>

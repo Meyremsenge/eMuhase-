@@ -13,6 +13,27 @@
 // Girdiler: Satış ve alış fatura dizileri, kaç ay ileri tahmin
 // Çıktı  : { gecmis: [...], tahminler: [...] }
 // ================================================================
+function parseDateSafe(value) {
+    if (!value) return null;
+    if (value instanceof Date) return value;
+    const raw = String(value).trim();
+    if (!raw) return null;
+
+    const normalized = raw.replace(/\./g, '-').replace(/\//g, '-');
+    if (/^\d{2}-\d{2}-\d{4}/.test(normalized)) {
+        const parts = normalized.split('-');
+        const day = Number(parts[0]);
+        const month = Number(parts[1]);
+        const year = Number(parts[2]);
+        if (!Number.isNaN(day) && !Number.isNaN(month) && !Number.isNaN(year)) {
+            return new Date(year, month - 1, day);
+        }
+    }
+
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function nakitAkisiTahmini(satisFaturalari, alisFaturalari, ayAdet = 3) {
     const now = new Date();
 
@@ -23,17 +44,19 @@ export function nakitAkisiTahmini(satisFaturalari, alisFaturalari, ayAdet = 3) {
 
         const gelir = satisFaturalari
             .filter(f => {
-                const d = new Date(f.tarih || f.olusturma_tarihi);
+                const d = parseDateSafe(f.tarih || f.fatura_tarihi || f.olusturma_tarihi);
+                if (!d) return false;
                 return d.getMonth() === ay.getMonth() && d.getFullYear() === ay.getFullYear();
             })
-            .reduce((s, f) => s + (parseFloat(f.toplam_tutar) || 0), 0);
+            .reduce((s, f) => s + (parseFloat(f.toplam_tutar) || parseFloat(f.genel_toplam) || 0), 0);
 
         const gider = alisFaturalari
             .filter(f => {
-                const d = new Date(f.tarih || f.olusturma_tarihi);
+                const d = parseDateSafe(f.tarih || f.fatura_tarihi || f.olusturma_tarihi);
+                if (!d) return false;
                 return d.getMonth() === ay.getMonth() && d.getFullYear() === ay.getFullYear();
             })
-            .reduce((s, f) => s + (parseFloat(f.toplam_tutar) || 0), 0);
+            .reduce((s, f) => s + (parseFloat(f.toplam_tutar) || parseFloat(f.genel_toplam) || 0), 0);
 
         gecmis.push({ ay, gelir, gider, net: gelir - gider, tahmin: false });
     }
@@ -98,7 +121,7 @@ export function anomaliTespiti(faturalar, esik = 2.5) {
     if (faturalar.length < 3) return [];
 
     const tutarlar = faturalar
-        .map(f => parseFloat(f.toplam_tutar) || 0)
+        .map(f => parseFloat(f.toplam_tutar) || parseFloat(f.genel_toplam) || 0)
         .filter(t => t > 0);
 
     if (tutarlar.length < 3) return [];
@@ -111,11 +134,11 @@ export function anomaliTespiti(faturalar, esik = 2.5) {
 
     return faturalar
         .filter(f => {
-            const tutar = parseFloat(f.toplam_tutar) || 0;
+            const tutar = parseFloat(f.toplam_tutar) || parseFloat(f.genel_toplam) || 0;
             return tutar > 0 && Math.abs((tutar - ort) / stdSapma) > esik;
         })
         .map(f => {
-            const tutar = parseFloat(f.toplam_tutar) || 0;
+            const tutar = parseFloat(f.toplam_tutar) || parseFloat(f.genel_toplam) || 0;
             const z = (tutar - ort) / stdSapma;
             return {
                 ...f,

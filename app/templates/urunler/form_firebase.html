@@ -5,14 +5,22 @@
 {% block page_title %}{{ 'Ürün/Hizmet Düzenle' if urun_id else 'Yeni Ürün/Hizmet' }}{% endblock %}
 {% block page_subtitle %}{{ 'Ürün bilgilerini güncelleyin' if urun_id else 'Yeni ürün veya hizmet oluşturun' }}{% endblock %}
 
-{% block header_actions %}
-<a href="{{ url_for('urunler.liste') }}" class="btn btn-secondary">
-    <i class="fas fa-arrow-left"></i>
-    Geri Dön
-</a>
-{% endblock %}
+{% block header_actions %}{% endblock %}
 
 {% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Ürün/Hizmet Düzenle' if urun_id else 'Yeni Ürün/Hizmet' }}</h1>
+        <p class="page-subtitle">{{ 'Ürün bilgilerini güncelleyin' if urun_id else 'Yeni ürün veya hizmet oluşturun' }}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('urunler.liste') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i>
+            Geri Dön
+        </a>
+    </div>
+</div>
+
 <div class="card fade-in">
     <div class="card-header">
         <h3 class="card-title">
@@ -29,11 +37,13 @@
                     <label class="form-label">Ürün Kodu *</label>
                     <input type="text" id="kod" name="kod" class="form-control" 
                         placeholder="Örn: URN001" required>
+                    <div class="form-help">Stok takibi icin benzersiz kod.</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Ürün/Hizmet Adı *</label>
                     <input type="text" id="ad" name="ad" class="form-control" 
                         placeholder="Ürün veya hizmet adı" required>
+                    <div class="form-help">Fatura ve raporlarda gorunen ad.</div>
                 </div>
             </div>
             
@@ -81,11 +91,13 @@
                     <label class="form-label">Alış Fiyatı (₺)</label>
                     <input type="number" id="alis_fiyat" name="alis_fiyat" class="form-control" 
                         step="0.01" min="0.01" placeholder="Orn: 125.50" required>
+                    <div class="form-help">KDV haric birim maliyet.</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Satış Fiyatı (₺)</label>
                     <input type="number" id="satis_fiyat" name="satis_fiyat" class="form-control" 
                         step="0.01" min="0.01" placeholder="Orn: 249.90" required>
+                    <div class="form-help">KDV haric birim satis fiyati.</div>
                 </div>
             </div>
             

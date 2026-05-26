@@ -4,6 +4,9 @@ REST API endpoint'leri — ORM + Repository + Service katmanlı mimarisi kullan�
 Frontend (Firebase) ile paralel çalışır; backend tarafında da tam CRUD desteği sağlar.
 """
 import os
+import json
+import urllib.request
+import urllib.error
 from sqlalchemy import text
 from flask import Blueprint, jsonify, request
 from app.models import db
@@ -176,6 +179,109 @@ def get_firebase_config():
     return jsonify({'config': firebase_config})
 
 
+# ══════════════════════ AI ANALYSIS (proxy) ══════════════════════
+
+@api_bp.route('/ai/ping', methods=['POST', 'GET'])
+@limiter.limit("30 per minute")
+def ai_ping():
+    """
+    AI anahtarını DOĞRULA (token harcamadan).
+
+    OpenRouter'ın `/api/v1/auth/key` endpoint'ine HEAD-tarzı bir istek atar:
+    sadece anahtarın geçerli olduğunu söyler, hiç model çağırmaz.
+    """
+    client_key = (request.headers.get('X-OpenRouter-Key') or '').strip()
+    api_key = client_key or os.environ.get('OPENROUTER_API_KEY')
+    if not api_key:
+        return jsonify({'ok': False, 'error': 'Anahtar yok'}), 400
+
+    req = urllib.request.Request(
+        'https://openrouter.ai/api/v1/auth/key',
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'X-Title': 'eMuhasebe Pro',
+        },
+        method='GET',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            payload = json.loads(resp.read().decode('utf-8') or '{}')
+            data = payload.get('data') or {}
+            return jsonify({
+                'ok': True,
+                'label': data.get('label'),
+                'usage': data.get('usage'),
+                'limit': data.get('limit'),
+                'is_free_tier': data.get('is_free_tier'),
+            })
+    except urllib.error.HTTPError as e:
+        return jsonify({'ok': False, 'error': f'Geçersiz anahtar ({e.code})'}), 200
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f'Bağlanılamadı: {str(e)}'}), 200
+
+
+@api_bp.route('/ai/analyze', methods=['POST'])
+@limiter.limit("10 per minute")
+def ai_analyze():
+    """
+    OpenRouter API proxy.
+
+    Anahtar öncelik sırası:
+      1) İstemcinin gönderdiği `X-OpenRouter-Key` header'ı (UI'daki AI Kurulum modal)
+      2) Backend `OPENROUTER_API_KEY` env değişkeni
+
+    Model öncelik sırası:
+      1) İstek body'sindeki `model` alanı
+      2) İstemcinin `X-OpenRouter-Model` header'ı
+      3) Backend `OPENROUTER_MODEL` env değişkeni
+      4) Varsayılan: mistralai/devstral-2512:free
+    """
+    client_key = (request.headers.get('X-OpenRouter-Key') or '').strip()
+    api_key = client_key or os.environ.get('OPENROUTER_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'AI servisi yapılandırılmamış. AI Kurulum ekranından anahtar ekleyin.'}), 503
+
+    data = request.get_json(silent=True) or {}
+    prompt = (data.get('prompt') or data.get('summary') or '').strip()
+    if not prompt:
+        return jsonify({'error': 'prompt zorunludur'}), 400
+
+    model = (data.get('model')
+             or request.headers.get('X-OpenRouter-Model')
+             or os.environ.get('OPENROUTER_MODEL')
+             or 'mistralai/devstral-2512:free')
+
+    body = json.dumps({
+        'model': model,
+        'messages': [{'role': 'user', 'content': prompt}],
+        'max_tokens': 1000,
+    }).encode('utf-8')
+
+    req = urllib.request.Request(
+        'https://openrouter.ai/api/v1/chat/completions',
+        data=body,
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+            'X-Title': 'eMuhasebe Pro',
+        },
+        method='POST',
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            payload = json.loads(resp.read().decode('utf-8'))
+            text_out = (payload.get('choices') or [{}])[0].get('message', {}).get('content', '')
+            return jsonify({'text': text_out, 'model': model})
+    except urllib.error.HTTPError as e:
+        try:
+            err_body = e.read().decode('utf-8')
+        except Exception:
+            err_body = ''
+        return jsonify({'error': f'AI servisi hata: {e.code}', 'detail': err_body[:300]}), 502
+    except Exception as e:
+        return jsonify({'error': f'AI servisine ulaşılamadı: {str(e)}'}), 502
+
+
 # ══════════════════════ MÜŞTERİLER ══════════════════════
 
 @api_bp.route('/musteriler', methods=['GET'])
@@ -333,6 +439,24 @@ def iade_list():
 
 # ══════════════════════ HELPERS ══════════════════════
 
+def _iso(dt):
+    if dt is None:
+        return None
+    try:
+        return dt.isoformat()
+    except Exception:
+        return str(dt)
+
+
+def _num(v):
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except Exception:
+        return None
+
+
 def _musteri_to_dict(m):
     return {
         'id': m.id,
@@ -344,6 +468,8 @@ def _musteri_to_dict(m):
         'email': m.email,
         'tip': m.tip,
         'aktif': m.aktif,
+        'olusturma_tarihi': _iso(getattr(m, 'olusturma_tarihi', None)),
+        'guncelleme_tarihi': _iso(getattr(m, 'guncelleme_tarihi', None)),
     }
 
 
@@ -354,11 +480,13 @@ def _urun_to_dict(u):
         'ad': u.ad,
         'aciklama': u.aciklama,
         'birim': u.birim,
-        'alis_fiyat': u.alis_fiyat,
-        'satis_fiyat': u.satis_fiyat,
+        'alis_fiyat': _num(u.alis_fiyat),
+        'satis_fiyat': _num(u.satis_fiyat),
         'kdv_orani': u.kdv_orani,
-        'stok_miktari': u.stok_miktari,
+        'stok_miktari': _num(u.stok_miktari),
         'aktif': u.aktif,
+        'olusturma_tarihi': _iso(getattr(u, 'olusturma_tarihi', None)),
+        'guncelleme_tarihi': _iso(getattr(u, 'guncelleme_tarihi', None)),
     }
 
 
@@ -366,10 +494,10 @@ def _fatura_to_dict(f):
     return {
         'id': f.id,
         'fatura_no': f.fatura_no,
-        'fatura_tarihi': str(f.fatura_tarihi) if f.fatura_tarihi else None,
-        'ara_toplam': f.ara_toplam,
-        'kdv_toplam': f.kdv_toplam,
-        'genel_toplam': f.genel_toplam,
-        'durum': f.durum,
-        'aciklama': f.aciklama,
+        'fatura_tarihi': _iso(getattr(f, 'fatura_tarihi', None)),
+        'ara_toplam': _num(getattr(f, 'ara_toplam', None)),
+        'kdv_toplam': _num(getattr(f, 'kdv_toplam', None)),
+        'genel_toplam': _num(getattr(f, 'genel_toplam', None)),
+        'durum': getattr(f, 'durum', None),
+        'aciklama': getattr(f, 'aciklama', None),
     }

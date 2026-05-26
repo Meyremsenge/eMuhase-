@@ -136,8 +136,22 @@ class BaseRepository:
 
     @classmethod
     def get_by_id(cls, id_):
-        item = cls.model.query.filter_by(id=id_).first()
+        """ID'ye göre kayıt getir. Soft-deleted kayıtlar dönmez."""
+        q = cls.model.query.filter_by(id=id_)
+        if hasattr(cls.model, 'silinme_tarihi'):
+            q = q.filter(cls.model.silinme_tarihi == None)  # noqa: E711
+        item = q.first()
         logger.debug("%s.get_by_id(%s) -> %s", cls.model.__name__, id_, bool(item))
+        return item
+
+    @classmethod
+    def get_by_id_with_deleted(cls, id_):
+        """ID'ye göre kayıt getir; soft-deleted olanları da içerir.
+
+        Audit / restore / "geri al" akışlarında kullanılır.
+        """
+        item = cls.model.query.filter_by(id=id_).first()
+        logger.debug("%s.get_by_id_with_deleted(%s) -> %s", cls.model.__name__, id_, bool(item))
         return item
 
     @classmethod

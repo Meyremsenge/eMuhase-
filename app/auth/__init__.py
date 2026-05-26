@@ -11,6 +11,9 @@ from flask_jwt_extended import (
     create_refresh_token,
     get_jwt,
     jwt_required,
+    set_access_cookies,
+    set_refresh_cookies,
+    unset_jwt_cookies,
 )
 
 from app.models import db, User
@@ -31,7 +34,7 @@ def _get_blocklist_backend():
     if not redis_url:
         redis_url = os.environ.get("RATELIMIT_STORAGE_URI")
 
-    if redis_url and redis_url.startswith("redis://"):
+    if redis_url and (redis_url.startswith("redis://") or redis_url.startswith("rediss://")):
         try:
             import redis
 
@@ -101,7 +104,9 @@ def login():
     identity = str(user.id)
     access_token = create_access_token(identity=identity, additional_claims={"role": user.role, "email": user.email})
     refresh_token = create_refresh_token(identity=identity, additional_claims={"role": user.role, "email": user.email})
-    return jsonify({
+    # Cookie ve JSON body birlikte döner — header-bazlı eski istemciler de
+    # cookie'siz erişimini sürdürebilir.
+    response = jsonify({
         "access_token": access_token,
         "refresh_token": refresh_token,
         "user": {
@@ -110,7 +115,10 @@ def login():
             "email": user.email,
             "role": user.role,
         },
-    }), 200
+    })
+    set_access_cookies(response, access_token)
+    set_refresh_cookies(response, refresh_token)
+    return response, 200
 
 
 @auth_bp.route("/refresh", methods=["POST"])
@@ -120,7 +128,9 @@ def refresh():
     if user is None:
         return jsonify({"error": "Kullanıcı bulunamadı"}), 401
     access_token = create_access_token(identity=str(user.id), additional_claims={"role": user.role, "email": user.email})
-    return jsonify({"access_token": access_token}), 200
+    response = jsonify({"access_token": access_token})
+    set_access_cookies(response, access_token)
+    return response, 200
 
 
 @auth_bp.route("/me", methods=["GET"])
@@ -143,7 +153,9 @@ def me():
 def logout():
     jwt_data = get_jwt()
     _store_blocked_token(jwt_data["jti"], jwt_data.get("exp"))
-    return jsonify({"message": "Çıkış yapıldı"}), 200
+    response = jsonify({"message": "Çıkış yapıldı"})
+    unset_jwt_cookies(response)
+    return response, 200
 
 
 @auth_bp.route("/register", methods=["POST"])

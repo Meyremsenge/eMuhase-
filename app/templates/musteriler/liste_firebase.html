@@ -1,28 +1,37 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}Müşteriler / Tedarikçiler - eMuhasebe Pro{% endblock %}
 
 {% block page_title %}Müşteriler / Tedarikçiler{% endblock %}
 {% block page_subtitle %}Müşteri ve tedarikçi kayıtları{% endblock %}
 
-{% block header_actions %}
-<a href="{{ url_for('musteriler.yeni') }}" class="btn btn-primary">
-    <i class="fas fa-plus"></i>
-    Yeni Kayıt
-</a>
-{% endblock %}
+{% block header_actions %}{% endblock %}
 
 {% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Müşteriler / Tedarikçiler</h1>
+        <p class="page-subtitle">Müşteri ve tedarikçi kayıtları</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('musteriler.yeni') }}" class="btn btn-primary" aria-label="Yeni müşteri veya tedarikçi ekle">
+            <i class="fas fa-plus" aria-hidden="true"></i>
+            Yeni Kayıt
+        </a>
+    </div>
+</div>
+
 <!-- Filtreler -->
-<div class="filter-bar">
-    <div class="u-flex u-flex-wrap u-gap-1 u-w-full u-align-end">
+<div class="filter-bar" role="search" aria-label="Müşteri filtreleme">
+    <div class="flex flex-wrap gap-1 w-full items-end">
         <div class="form-group">
-            <label class="form-label">Arama</label>
-            <input type="text" id="aramaInput" class="form-control" placeholder="Unvan veya vergi no...">
+            <label class="form-label" for="aramaInput">Arama</label>
+            <input type="text" id="aramaInput" class="form-control" placeholder="Unvan veya vergi no..."
+                   aria-label="Unvan veya vergi no ara">
         </div>
         <div class="form-group">
-            <label class="form-label">Tip</label>
-            <select id="tipSelect" class="form-control form-select">
+            <label class="form-label" for="tipSelect">Tip</label>
+            <select id="tipSelect" class="form-control form-select" aria-label="Kayıt tipi filtrele">
                 <option value="">Tümü</option>
                 <option value="musteri">Müşteri</option>
                 <option value="tedarikci">Tedarikçi</option>
@@ -30,171 +39,261 @@
             </select>
         </div>
         <div class="form-group">
-            <button type="button" onclick="filtrele()" class="btn btn-primary">
-                <i class="fas fa-search"></i>
+            <button type="button" onclick="filtrele()" class="btn btn-primary" aria-label="Filtrele">
+                <i class="fas fa-search" aria-hidden="true"></i>
                 Filtrele
             </button>
-            <button type="button" onclick="temizle()" class="btn btn-secondary">
-                <i class="fas fa-times"></i>
+            <button type="button" onclick="temizle()" class="btn btn-secondary" aria-label="Filtreleri temizle">
+                <i class="fas fa-times" aria-hidden="true"></i>
                 Temizle
             </button>
         </div>
     </div>
 </div>
 
-<!-- Yükleniyor -->
-<div id="yukleniyorDiv" class="card is-hidden">
-    <div class="card-body u-text-center u-p-3">
-        <i class="fas fa-spinner fa-spin fa-2x u-text-primary-500"></i>
-        <p class="u-mt-1 u-text-muted">Veriler yükleniyor...</p>
+<!-- Skeleton Loader (Sprint 3) -->
+<div id="yukleniyorDiv" class="card is-hidden" aria-label="Veriler yükleniyor" aria-live="polite" role="status">
+    <div class="card-body p-0">
+        <div style="padding:1rem 1rem 0.5rem; border-bottom:1px solid var(--glass-border)">
+            <div class="skeleton-base skeleton-text skeleton-text-lg skeleton-w-1-4"></div>
+        </div>
+        {% for _ in range(5) %}
+        <div class="skeleton-row">
+            <div class="skeleton-base skeleton-text skeleton-w-1-2" style="min-width:130px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:90px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:90px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-2" style="min-width:120px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:70px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:60px"></div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 
 <!-- Liste -->
 <div class="card" id="listeCard">
-    <div class="card-body u-p-0">
-        <div class="table-container">
-            <table class="table">
+    <div class="card-body p-0">
+        <div class="table-container" id="tblContainer">
+            <table class="table" aria-label="Müşteri / Tedarikçi Listesi">
                 <thead>
                     <tr>
-                        <th>Unvan</th>
-                        <th>Vergi No</th>
-                        <th>Telefon</th>
-                        <th>E-posta</th>
-                        <th>Tip</th>
-                        <th>Durum</th>
-                        <th>İşlemler</th>
+                        <th scope="col">Unvan</th>
+                        <th scope="col">Vergi No</th>
+                        <th scope="col">Telefon</th>
+                        <th scope="col">E-posta</th>
+                        <th scope="col">Tip</th>
+                        <th scope="col">Durum</th>
+                        <th scope="col">İşlemler</th>
                     </tr>
                 </thead>
-                <tbody id="musteriListesi">
-                    <!-- Firebase'den dinamik olarak yüklenecek -->
-                </tbody>
+                <tbody id="musteriListesi"></tbody>
             </table>
         </div>
-        
-        <!-- Boş durum -->
-        <div id="bosState" class="empty-state is-hidden">
+
+        <!-- Empty State: Hiç kayıt yok -->
+        <div id="bosState" class="empty-state is-hidden" role="status">
             <div class="empty-state-icon">
-                <i class="fas fa-users"></i>
+                <i class="fas fa-building" aria-hidden="true"></i>
             </div>
             <h3>Henüz kayıt yok</h3>
             <p>İlk müşteri veya tedarikçinizi ekleyerek başlayın.</p>
             <a href="{{ url_for('musteriler.yeni') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i>
+                <i class="fas fa-plus" aria-hidden="true"></i>
                 Yeni Kayıt Ekle
             </a>
+        </div>
+
+        <!-- Empty State: Filtre sonucu boş (Sprint 3) -->
+        <div id="filterBosState" class="empty-state-filter is-hidden" role="status">
+            <div class="empty-state-filter-icon">
+                <i class="fas fa-filter" aria-hidden="true"></i>
+            </div>
+            <h4>Filtreyle eşleşen kayıt bulunamadı</h4>
+            <p>Arama veya filtre kriterlerinize uygun kayıt yok.</p>
+            <button type="button" class="btn btn--ghost" onclick="temizle()" aria-label="Filtreleri temizle">
+                <i class="fas fa-times" aria-hidden="true"></i> Filtreleri Temizle
+            </button>
         </div>
     </div>
 </div>
 
-<!-- Sayfa sayısı -->
-<div id="sonucSayisi" class="u-mt-1 u-text-center u-text-muted"></div>
+<div id="sonucSayisi" class="mt-1 text-center text-muted" aria-live="polite" aria-atomic="true"></div>
 {% endblock %}
 
 {% block extra_js %}
 <script type="module">
-import { init, Musteriler, Yardimci } from '{{ url_for("static", filename="js/db.js") }}';
+import { init, Musteriler } from '{{ url_for("static", filename="js/db.js") }}';
 
 let tumMusteriler = [];
 
-// Sayfa yüklendiğinde
 document.addEventListener('DOMContentLoaded', async () => {
-    document.getElementById('yukleniyorDiv').style.display = 'block';
-    document.getElementById('listeCard').style.display = 'none';
-    
-    // Veritabanını başlat
+    const yukleniyorDiv = document.getElementById('yukleniyorDiv');
+    const listeCard     = document.getElementById('listeCard');
+    yukleniyorDiv.classList.remove('is-hidden');
+    listeCard.style.display = 'none';
+
     await init();
-    
-    // Realtime dinleme
+
     await Musteriler.dinle((musteriler) => {
         tumMusteriler = musteriler;
-        document.getElementById('yukleniyorDiv').style.display = 'none';
-        document.getElementById('listeCard').style.display = 'block';
-        listeyiGuncelle(musteriler);
+        yukleniyorDiv.classList.add('is-hidden');
+        listeCard.style.display = 'block';
+        listeyiGuncelle(musteriler, false);
     });
+
+    // Arama input'u: 250ms debounce ile canlı filtreleme
+    const aramaInput = document.getElementById('aramaInput');
+    const tipSelect  = document.getElementById('tipSelect');
+    let _debounceTimer = null;
+    const debouncedFiltrele = () => {
+        clearTimeout(_debounceTimer);
+        _debounceTimer = setTimeout(() => window.filtrele(), 250);
+    };
+    if (aramaInput) aramaInput.addEventListener('input', debouncedFiltrele);
+    if (tipSelect)  tipSelect.addEventListener('change', () => window.filtrele());
 });
 
-// Listeyi güncelle
-function listeyiGuncelle(musteriler) {
-    const tbody = document.getElementById('musteriListesi');
-    const bosState = document.getElementById('bosState');
-    const sonucSayisi = document.getElementById('sonucSayisi');
-    
+function listeyiGuncelle(musteriler, filtreUygulanmis) {
+    const tbody          = document.getElementById('musteriListesi');
+    const bosState       = document.getElementById('bosState');
+    const filterBosState = document.getElementById('filterBosState');
+    const sonucSayisi    = document.getElementById('sonucSayisi');
+    const tblContainer   = document.getElementById('tblContainer');
+
+    bosState.classList.add('is-hidden');
+    filterBosState.classList.add('is-hidden');
+
     if (musteriler.length === 0) {
         tbody.innerHTML = '';
-        bosState.style.display = 'block';
+        tblContainer.style.display = 'none';
+        if (filtreUygulanmis) {
+            filterBosState.classList.remove('is-hidden');
+        } else {
+            bosState.classList.remove('is-hidden');
+        }
         sonucSayisi.textContent = '';
         return;
     }
-    
-    bosState.style.display = 'none';
-    sonucSayisi.textContent = `Toplam ${musteriler.length} kayıt bulundu`;
-    
-    tbody.innerHTML = musteriler.map(musteri => `
+
+    tblContainer.style.display = '';
+    sonucSayisi.textContent = `Toplam ${musteriler.length} kayıt`;
+
+    const esc = (s) => String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    tbody.innerHTML = musteriler.map(musteri => {
+        const tipBadge = musteri.tip === 'musteri'
+            ? '<span class="badge badge-primary">Müşteri</span>'
+            : musteri.tip === 'tedarikci'
+            ? '<span class="badge badge-success">Tedarikçi</span>'
+            : '<span class="badge badge-gray">Her İkisi</span>';
+        const durumBadge = musteri.aktif
+            ? '<span class="badge badge-success">Aktif</span>'
+            : '<span class="badge badge-danger">Pasif</span>';
+        const safeId = encodeURIComponent(musteri.id || '');
+        return `
         <tr>
-            <td class="u-font-semibold">${musteri.unvan || '-'}</td>
-            <td>${musteri.vergi_no || '-'}</td>
-            <td>${musteri.telefon || '-'}</td>
-            <td>${musteri.email || '-'}</td>
-            <td>
-                ${musteri.tip === 'musteri' ? '<span class="badge badge-primary">Müşteri</span>' :
-                  musteri.tip === 'tedarikci' ? '<span class="badge badge-success">Tedarikçi</span>' :
-                  '<span class="badge badge-gray">Her İkisi</span>'}
-            </td>
-            <td>
-                ${musteri.aktif ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-danger">Pasif</span>'}
-            </td>
+            <td class="font-semibold">${esc(musteri.unvan || '-')}</td>
+            <td>${esc(musteri.vergi_no || '-')}</td>
+            <td>${esc(musteri.telefon || '-')}</td>
+            <td>${esc(musteri.email || '-')}</td>
+            <td>${tipBadge}</td>
+            <td>${durumBadge}</td>
             <td>
                 <div class="table-actions">
-                    <a href="/musteriler/duzenle/${musteri.id}" class="btn btn-sm btn-secondary" title="Düzenle">
-                        <i class="fas fa-edit"></i>
+                    <a href="/musteriler/duzenle/${safeId}"
+                       class="btn btn-sm btn-secondary" title="Düzenle" aria-label="${esc(musteri.unvan || '')} kaydını düzenle">
+                        <i class="fas fa-edit" aria-hidden="true"></i>
                     </a>
-                    <button type="button" onclick="musteriSil('${musteri.id}', '${musteri.unvan}')" class="btn btn-sm btn-danger" title="Sil">
-                        <i class="fas fa-trash"></i>
+                    <button type="button"
+                            data-id="${esc(musteri.id || '')}"
+                            data-unvan="${esc(musteri.unvan || '')}"
+                            onclick="musteriSil(this.dataset.id, this.dataset.unvan)"
+                            class="btn btn-sm btn-danger" title="Sil" aria-label="${esc(musteri.unvan || '')} kaydını sil">
+                        <i class="fas fa-trash" aria-hidden="true"></i>
                     </button>
                 </div>
             </td>
-        </tr>
-    `).join('');
+        </tr>`;
+    }).join('');
 }
 
-// Filtreleme
 window.filtrele = function() {
-    const arama = document.getElementById('aramaInput').value.toLowerCase();
-    const tip = document.getElementById('tipSelect').value;
-    
+    const arama = document.getElementById('aramaInput').value.toLowerCase().trim();
+    const tip   = document.getElementById('tipSelect').value;
+    const filtreUygulanmis = !!(arama || tip);
+
     let filtrelenmis = tumMusteriler;
-    
+
     if (arama) {
-        filtrelenmis = filtrelenmis.filter(m => 
-            (m.unvan && m.unvan.toLowerCase().includes(arama)) ||
-            (m.vergi_no && m.vergi_no.toLowerCase().includes(arama))
+        filtrelenmis = filtrelenmis.filter(m =>
+            (m.unvan    && m.unvan.toLowerCase().includes(arama)) ||
+            (m.vergi_no && m.vergi_no.toLowerCase().includes(arama)) ||
+            (m.telefon  && m.telefon.includes(arama)) ||
+            (m.email    && m.email.toLowerCase().includes(arama))
         );
     }
-    
+
     if (tip) {
         filtrelenmis = filtrelenmis.filter(m => m.tip === tip);
     }
-    
-    listeyiGuncelle(filtrelenmis);
+
+    listeyiGuncelle(filtrelenmis, filtreUygulanmis);
 };
 
-// Temizle
 window.temizle = function() {
     document.getElementById('aramaInput').value = '';
-    document.getElementById('tipSelect').value = '';
-    listeyiGuncelle(tumMusteriler);
+    document.getElementById('tipSelect').value  = '';
+    listeyiGuncelle(tumMusteriler, false);
 };
 
-// Silme
 window.musteriSil = async function(id, unvan) {
-    if (confirm(`"${unvan}" kaydını silmek istediğinizden emin misiniz?`)) {
-        try {
-            await Musteriler.sil(id);
-            // Realtime güncelleme otomatik olacak
-        } catch (error) {
-            alert('Silme işlemi başarısız: ' + error.message);
+    const confirmed = await window.showConfirm({
+        title:    'Kaydı silmek istediğinize emin misiniz?',
+        message:  'Bu işlem 5 saniye içinde geri alınabilir.',
+        itemName: unvan || id,
+        okLabel:  'Kaydı Sil',
+        type:     'danger',
+        icon:     'user-times'
+    });
+    if (!confirmed) return;
+
+    // Snapshot al ki "Geri Al" ile aynı veriyle yeniden ekleyebilelim
+    let snapshot = null;
+    try {
+        snapshot = await Musteriler.getir(id);
+    } catch (e) {
+        snapshot = null;
+    }
+
+    try {
+        await Musteriler.sil(id);
+    } catch (error) {
+        if (window.notify) notify.error('Silme işlemi başarısız: ' + error.message, 6000);
+        return;
+    }
+
+    // Undo toast aç
+    if (window.showUndoToast && snapshot) {
+        const undoClicked = await window.showUndoToast({
+            message: `"${unvan || 'Kayıt'}" silindi.`,
+            duration: 5000
+        });
+        if (undoClicked) {
+            try {
+                // Aynı id ile snapshot'tan yeniden oluştur
+                const { id: _omitId, olusturma_tarihi, guncelleme_tarihi, ...veri } = snapshot;
+                await Musteriler.ekle(veri);
+                if (window.notify) notify.success('Kayıt geri alındı.', 3000);
+            } catch (e) {
+                if (window.notify) notify.error('Geri alma başarısız: ' + e.message, 5000);
+            }
+        } else {
+            if (window.notify) notify.success('Kayıt silindi.', 3000);
         }
+    } else {
+        if (window.notify) notify.success('Kayıt başarıyla silindi.', 4000);
     }
 };
 </script>

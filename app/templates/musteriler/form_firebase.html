@@ -5,14 +5,22 @@
 {% block page_title %}{{ 'Müşteri/Tedarikçi Düzenle' if musteri_id else 'Yeni Müşteri/Tedarikçi' }}{% endblock %}
 {% block page_subtitle %}{{ 'Kayıt bilgilerini güncelleyin' if musteri_id else 'Yeni kayıt oluşturun' }}{% endblock %}
 
-{% block header_actions %}
-<a href="{{ url_for('musteriler.liste') }}" class="btn btn-secondary">
-    <i class="fas fa-arrow-left"></i>
-    Geri Dön
-</a>
-{% endblock %}
+{% block header_actions %}{% endblock %}
 
 {% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Müşteri/Tedarikçi Düzenle' if musteri_id else 'Yeni Müşteri/Tedarikçi' }}</h1>
+        <p class="page-subtitle">{{ 'Kayıt bilgilerini güncelleyin' if musteri_id else 'Yeni kayıt oluşturun' }}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('musteriler.liste') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i>
+            Geri Dön
+        </a>
+    </div>
+</div>
+
 <div class="card fade-in">
     <div class="card-header">
         <h3 class="card-title">
@@ -29,6 +37,7 @@
                     <label class="form-label">Unvan *</label>
                     <input type="text" id="unvan" name="unvan" class="form-control" 
                         placeholder="Firma unvanı veya kişi adı" required>
+                    <div class="form-help">Firma unvani veya kisi adini yazin.</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Tip *</label>
@@ -38,14 +47,20 @@
                         <option value="tedarikci">Tedarikçi</option>
                         <option value="her_ikisi">Her İkisi</option>
                     </select>
+                    <div class="form-help">Kaydin finansal rolunu secin.</div>
                 </div>
             </div>
             
             <div class="form-grid">
                 <div class="form-group">
                     <label class="form-label">Vergi No / TC Kimlik</label>
-                    <input type="text" id="vergi_no" name="vergi_no" class="form-control" 
-                        placeholder="10 veya 11 haneli numara">
+                    <input type="text" id="vergi_no" name="vergi_no" class="form-control"
+                        placeholder="10 veya 11 haneli numara"
+                        pattern="\d{10,11}"
+                        inputmode="numeric"
+                        maxlength="11"
+                        title="Sadece rakam, 10 (vergi no) veya 11 (TC kimlik) hane.">
+                    <div class="form-help">Vergi no (10 hane) veya TC kimlik (11 hane).</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Vergi Dairesi</label>

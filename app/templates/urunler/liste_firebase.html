@@ -1,192 +1,274 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}Ürünler / Hizmetler - eMuhasebe Pro{% endblock %}
 
 {% block page_title %}Ürünler / Hizmetler{% endblock %}
 {% block page_subtitle %}Ürün ve hizmet tanımları{% endblock %}
 
-{% block header_actions %}
-<a href="{{ url_for('urunler.yeni') }}" class="btn btn-primary">
-    <i class="fas fa-plus"></i>
-    Yeni Ürün/Hizmet
-</a>
-{% endblock %}
+{% block header_actions %}{% endblock %}
 
 {% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Ürünler / Hizmetler</h1>
+        <p class="page-subtitle">Ürün ve hizmet tanımları</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('urunler.yeni') }}" class="btn btn-primary" aria-label="Yeni ürün veya hizmet ekle">
+            <i class="fas fa-plus" aria-hidden="true"></i>
+            Yeni Ürün/Hizmet
+        </a>
+    </div>
+</div>
+
 <!-- Filtreler -->
-<div class="filter-bar">
-    <div class="u-flex u-flex-wrap u-gap-1 u-w-full u-align-end">
+<div class="filter-bar" role="search" aria-label="Ürün filtreleme">
+    <div class="flex flex-wrap gap-1 w-full items-end">
         <div class="form-group">
-            <label class="form-label">Arama</label>
-            <input type="text" id="aramaInput" class="form-control" placeholder="Kod veya ad...">
+            <label class="form-label" for="aramaInput">Arama</label>
+            <input type="text" id="aramaInput" class="form-control" placeholder="Kod veya ad..."
+                   aria-label="Ürün kodu veya adı ara">
         </div>
         <div class="form-group">
-            <button type="button" onclick="filtrele()" class="btn btn-primary">
-                <i class="fas fa-search"></i>
+            <button type="button" onclick="filtrele()" class="btn btn-primary" aria-label="Filtrele">
+                <i class="fas fa-search" aria-hidden="true"></i>
                 Filtrele
             </button>
-            <button type="button" onclick="temizle()" class="btn btn-secondary">
-                <i class="fas fa-times"></i>
+            <button type="button" onclick="temizle()" class="btn btn-secondary" aria-label="Filtreleri temizle">
+                <i class="fas fa-times" aria-hidden="true"></i>
                 Temizle
             </button>
         </div>
     </div>
 </div>
 
-<!-- Yükleniyor -->
-<div id="yukleniyorDiv" class="card is-hidden">
-    <div class="card-body u-text-center u-p-3">
-        <i class="fas fa-spinner fa-spin fa-2x u-text-primary-500"></i>
-        <p class="u-mt-1 u-text-muted">Veriler yükleniyor...</p>
+<!-- Skeleton Loader (Sprint 3) -->
+<div id="yukleniyorDiv" class="card is-hidden" aria-label="Veriler yükleniyor" aria-live="polite" role="status">
+    <div class="card-body p-0">
+        <div style="padding:1rem 1rem 0.5rem; border-bottom:1px solid var(--glass-border)">
+            <div class="skeleton-base skeleton-text skeleton-text-lg skeleton-w-1-4"></div>
+        </div>
+        {% for _ in range(5) %}
+        <div class="skeleton-row">
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:70px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-2" style="min-width:130px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:60px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:80px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:80px"></div>
+            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:60px"></div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 
 <!-- Liste -->
 <div class="card" id="listeCard">
-    <div class="card-body u-p-0">
-        <div class="table-container">
-            <table class="table">
+    <div class="card-body p-0">
+        <div class="table-container" id="tblContainer">
+            <table class="table" aria-label="Ürün / Hizmet Listesi">
                 <thead>
                     <tr>
-                        <th>Kod</th>
-                        <th>Ad</th>
-                        <th>Birim</th>
-                        <th>Alış Fiyatı</th>
-                        <th>Satış Fiyatı</th>
-                        <th>Stok</th>
-                        <th>Durum</th>
-                        <th>İşlemler</th>
+                        <th scope="col">Kod</th>
+                        <th scope="col">Ad</th>
+                        <th scope="col">Birim</th>
+                        <th scope="col">Alış Fiyatı</th>
+                        <th scope="col">Satış Fiyatı</th>
+                        <th scope="col">Stok</th>
+                        <th scope="col">Durum</th>
+                        <th scope="col">İşlemler</th>
                     </tr>
                 </thead>
-                <tbody id="urunListesi">
-                    <!-- Firebase'den dinamik olarak yüklenecek -->
-                </tbody>
+                <tbody id="urunListesi"></tbody>
             </table>
         </div>
-        
-        <!-- Boş durum -->
-        <div id="bosState" class="empty-state is-hidden">
+
+        <!-- Empty State: Hiç kayıt yok -->
+        <div id="bosState" class="empty-state is-hidden" role="status">
             <div class="empty-state-icon">
-                <i class="fas fa-boxes"></i>
+                <i class="fas fa-box" aria-hidden="true"></i>
             </div>
             <h3>Henüz ürün yok</h3>
             <p>İlk ürün veya hizmetinizi ekleyerek başlayın.</p>
             <a href="{{ url_for('urunler.yeni') }}" class="btn btn-primary">
-                <i class="fas fa-plus"></i>
+                <i class="fas fa-plus" aria-hidden="true"></i>
                 Yeni Ürün/Hizmet Ekle
             </a>
+        </div>
+
+        <!-- Empty State: Filtre sonucu boş (Sprint 3) -->
+        <div id="filterBosState" class="empty-state-filter is-hidden" role="status">
+            <div class="empty-state-filter-icon">
+                <i class="fas fa-filter" aria-hidden="true"></i>
+            </div>
+            <h4>Arama kriterlerine uyan ürün bulunamadı</h4>
+            <p>Farklı bir anahtar kelime deneyin.</p>
+            <button type="button" class="btn btn--ghost" onclick="temizle()" aria-label="Aramayı temizle">
+                <i class="fas fa-times" aria-hidden="true"></i> Aramayı Temizle
+            </button>
         </div>
     </div>
 </div>
 
-<!-- Sayfa sayısı -->
-<div id="sonucSayisi" class="u-mt-1 u-text-center u-text-muted"></div>
+<div id="sonucSayisi" class="mt-1 text-center text-muted" aria-live="polite" aria-atomic="true"></div>
 {% endblock %}
 
 {% block extra_js %}
 <script type="module">
-import { init, Urunler, Yardimci } from '{{ url_for("static", filename="js/db.js") }}';
+import { init, Urunler } from '{{ url_for("static", filename="js/db.js") }}';
 
 let tumUrunler = [];
 
-// Sayfa yüklendiğinde
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('yukleniyorDiv').style.display = 'block';
-    document.getElementById('listeCard').style.display = 'none';
-    
-    // Firebase'den realtime dinleme
+    const yukleniyorDiv = document.getElementById('yukleniyorDiv');
+    const listeCard     = document.getElementById('listeCard');
+    yukleniyorDiv.classList.remove('is-hidden');
+    listeCard.style.display = 'none';
+
     Urunler.dinle((urunler) => {
         tumUrunler = urunler;
-        document.getElementById('yukleniyorDiv').style.display = 'none';
-        document.getElementById('listeCard').style.display = 'block';
-        listeyiGuncelle(urunler);
+        yukleniyorDiv.classList.add('is-hidden');
+        listeCard.style.display = 'block';
+        listeyiGuncelle(urunler, false);
+    });
+
+    // Arama: 250ms debounce
+    const aramaInput = document.getElementById('aramaInput');
+    let _debounceTimer = null;
+    if (aramaInput) aramaInput.addEventListener('input', () => {
+        clearTimeout(_debounceTimer);
+        _debounceTimer = setTimeout(() => window.filtrele(), 250);
     });
 });
 
-// Para formatla
 function paraFormat(tutar) {
-    return new Intl.NumberFormat('tr-TR', { 
-        minimumFractionDigits: 2, 
-        maximumFractionDigits: 2 
-    }).format(tutar || 0);
+    return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tutar || 0);
 }
 
-// Listeyi güncelle
-function listeyiGuncelle(urunler) {
-    const tbody = document.getElementById('urunListesi');
-    const bosState = document.getElementById('bosState');
-    const sonucSayisi = document.getElementById('sonucSayisi');
-    
+function listeyiGuncelle(urunler, filtreUygulanmis) {
+    const tbody          = document.getElementById('urunListesi');
+    const bosState       = document.getElementById('bosState');
+    const filterBosState = document.getElementById('filterBosState');
+    const sonucSayisi    = document.getElementById('sonucSayisi');
+    const tblContainer   = document.getElementById('tblContainer');
+
+    bosState.classList.add('is-hidden');
+    filterBosState.classList.add('is-hidden');
+
     if (urunler.length === 0) {
         tbody.innerHTML = '';
-        bosState.style.display = 'block';
+        tblContainer.style.display = 'none';
+        if (filtreUygulanmis) {
+            filterBosState.classList.remove('is-hidden');
+        } else {
+            bosState.classList.remove('is-hidden');
+        }
         sonucSayisi.textContent = '';
         return;
     }
-    
-    bosState.style.display = 'none';
-    sonucSayisi.textContent = `Toplam ${urunler.length} ürün/hizmet bulundu`;
-    
+
+    tblContainer.style.display = '';
+    sonucSayisi.textContent = `Toplam ${urunler.length} ürün/hizmet`;
+
+    const esc = (s) => String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
     tbody.innerHTML = urunler.map(urun => {
-        const alisFiyat = urun.alis_fiyat ?? urun.alisFiyat ?? urun.birim_fiyat ?? urun.fiyat ?? 0;
+        const alisFiyat  = urun.alis_fiyat  ?? urun.alisFiyat  ?? urun.birim_fiyat ?? urun.fiyat ?? 0;
         const satisFiyat = urun.satis_fiyat ?? urun.satisFiyat ?? urun.birim_fiyat ?? urun.fiyat ?? 0;
+        const stok = urun.stok_miktari ?? urun.stok ?? 0;
+        const safeId = encodeURIComponent(urun.id || '');
         return `
         <tr>
-            <td><code>${urun.kod || '-'}</code></td>
-            <td class="u-font-semibold">${urun.ad || '-'}</td>
-            <td>${urun.birim || '-'}</td>
+            <td><code>${esc(urun.kod || '-')}</code></td>
+            <td class="font-semibold">${esc(urun.ad || '-')}</td>
+            <td>${esc(urun.birim || '-')}</td>
             <td>₺${paraFormat(alisFiyat)}</td>
             <td>₺${paraFormat(satisFiyat)}</td>
-            <td>${urun.stok_miktari || 0} ${urun.birim || ''}</td>
+            <td>${esc(stok)} ${esc(urun.birim || '')}</td>
             <td>
-                ${urun.aktif ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-danger">Pasif</span>'}
+                ${urun.aktif
+                    ? '<span class="badge badge-success">Aktif</span>'
+                    : '<span class="badge badge-danger">Pasif</span>'}
             </td>
             <td>
                 <div class="table-actions">
-                    <a href="/urunler/duzenle/${urun.id}" class="btn btn-sm btn-secondary" title="Düzenle">
-                        <i class="fas fa-edit"></i>
+                    <a href="/urunler/duzenle/${safeId}"
+                       class="btn btn-sm btn-secondary" title="Düzenle" aria-label="${esc(urun.ad || '')} ürününü düzenle">
+                        <i class="fas fa-edit" aria-hidden="true"></i>
                     </a>
-                    <button type="button" onclick="urunSil('${urun.id}', '${urun.ad}')" class="btn btn-sm btn-danger" title="Sil">
-                        <i class="fas fa-trash"></i>
+                    <button type="button"
+                            data-id="${esc(urun.id || '')}"
+                            data-ad="${esc(urun.ad || '')}"
+                            onclick="urunSil(this.dataset.id, this.dataset.ad)"
+                            class="btn btn-sm btn-danger" title="Sil" aria-label="${esc(urun.ad || '')} ürününü sil">
+                        <i class="fas fa-trash" aria-hidden="true"></i>
                     </button>
                 </div>
             </td>
-        </tr>
-        `;
+        </tr>`;
     }).join('');
 }
 
-// Filtreleme
 window.filtrele = function() {
-    const arama = document.getElementById('aramaInput').value.toLowerCase();
-    
+    const arama = document.getElementById('aramaInput').value.toLowerCase().trim();
+    const filtreUygulanmis = !!arama;
+
     let filtrelenmis = tumUrunler;
-    
     if (arama) {
-        filtrelenmis = filtrelenmis.filter(u => 
+        filtrelenmis = filtrelenmis.filter(u =>
             (u.kod && u.kod.toLowerCase().includes(arama)) ||
-            (u.ad && u.ad.toLowerCase().includes(arama))
+            (u.ad  && u.ad.toLowerCase().includes(arama))
         );
     }
-    
-    listeyiGuncelle(filtrelenmis);
+
+    listeyiGuncelle(filtrelenmis, filtreUygulanmis);
 };
 
-// Temizle
 window.temizle = function() {
     document.getElementById('aramaInput').value = '';
-    listeyiGuncelle(tumUrunler);
+    listeyiGuncelle(tumUrunler, false);
 };
 
-// Silme
 window.urunSil = async function(id, ad) {
-    if (confirm(`"${ad}" ürününü silmek istediğinizden emin misiniz?`)) {
-        try {
-            await Urunler.sil(id);
-            // Realtime güncelleme otomatik olacak
-        } catch (error) {
-            alert('Silme işlemi başarısız: ' + error.message);
+    const confirmed = await window.showConfirm({
+        title:    'Ürünü silmek istediğinize emin misiniz?',
+        message:  'Bu işlem 5 saniye içinde geri alınabilir.',
+        itemName: ad || id,
+        okLabel:  'Ürünü Sil',
+        type:     'danger',
+        icon:     'box-open'
+    });
+    if (!confirmed) return;
+
+    let snapshot = null;
+    try { snapshot = await Urunler.getir(id); } catch (e) { snapshot = null; }
+
+    try {
+        await Urunler.sil(id);
+    } catch (error) {
+        if (window.notify) notify.error('Silme işlemi başarısız: ' + error.message, 6000);
+        return;
+    }
+
+    if (window.showUndoToast && snapshot) {
+        const undoClicked = await window.showUndoToast({
+            message: `"${ad || 'Ürün'}" silindi.`,
+            duration: 5000
+        });
+        if (undoClicked) {
+            try {
+                const { id: _omitId, olusturma_tarihi, guncelleme_tarihi, ...veri } = snapshot;
+                await Urunler.ekle(veri);
+                if (window.notify) notify.success('Ürün geri alındı.', 3000);
+            } catch (e) {
+                if (window.notify) notify.error('Geri alma başarısız: ' + e.message, 5000);
+            }
+        } else {
+            if (window.notify) notify.success('Ürün silindi.', 3000);
         }
+    } else {
+        if (window.notify) notify.success('Ürün başarıyla silindi.', 4000);
     }
 };
 </script>

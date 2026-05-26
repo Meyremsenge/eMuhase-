@@ -1,0 +1,43 @@
+{
+    "name": "eMuhasebe Pro",
+    "short_name": "eMuhasebe",
+    "description": "Ön muhasebe yönetim sistemi — müşteri, ürün, fatura yönetimi + AI Analiz",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#0f172a",
+    "theme_color": "#334155",
+    "lang": "tr",
+    "icons": [
+        {
+            "src": "/static/img/logo1.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/static/img/logo1.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Yeni Satış Faturası",
+            "url": "/satis/yeni",
+            "icons": [{ "src": "/static/img/logo1.png", "sizes": "96x96" }]
+        },
+        {
+            "name": "Müşteriler",
+            "url": "/musteriler/",
+            "icons": [{ "src": "/static/img/logo1.png", "sizes": "96x96" }]
+        },
+        {
+            "name": "Dashboard",
+            "url": "/",
+            "icons": [{ "src": "/static/img/logo1.png", "sizes": "96x96" }]
+        }
+    ]
+}

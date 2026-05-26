@@ -13,16 +13,16 @@
 .ai-oneri-wrapper { position: relative; flex: 1; }
 .ai-oneri-dropdown {
     position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-    background: white; border: 1px solid #e5e7eb;
+    background: var(--bg-800); border: 1px solid var(--bg-600);
     border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.12);
     z-index: 9999; max-height: 240px; overflow-y: auto; display: none;
 }
 .ai-oneri-dropdown.show { display: block; }
 .ai-oneri-header {
     padding: 0.5rem 0.75rem; font-size: 0.7rem; font-weight: 700;
-    color: #6366f1; text-transform: uppercase; letter-spacing: 0.5px;
+    color: var(--primary-600); text-transform: uppercase; letter-spacing: 0.5px;
     border-bottom: 1px solid #f3f4f6;
-    background: linear-gradient(135deg,rgba(99,102,241,0.05),rgba(139,92,246,0.05));
+    background: var(--bg-900);
     border-radius: 10px 10px 0 0;
     display: flex; align-items: center; gap: 0.4rem;
 }
@@ -33,42 +33,50 @@
     gap: 0.5rem;
 }
 .ai-oneri-item:last-child { border-bottom: none; }
-.ai-oneri-item:hover { background: rgba(99,102,241,0.06); }
+.ai-oneri-item:hover { background: color-mix(in srgb, var(--primary-600) 8%, transparent); }
 .ai-oneri-item .oneri-ad { font-size: 0.88rem; font-weight: 600; color: #1f2937; flex: 1; }
 .ai-oneri-item .oneri-meta {
     font-size: 0.75rem; color: #6b7280; display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0;
 }
 .oneri-fiyat { color: #059669; font-weight: 700; }
 .oneri-sayi {
-    background: rgba(99,102,241,0.1); color: #6366f1;
+    background: color-mix(in srgb, var(--primary-600) 12%, transparent); color: var(--primary-600);
     padding: 0.15rem 0.4rem; border-radius: 10px; font-size: 0.68rem; font-weight: 700;
 }
 
 /* Dark mode overrides */
 [data-theme="dark"] .ai-oneri-dropdown {
-    background: var(--bg-750); border-color: var(--glass-border-bright);
+    background: var(--bg-800); border-color: var(--bg-600);
     box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
 [data-theme="dark"] .ai-oneri-header {
-    border-color: var(--glass-border);
-    background: linear-gradient(135deg,rgba(99,102,241,0.12),rgba(139,92,246,0.10));
+    border-color: var(--bg-600);
+    background: var(--bg-700);
 }
-[data-theme="dark"] .ai-oneri-item { border-color: var(--glass-border); }
-[data-theme="dark"] .ai-oneri-item:hover { background: rgba(99,102,241,0.12); }
+[data-theme="dark"] .ai-oneri-item { border-color: var(--bg-600); }
+[data-theme="dark"] .ai-oneri-item:hover { background: color-mix(in srgb, var(--primary-600) 14%, transparent); }
 [data-theme="dark"] .ai-oneri-item .oneri-ad { color: var(--text-primary); }
 [data-theme="dark"] .ai-oneri-item .oneri-meta { color: var(--text-muted); }
 [data-theme="dark"] .oneri-fiyat { color: #34d399; }
 </style>
 {% endblock %}
 
-{% block header_actions %}
-<a href="{{ url_for('satis.liste') }}" class="btn btn-secondary">
-    <i class="fas fa-arrow-left"></i>
-    Geri Dön
-</a>
-{% endblock %}
+{% block header_actions %}{% endblock %}
 
 {% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Satış Faturası Düzenle' if fatura_id else 'Yeni Satış Faturası' }}</h1>
+        <p class="page-subtitle">{{ 'Fatura bilgilerini güncelleyin' if fatura_id else 'Müşteriye satış faturası oluşturun' }}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('satis.liste') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i>
+            Geri Dön
+        </a>
+    </div>
+</div>
+
 <form id="faturaForm" onsubmit="kaydet(event)">
     <input type="hidden" id="faturaId" value="{{ fatura_id or '' }}">
     
@@ -84,10 +92,12 @@
                 <div class="form-group">
                     <label class="form-label">Fatura No *</label>
                     <input type="text" id="fatura_no" name="fatura_no" class="form-control" placeholder="STF-2026-0001" required>
+                    <div class="form-help">Ornek: STF-2026-0001</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Fatura Tarihi *</label>
                     <input type="date" id="fatura_tarihi" name="fatura_tarihi" class="form-control" required>
+                    <div class="form-help">Resmi fatura tarihini secin.</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Vade Tarihi</label>
@@ -101,6 +111,7 @@
                     <select id="musteri_id" name="musteri_id" class="form-control form-select" required>
                         <option value="">Seçiniz</option>
                     </select>
+                    <div class="form-help">Fatura kesilecek musteri kaydini secin.</div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Durum</label>
@@ -302,14 +313,19 @@ window.kalemEkle = function(kalem = null) {
         dropdown.classList.remove('show');
         toplamlariHesapla();
     });
-
-    document.addEventListener('click', e => {
-        if (!row.contains(e.target)) dropdown.classList.remove('show');
-    }, { passive: true });
     // ---- /AI Akıllı Öneri ----
 
     toplamlariHesapla();
 };
+
+// Global outside-click handler: her dropdown'a ayrı listener eklemek yerine
+// tek bir handler tüm açık dropdown'ları kontrol eder (kalemEkle leak fix).
+document.addEventListener('click', (e) => {
+    document.querySelectorAll('.ai-oneri-dropdown.show').forEach(dd => {
+        const row = dd.closest('.invoice-item-row');
+        if (row && !row.contains(e.target)) dd.classList.remove('show');
+    });
+}, { passive: true });
 
 window.kalemSil = function(id) {
     const row = document.getElementById(`kalem-${id}`);
@@ -391,7 +407,7 @@ window.kaydet = async function(e) {
         } else {
             await SatisFaturalari.ekle(fatura);
         }
-        window.location.href = '/faturalar/satis/';
+        window.location.href = '/satis/';
     } catch (error) {
         alert('Kaydetme hatası: ' + error.message);
         btn.disabled = false;
@@ -434,7 +450,17 @@ window.excelYukle = async function(event) {
     event.target.value = '';
 };
 
+// XSS riskini engellemek için tüm dinamik metinleri escape ederek inject ediyoruz.
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+let _excelPendingVeriler = [];
+
 function excelOnizlemeGoster(veriler, dosyaAdi) {
+    _excelPendingVeriler = Array.isArray(veriler) ? veriler : [];
     const mevcutModal = document.getElementById('excelModal');
     if (mevcutModal) mevcutModal.remove();
     const modal = document.createElement('div');
@@ -445,7 +471,7 @@ function excelOnizlemeGoster(veriler, dosyaAdi) {
                 <div class="excel-modal-header success">
                     <div>
                         <h3 class="excel-modal-title"><i class="fas fa-file-excel"></i> Excel Önizleme</h3>
-                        <p class="excel-modal-subtitle">${dosyaAdi} - ${veriler.length} satır</p>
+                        <p class="excel-modal-subtitle">${escapeHtml(dosyaAdi)} - ${veriler.length} satır</p>
                     </div>
                     <button onclick="document.getElementById('excelModal').remove()" class="excel-modal-close">×</button>
                 </div>
@@ -461,14 +487,14 @@ function excelOnizlemeGoster(veriler, dosyaAdi) {
                                 <th class="u-text-right">Toplam</th>
                             </tr>
                         </thead>
-                        <tbody>${veriler.map((v,i)=>{const m=parseFloat(v.miktar)||1;const f=parseFloat(v.birim_fiyat||v.fiyat)||0;const k=parseInt(v.kdv_orani||v.kdv)||20;const t=m*f*(1+k/100);return `<tr><td>${i+1}</td><td>${v.aciklama||'-'}</td><td class="u-text-right">${m}</td><td class="u-text-right">₺${paraFormat(f)}</td><td class="u-text-right">%${k}</td><td class="u-text-right u-font-semibold">₺${paraFormat(t)}</td></tr>`;}).join('')}</tbody>
+                        <tbody>${veriler.map((v,i)=>{const m=parseFloat(v.miktar)||1;const f=parseFloat(v.birim_fiyat||v.fiyat)||0;const k=parseInt(v.kdv_orani||v.kdv)||20;const t=m*f*(1+k/100);return `<tr><td>${i+1}</td><td>${escapeHtml(v.aciklama||'-')}</td><td class="u-text-right">${m}</td><td class="u-text-right">₺${paraFormat(f)}</td><td class="u-text-right">%${k}</td><td class="u-text-right u-font-semibold">₺${paraFormat(t)}</td></tr>`;}).join('')}</tbody>
                     </table>
                 </div>
                 <div class="excel-modal-footer">
                     <label class="excel-modal-checkbox"><input type="checkbox" id="mevcutuTemizle" checked> Mevcut kalemleri temizle</label>
                     <div class="excel-modal-actions">
                         <button onclick="document.getElementById('excelModal').remove()" class="excel-modal-btn excel-modal-btn-cancel">İptal</button>
-                        <button onclick='excelVerileriniEkle(${JSON.stringify(veriler)})' class="excel-modal-btn excel-modal-btn-confirm success"><i class="fas fa-check excel-modal-confirm-icon"></i>${veriler.length} Kalemi Ekle</button>
+                        <button onclick="excelVerileriniEkle()" class="excel-modal-btn excel-modal-btn-confirm success"><i class="fas fa-check excel-modal-confirm-icon"></i>${veriler.length} Kalemi Ekle</button>
                     </div>
                 </div>
             </div>
@@ -477,13 +503,15 @@ function excelOnizlemeGoster(veriler, dosyaAdi) {
     document.body.appendChild(modal);
 }
 
-window.excelVerileriniEkle = function(veriler) {
+window.excelVerileriniEkle = function() {
+    const veriler = _excelPendingVeriler || [];
     if (document.getElementById('mevcutuTemizle')?.checked) {
         document.getElementById('kalemlerContainer').innerHTML = '';
         kalemSayaci = 0;
     }
     veriler.forEach(v => kalemEkle({aciklama:v.aciklama||'',miktar:parseFloat(v.miktar)||1,birim_fiyat:parseFloat(v.birim_fiyat||v.fiyat)||0,kdv_orani:parseInt(v.kdv_orani||v.kdv)||20}));
     document.getElementById('excelModal')?.remove();
+    _excelPendingVeriler = [];
     toplamlariHesapla();
     if (window.Toast) Toast.success(`${veriler.length} kalem eklendi! 📊`);
 };
