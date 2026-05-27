@@ -1,4 +1,4 @@
-"""
+﻿"""
 Ürün Servisi - Ürün iş mantığı katmanı
 """
 import logging
@@ -53,7 +53,7 @@ class UrunService:
     def create(data):
         """Yeni ürün oluşturur. Kod benzersizlik kontrolü yapar."""
         logger.info(f"Yeni ürün oluşturma talep: Ad={data.get('ad')}, Kod={data.get('kod')}")
-        
+
         try:
             with AuditLogContext('urunler', 'CREATE', kayit_id='NEW') as audit:
                 if data.get('kod'):
@@ -61,7 +61,7 @@ class UrunService:
                     if existing:
                         logger.warning(f"Ürün kodu çakışması: {data['kod']} zaten kayıtlı (ID: {existing.id})")
                         raise ValueError('Bu ürün kodu zaten kayıtlı.')
-                
+
                 result = UrunRepository.create(**data)
                 audit.add_change('ad', 'N/A', result.ad)
                 audit.add_change('kod', 'N/A', result.kod)
@@ -75,25 +75,25 @@ class UrunService:
     def update(urun_id, data):
         """Ürünü günceller."""
         logger.info(f"Ürün güncelleme talep: ID={urun_id}")
-        
+
         try:
             urun = UrunRepository.get_by_id(urun_id)
             if urun is None:
                 logger.error(f"Güncellenecek ürün bulunamadı: ID={urun_id}")
                 raise ValueError('Ürün bulunamadı.')
-            
+
             if data.get('kod') and data['kod'] != urun.kod:
                 existing = UrunRepository.get_by_kod(data['kod'])
                 if existing:
                     logger.warning(f"Ürün kodu çakışması güncellemede: {data['kod']} zaten başka ürüne ait")
                     raise ValueError('Bu ürün kodu başka bir ürüne ait.')
-            
+
             with AuditLogContext('urunler', 'UPDATE', kayit_id=urun_id) as audit:
                 for key, new_value in data.items():
                     old_value = getattr(urun, key, None)
                     if old_value != new_value:
                         audit.add_change(key, old_value, new_value)
-                
+
                 result = UrunRepository.update(urun_id, **data)
                 logger.info(f"Ürün güncellendi: ID={urun_id}")
                 return result
@@ -105,12 +105,12 @@ class UrunService:
     def delete(urun_id):
         """Ürünü siler."""
         logger.info(f"Ürün silme talep: ID={urun_id}")
-        
+
         try:
             if not UrunRepository.get_by_id(urun_id):
                 logger.error(f"Silinecek ürün bulunamadı: ID={urun_id}")
                 raise ValueError('Ürün bulunamadı.')
-            
+
             with AuditLogContext('urunler', 'DELETE', kayit_id=urun_id) as audit:
                 audit.add_change('silinme_tarihi', 'NULL', 'datetime.now(timezone.utc)')
                 result = UrunRepository.delete(urun_id)

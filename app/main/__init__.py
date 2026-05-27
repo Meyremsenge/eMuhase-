@@ -1,4 +1,4 @@
-"""
+﻿"""
 eMuhasebe Pro - Ana Modül
 Dashboard ve genel sayfalar
 Firebase Realtime Database ile çalışır
@@ -30,4 +30,3 @@ def bildirimler():
 def giris():
     """Login sayfasi - JWT API'ye fetch ile baglanan tek sayfa form"""
     return render_template('auth/login.html')
-

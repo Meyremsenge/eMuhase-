@@ -1,4 +1,4 @@
-"""
+﻿"""
 eMuhasebe Pro - API Blueprint
 REST API endpoint'leri — ORM + Repository + Service katmanlı mimarisi kullanır.
 Frontend (Firebase) ile paralel çalışır; backend tarafında da tam CRUD desteği sağlar.
@@ -149,11 +149,11 @@ def get_firebase_config():
     Frontend'in Firebase config'ini güvenli şekilde al.
     Config ortam değişkenlerinden yüklenir, code'da hardcode edilmez.
     """
-    
+
     # Eğer Firebase devre dışıysa null döndür (localStorage modunda çalışacak)
     if os.environ.get('FIREBASE_DISABLED') == 'true':
         return jsonify({'config': None})
-    
+
     # Firebase config'i env var'lardan yükle
     firebase_config = {
         'apiKey': os.environ.get('FIREBASE_API_KEY') or os.environ.get('VITE_FIREBASE_API_KEY'),
@@ -161,21 +161,24 @@ def get_firebase_config():
         'databaseURL': os.environ.get('FIREBASE_DATABASE_URL') or os.environ.get('VITE_FIREBASE_DATABASE_URL'),
         'projectId': os.environ.get('FIREBASE_PROJECT_ID') or os.environ.get('VITE_FIREBASE_PROJECT_ID'),
         'storageBucket': os.environ.get('FIREBASE_STORAGE_BUCKET') or os.environ.get('VITE_FIREBASE_STORAGE_BUCKET'),
-        'messagingSenderId': os.environ.get('FIREBASE_MESSAGING_SENDER_ID') or os.environ.get('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+        'messagingSenderId': (
+            os.environ.get('FIREBASE_MESSAGING_SENDER_ID')
+            or os.environ.get('VITE_FIREBASE_MESSAGING_SENDER_ID')
+        ),
         'appId': os.environ.get('FIREBASE_APP_ID') or os.environ.get('VITE_FIREBASE_APP_ID'),
     }
-    
+
     # Zorunlu alanlar kontrol et
     required_fields = ['apiKey', 'authDomain', 'databaseURL', 'projectId']
     missing_fields = [f for f in required_fields if not firebase_config.get(f)]
-    
+
     if missing_fields:
         # Eksik config varsa, demo modunda çalış
         return jsonify({
             'config': None,
             'warning': f'Firebase config eksik: {", ".join(missing_fields)}'
         })
-    
+
     return jsonify({'config': firebase_config})
 
 
@@ -283,7 +286,7 @@ def ai_analyze():
             gemini_model = 'gemini-2.5-flash'
         elif 'gemini-2.0' in model.lower():
             gemini_model = 'gemini-2.0-flash-exp'
-        
+
         url = f'https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={api_key}'
         body = json.dumps({
             'contents': [{'parts': [{'text': prompt}]}]

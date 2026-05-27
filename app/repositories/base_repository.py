@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 from typing import Any, Iterable, List, Optional, Type
 from types import SimpleNamespace
 from sqlalchemy.orm import Session, joinedload
@@ -15,7 +15,7 @@ class BaseRepository:
         self.session = session
 
     def _base_query(self):
-        stmt = select(self.model).where(getattr(self.model, 'silinme_tarihi', None) == None)
+        stmt = select(self.model).where(getattr(self.model, 'silinme_tarihi', None) == None)  # noqa: E711
         return stmt
 
     def get_all(self, eager_load: Optional[Iterable] = None) -> List[Any]:
@@ -34,7 +34,7 @@ class BaseRepository:
         return item
 
     def exists(self, *args, **filters) -> bool:
-        stmt = select(func.count()).select_from(self.model).where(self.model.silinme_tarihi == None)
+        stmt = select(func.count()).select_from(self.model).where(self.model.silinme_tarihi == None)  # noqa: E711
         if args:
             if len(args) != 1:
                 raise ValueError('exists() tek bir pozisyonel arguman kabul eder')
@@ -45,7 +45,7 @@ class BaseRepository:
         return count > 0
 
     def count(self, **filters) -> int:
-        stmt = select(func.count()).select_from(self.model).where(self.model.silinme_tarihi == None)
+        stmt = select(func.count()).select_from(self.model).where(self.model.silinme_tarihi == None)  # noqa: E711
         for k, v in filters.items():
             stmt = stmt.where(getattr(self.model, k) == v)
         return int(self.session.execute(stmt).scalar_one())
@@ -70,7 +70,10 @@ class BaseRepository:
         if eager_load:
             for rel in eager_load:
                 stmt = stmt.options(joinedload(rel))
-        total = self.session.execute(select(func.count()).select_from(self.model).where(self.model.silinme_tarihi == None)).scalar_one()
+        total_q = select(func.count()).select_from(self.model).where(
+            self.model.silinme_tarihi == None  # noqa: E711
+        )
+        total = self.session.execute(total_q).scalar_one()
         items = list(self.session.execute(stmt.offset((page - 1) * per_page).limit(per_page)).scalars().all())
         return {
             'total': int(total),
@@ -121,11 +124,11 @@ class BaseRepository:
     # --- Classmethod-style helpers for existing repo classes that use class methods ---
     @classmethod
     def _base_query_cls(cls):
-        stmt = select(cls.model).where(getattr(cls.model, 'silinme_tarihi', None) == None)
+        stmt = select(cls.model).where(getattr(cls.model, 'silinme_tarihi', None) == None)  # noqa: E711
         return stmt
 
     @classmethod
-    def get_all(cls, eager_load: Optional[Iterable] = None):
+    def get_all(cls, eager_load: Optional[Iterable] = None):  # noqa: F811
         stmt = cls._base_query_cls()
         if eager_load:
             for rel in eager_load:
@@ -135,7 +138,7 @@ class BaseRepository:
         return items
 
     @classmethod
-    def get_by_id(cls, id_):
+    def get_by_id(cls, id_):  # noqa: F811
         """ID'ye göre kayıt getir. Soft-deleted kayıtlar dönmez."""
         q = cls.model.query.filter_by(id=id_)
         if hasattr(cls.model, 'silinme_tarihi'):
@@ -155,23 +158,23 @@ class BaseRepository:
         return item
 
     @classmethod
-    def filter_by(cls, **filters):
+    def filter_by(cls, **filters):  # noqa: F811
         q = cls.model.query.filter_by(**filters)
         if hasattr(cls.model, 'silinme_tarihi'):
-            q = q.filter(cls.model.silinme_tarihi == None)
+            q = q.filter(cls.model.silinme_tarihi == None)  # noqa: E711
         return q.all()
 
     @classmethod
-    def count(cls, **filters):
+    def count(cls, **filters):  # noqa: F811
         q = db.session.query(func.count()).select_from(cls.model)
         if hasattr(cls.model, 'silinme_tarihi'):
-            q = q.filter(cls.model.silinme_tarihi == None)
+            q = q.filter(cls.model.silinme_tarihi == None)  # noqa: E711
         for k, v in filters.items():
             q = q.filter(getattr(cls.model, k) == v)
         return int(q.scalar())
 
     @classmethod
-    def exists(cls, *args, **filters):
+    def exists(cls, *args, **filters):  # noqa: F811
         if args:
             if len(args) != 1:
                 raise ValueError('exists() tek bir pozisyonel arguman kabul eder')
@@ -179,7 +182,7 @@ class BaseRepository:
         return cls.count(**filters) > 0
 
     @classmethod
-    def search(cls, *clauses, eager_load: Optional[Iterable] = None):
+    def search(cls, *clauses, eager_load: Optional[Iterable] = None):  # noqa: F811
         stmt = cls._base_query_cls()
         for clause in clauses:
             stmt = stmt.where(clause)
@@ -189,8 +192,8 @@ class BaseRepository:
         return list(db.session.execute(stmt).scalars().all())
 
     @classmethod
-    def paginate(cls, page: int = 1, per_page: int = 20, eager_load: Optional[Iterable] = None):
-        q = cls.model.query.filter(cls.model.silinme_tarihi == None)
+    def paginate(cls, page: int = 1, per_page: int = 20, eager_load: Optional[Iterable] = None):  # noqa: F811
+        q = cls.model.query.filter(cls.model.silinme_tarihi == None)  # noqa: E711
         if eager_load:
             for rel in eager_load:
                 q = q.options(joinedload(getattr(cls.model, rel)))
@@ -199,7 +202,7 @@ class BaseRepository:
         return SimpleNamespace(total=total, page=page, per_page=per_page, items=items)
 
     @classmethod
-    def create(cls, **data):
+    def create(cls, **data):  # noqa: F811
         obj = cls.model(**data)
         db.session.add(obj)
         db.session.flush()
@@ -208,7 +211,7 @@ class BaseRepository:
         return obj
 
     @classmethod
-    def update(cls, obj_or_id, **changes):
+    def update(cls, obj_or_id, **changes):  # noqa: F811
         obj = obj_or_id
         if not isinstance(obj_or_id, cls.model):
             obj = cls.get_by_id(obj_or_id)
@@ -223,7 +226,7 @@ class BaseRepository:
         return obj
 
     @classmethod
-    def delete(cls, obj_or_id):
+    def delete(cls, obj_or_id):  # noqa: F811
         obj = obj_or_id
         if not isinstance(obj_or_id, cls.model):
             obj = cls.get_by_id(obj_or_id)
@@ -242,7 +245,7 @@ class BaseRepository:
         return True
 
     @classmethod
-    def hard_delete(cls, obj_or_id):
+    def hard_delete(cls, obj_or_id):  # noqa: F811
         obj = obj_or_id
         if not isinstance(obj_or_id, cls.model):
             obj = cls.get_by_id(obj_or_id)
@@ -255,7 +258,7 @@ class BaseRepository:
         return obj
 
     @classmethod
-    def restore(cls, obj_or_id):
+    def restore(cls, obj_or_id):  # noqa: F811
         obj = obj_or_id
         if not isinstance(obj_or_id, cls.model):
             obj = cls.get_by_id(obj_or_id)

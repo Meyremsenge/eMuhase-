@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 import time
@@ -127,7 +127,10 @@ def refresh():
     user = current_user
     if user is None:
         return jsonify({"error": "Kullanıcı bulunamadı"}), 401
-    access_token = create_access_token(identity=str(user.id), additional_claims={"role": user.role, "email": user.email})
+    access_token = create_access_token(
+        identity=str(user.id),
+        additional_claims={"role": user.role, "email": user.email}
+    )
     response = jsonify({"access_token": access_token})
     set_access_cookies(response, access_token)
     return response, 200

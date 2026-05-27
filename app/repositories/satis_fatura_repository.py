@@ -1,4 +1,4 @@
-"""
+﻿"""
 Satış Fatura Repository - Satış faturası verisi erişim katmanı
 """
 from decimal import Decimal
@@ -82,7 +82,9 @@ class SatisFaturaRepository(BaseRepository):
 
     @classmethod
     def paginate_with_kalemler(cls, page=1, per_page=20):
-        q = cls.model.query.filter(cls.model.silinme_tarihi == None).options(joinedload(cls.model.kalemler))
+        q = cls.model.query.filter(cls.model.silinme_tarihi == None).options(  # noqa: E711
+            joinedload(cls.model.kalemler)
+        )
         total = q.count()
         items = q.offset((page - 1) * per_page).limit(per_page).all()
         return SimpleNamespace(total=total, page=page, per_page=per_page, items=items)

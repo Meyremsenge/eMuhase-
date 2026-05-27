@@ -1,4 +1,4 @@
-"""
+﻿"""
 API Utilities - Response standardization, pagination, error handling
 """
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class APIError(Exception):
     """Standart API error."""
-    
+
     def __init__(
         self,
         message: str,
@@ -39,7 +39,7 @@ def error_response(
 ):
     """
     Standart API error response döndür.
-    
+
     Örnek:
         return error_response('Müşteri bulunamadı', 'NOT_FOUND', 404)
     """
@@ -50,19 +50,19 @@ def error_response(
             'code': code,
         }
     }
-    
+
     if details:
         response['error']['details'] = details
-    
+
     logger.warning(f"API Error [{code}]: {message} (Status: {status_code})")
-    
+
     return jsonify(response), status_code
 
 
 def validation_error_response(validation_errors: List[Dict[str, Any]]):
     """
     Validation error'larını format et.
-    
+
     Örnek:
         errors = [
             {'field': 'unvan', 'message': 'Min 2 karakter gerekli'},
@@ -80,16 +80,16 @@ def validation_error_response(validation_errors: List[Dict[str, Any]]):
             }
         }
     }
-    
+
     logger.warning(f"Validation Error: {validation_errors}")
-    
+
     return jsonify(response), 422  # 422 Unprocessable Entity
 
 
 def pydantic_error_to_list(pydantic_errors):
     """
     Pydantic validation error'larını liste formatına çevir.
-    
+
     Входные данные: pydantic ValidationError.errors()
     Çıktı: [{'field': str, 'message': str, 'type': str}, ...]
     """
@@ -117,14 +117,14 @@ def paginated_response(
 ):
     """
     Sayfalanmış yanıt döndür.
-    
+
     Args:
         items: Sayfa içindeki items
         page: Şu anki sayfa numarası
         per_page: Sayfa başına kayıt sayısı
         total: Toplam kayıt sayısı
         serialize_func: Item'ı dict'e çevirme fonksiyonu (opsiyonel)
-    
+
     Çıktı Örneği:
         {
             "success": true,
@@ -140,14 +140,14 @@ def paginated_response(
         }
     """
     import math
-    
+
     total_pages = math.ceil(total / per_page) if per_page > 0 else 1
-    
+
     # Items'ı serialize et
     serialized_items = items
     if serialize_func:
         serialized_items = [serialize_func(item) for item in items]
-    
+
     response = {
         'success': True,
         'data': serialized_items,
@@ -160,16 +160,16 @@ def paginated_response(
             'has_prev': page > 1
         }
     }
-    
+
     logger.debug(f"Paginated response: page={page}, per_page={per_page}, total={total}")
-    
+
     return jsonify(response), 200
 
 
 def list_response(items: List[Any], serialize_func=None):
     """
     Sayfalanmamış list yanıt döndür (backward compatibility için).
-    
+
     Çıktı Örneği:
         {
             "success": true,
@@ -180,19 +180,19 @@ def list_response(items: List[Any], serialize_func=None):
     serialized_items = items
     if serialize_func:
         serialized_items = [serialize_func(item) for item in items]
-    
+
     response = {
         'success': True,
         'data': serialized_items
     }
-    
+
     return jsonify(response), 200
 
 
 def single_response(item: Any, serialize_func=None):
     """
     Tekil item yanıt döndür.
-    
+
     Çıktı Örneği:
         {
             "success": true,
@@ -203,12 +203,12 @@ def single_response(item: Any, serialize_func=None):
     serialized_item = item
     if serialize_func:
         serialized_item = serialize_func(item)
-    
+
     response = {
         'success': True,
         'data': serialized_item
     }
-    
+
     return jsonify(response), 200
 
 
@@ -220,22 +220,22 @@ def created_response(item: Any, serialize_func=None):
     serialized_item = item
     if serialize_func:
         serialized_item = serialize_func(item)
-    
+
     response = {
         'success': True,
         'data': serialized_item,
         'message': 'Kayıt başarıyla oluşturuldu'
     }
-    
+
     logger.info(f"Resource created: {type(item).__name__}")
-    
+
     return jsonify(response), 201
 
 
 def deleted_response(item_id: int, item_type: str = 'Kayıt'):
     """
     Silinen item için yanıt döndür.
-    
+
     Çıktı Örneği:
         {
             "success": true,
@@ -247,9 +247,9 @@ def deleted_response(item_id: int, item_type: str = 'Kayıt'):
         'message': f'{item_type} başarıyla silindi',
         'data': {'id': item_id}
     }
-    
+
     logger.info(f"{item_type} deleted: ID={item_id}")
-    
+
     return jsonify(response), 200
 
 
@@ -262,7 +262,7 @@ def not_found_response(resource: str = 'Kaynak', resource_id: Optional[Any] = No
     message = f'{resource} bulunamadı'
     if resource_id:
         message += f' (ID: {resource_id})'
-    
+
     return error_response(message, 'NOT_FOUND', 404)
 
 

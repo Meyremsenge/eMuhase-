@@ -24,7 +24,7 @@ db = SQLAlchemy()
 class AuditLog(db.Model):
     """Veritabanı audit trail - kim, ne zaman, ne yaptı"""
     __tablename__ = 'audit_logs'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     tablo_adi = db.Column(db.String(100), nullable=False, index=True)
     kayit_id = db.Column(db.Integer, nullable=True, index=True)
@@ -33,7 +33,7 @@ class AuditLog(db.Model):
     yeni_veriler = db.Column(db.JSON)  # Yeni değerler JSON olarak
     degisen_alanlar = db.Column(db.JSON)  # Hangi alanlar değişti
     olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
-    
+
     def __repr__(self):
         return f'<AuditLog {self.islem_tipi} {self.tablo_adi}:{self.kayit_id}>'
 
@@ -45,17 +45,17 @@ class AuditLog(db.Model):
 class SoftDeleteMixin:
     """Soft delete mixin - silinmiş ama veri kalır"""
     silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)  # NULL = aktif
-    
+
     def soft_delete(self):
         """Mantıksal silme (veri kaldırma değil)"""
         self.silinme_tarihi = datetime.now(timezone.utc)
         db.session.commit()
-    
+
     def restore(self):
         """Silinen kaydı geri al"""
         self.silinme_tarihi = None
         db.session.commit()
-    
+
     @classmethod
     def get_active(cls):
         """Sadece silinmemiş kayıtları getir"""
@@ -72,7 +72,7 @@ class Musteri(db.Model, SoftDeleteMixin):
     __table_args__ = (
         CheckConstraint("tip IN ('musteri','tedarikci','her_ikisi')", name='check_musteri_tip'),
     )
-    
+
     id = db.Column(db.Integer, primary_key=True)
     unvan = db.Column(db.String(200), nullable=False)
     vergi_no = db.Column(db.String(11), unique=True, nullable=True)
@@ -82,18 +82,23 @@ class Musteri(db.Model, SoftDeleteMixin):
     email = db.Column(db.String(120), unique=True, index=True, nullable=True)
     tip = db.Column(db.String(20), default='musteri', nullable=False)  # musteri, tedarikci, her_ikisi
     aktif = db.Column(db.Boolean, default=True, nullable=False)
-    
+
     # Soft delete
     silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)
 
     olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    guncelleme_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    
+    guncelleme_tarihi = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
     # İlişkiler
     alis_faturalari = db.relationship('AlisFatura', backref='tedarikci', lazy='select')
     satis_faturalari = db.relationship('SatisFatura', backref='musteri', lazy='select')
     iade_faturalari = db.relationship('IadeFatura', backref='firma', lazy='select')
-    
+
     def __repr__(self):
         return f'<Musteri {self.unvan}>'
 
@@ -111,27 +116,32 @@ class Urun(db.Model, SoftDeleteMixin):
         CheckConstraint('satis_fiyat >= 0', name='check_satis_fiyat'),
         CheckConstraint('stok_miktari >= 0', name='check_stok_miktari'),
     )
-    
+
     id = db.Column(db.Integer, primary_key=True)
     kod = db.Column(db.String(50), unique=True, nullable=False)
     ad = db.Column(db.String(200), nullable=False)
     aciklama = db.Column(db.Text)
     birim = db.Column(db.String(20), default='Adet', nullable=False)
-    
+
     # ✅ Numeric(12,2) - Para hassasiyeti (Float yerine)
     alis_fiyat = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     satis_fiyat = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     kdv_orani = db.Column(db.Integer, default=20, nullable=False)  # % olarak
     stok_miktari = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
-    
+
     aktif = db.Column(db.Boolean, default=True, nullable=False)
-    
+
     # Soft delete
     silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)
 
     olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    guncelleme_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    
+    guncelleme_tarihi = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
     def __repr__(self):
         return f'<Urun {self.kod} - {self.ad}>'
 
@@ -150,32 +160,37 @@ class AlisFatura(db.Model, SoftDeleteMixin):
         CheckConstraint('genel_toplam >= 0', name='check_alis_genel_toplam'),
         CheckConstraint("durum IN ('beklemede','odendi','iptal')", name='check_alis_durum'),
     )
-    
+
     id = db.Column(db.Integer, primary_key=True)
     fatura_no = db.Column(db.String(50), unique=True, nullable=False, index=True)
     fatura_tarihi = db.Column(db.Date, nullable=False)
     vade_tarihi = db.Column(db.Date)
     tedarikci_id = db.Column(db.Integer, db.ForeignKey('musteriler.id'), nullable=False)
-    
+
     # ✅ Numeric(12,2) - Para hassasiyeti
     ara_toplam = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     kdv_toplam = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     indirim_toplam = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     genel_toplam = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
-    
+
     # Durum bilgileri
     durum = db.Column(db.String(20), default='beklemede', nullable=False)  # beklemede, odendi, iptal
     aciklama = db.Column(db.Text)
-    
+
     # Soft delete
     silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)
 
     olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    guncelleme_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
-    
+    guncelleme_tarihi = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
     # İlişkiler
     kalemler = db.relationship('AlisFaturaKalem', backref='fatura', lazy='select', cascade='all, delete-orphan')
-    
+
     def hesapla(self):
         """Fatura toplamlarını hesapla (Numeric doğruluğu).
 
@@ -192,7 +207,7 @@ class AlisFatura(db.Model, SoftDeleteMixin):
 
         if self.genel_toplam < Decimal('0.00'):
             raise ValueError(f'Geçersiz total: {self.genel_toplam}')
-    
+
     def __repr__(self):
         return f'<AlisFatura {self.fatura_no}>'
 
@@ -206,30 +221,30 @@ class AlisFaturaKalem(db.Model):
         CheckConstraint('kdv_orani >= 0 AND kdv_orani <= 100', name='check_alis_kalem_kdv'),
         CheckConstraint('indirim_orani >= 0 AND indirim_orani <= 100', name='check_alis_kalem_indirim'),
     )
-    
+
     id = db.Column(db.Integer, primary_key=True)
     fatura_id = db.Column(db.Integer, db.ForeignKey('alis_faturalari.id'), nullable=False)
     urun_id = db.Column(db.Integer, db.ForeignKey('urunler.id'))
-    
+
     aciklama = db.Column(db.String(300))
     miktar = db.Column(db.Numeric(12, 2), default=Decimal('1'), nullable=False)
     birim = db.Column(db.String(20), default='Adet', nullable=False)
     birim_fiyat = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     kdv_orani = db.Column(db.Integer, default=20, nullable=False)
     indirim_orani = db.Column(db.Integer, default=0, nullable=False)  # % olarak
-    
+
     @property
     def toplam(self):
         """Kalem toplamı (KDV hariç)"""
         tutar = self.miktar * self.birim_fiyat
         indirim = tutar * (Decimal(self.indirim_orani) / Decimal('100'))
         return tutar - indirim
-    
+
     @property
     def kdv_tutar(self):
         """KDV tutarı"""
         return self.toplam * (Decimal(self.kdv_orani) / Decimal('100'))
-    
+
     @property
     def genel_toplam(self):
         """KDV dahil toplam"""
@@ -250,32 +265,37 @@ class SatisFatura(db.Model, SoftDeleteMixin):
         CheckConstraint('genel_toplam >= 0', name='check_satis_genel_toplam'),
         CheckConstraint("durum IN ('beklemede','tahsil_edildi','iptal')", name='check_satis_durum'),
     )
-    
+
     id = db.Column(db.Integer, primary_key=True)
     fatura_no = db.Column(db.String(50), unique=True, nullable=False, index=True)
     fatura_tarihi = db.Column(db.Date, nullable=False)
     vade_tarihi = db.Column(db.Date)
     musteri_id = db.Column(db.Integer, db.ForeignKey('musteriler.id'), nullable=False)
-    
+
     # ✅ Numeric(12,2) - Para hassasiyeti
     ara_toplam = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     kdv_toplam = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     indirim_toplam = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     genel_toplam = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
-    
+
     # Durum bilgileri
     durum = db.Column(db.String(20), default='beklemede', nullable=False)  # beklemede, tahsil_edildi, iptal
     aciklama = db.Column(db.Text)
-    
+
     # Soft delete
     silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)
 
     olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    guncelleme_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    guncelleme_tarihi = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
 
     # İlişkiler
     kalemler = db.relationship('SatisFaturaKalem', backref='fatura', lazy='select', cascade='all, delete-orphan')
-    
+
     def hesapla(self):
         """Fatura toplamlarını hesapla (Numeric doğruluğu).
 
@@ -292,7 +312,7 @@ class SatisFatura(db.Model, SoftDeleteMixin):
 
         if self.genel_toplam < Decimal('0.00'):
             raise ValueError(f'Geçersiz total: {self.genel_toplam}')
-    
+
     def __repr__(self):
         return f'<SatisFatura {self.fatura_no}>'
 
@@ -306,30 +326,30 @@ class SatisFaturaKalem(db.Model):
         CheckConstraint('kdv_orani >= 0 AND kdv_orani <= 100', name='check_satis_kalem_kdv'),
         CheckConstraint('indirim_orani >= 0 AND indirim_orani <= 100', name='check_satis_kalem_indirim'),
     )
-    
+
     id = db.Column(db.Integer, primary_key=True)
     fatura_id = db.Column(db.Integer, db.ForeignKey('satis_faturalari.id'), nullable=False)
     urun_id = db.Column(db.Integer, db.ForeignKey('urunler.id'))
-    
+
     aciklama = db.Column(db.String(300))
     miktar = db.Column(db.Numeric(12, 2), default=Decimal('1'), nullable=False)
     birim = db.Column(db.String(20), default='Adet', nullable=False)
     birim_fiyat = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     kdv_orani = db.Column(db.Integer, default=20, nullable=False)
     indirim_orani = db.Column(db.Integer, default=0, nullable=False)  # % olarak
-    
+
     @property
     def toplam(self):
         """Kalem toplamı (KDV hariç)"""
         tutar = self.miktar * self.birim_fiyat
         indirim = tutar * (Decimal(self.indirim_orani) / Decimal('100'))
         return tutar - indirim
-    
+
     @property
     def kdv_tutar(self):
         """KDV tutarı"""
         return self.toplam * (Decimal(self.kdv_orani) / Decimal('100'))
-    
+
     @property
     def genel_toplam(self):
         """KDV dahil toplam"""
@@ -350,44 +370,49 @@ class IadeFatura(db.Model, SoftDeleteMixin):
         CheckConstraint("iade_turu IN ('alis_iade','satis_iade')", name='check_iade_turu'),
         CheckConstraint("durum IN ('beklemede','tamamlandi','iptal')", name='check_iade_durum'),
     )
-    
+
     id = db.Column(db.Integer, primary_key=True)
     fatura_no = db.Column(db.String(50), unique=True, nullable=False, index=True)
     fatura_tarihi = db.Column(db.Date, nullable=False)
     firma_id = db.Column(db.Integer, db.ForeignKey('musteriler.id'), nullable=False)
-    
+
     # İade türü
     iade_turu = db.Column(db.String(20), nullable=False)  # alis_iade, satis_iade
     referans_fatura_no = db.Column(db.String(50))  # İlişkili orijinal fatura
-    
+
     # ✅ Numeric(12,2) - Para hassasiyeti
     ara_toplam = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     kdv_toplam = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     genel_toplam = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
-    
+
     # Durum bilgileri
     durum = db.Column(db.String(20), default='beklemede', nullable=False)  # beklemede, tamamlandi, iptal
     iade_nedeni = db.Column(db.Text)
     aciklama = db.Column(db.Text)
-    
+
     # Soft delete
     silinme_tarihi = db.Column(db.DateTime(timezone=True), nullable=True)
 
     olusturma_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
-    guncelleme_tarihi = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    guncelleme_tarihi = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
 
     # İlişkiler
     kalemler = db.relationship('IadeFaturaKalem', backref='fatura', lazy='select', cascade='all, delete-orphan')
-    
+
     def hesapla(self):
         """Fatura toplamlarını hesapla (Numeric doğruluğu)"""
         self.ara_toplam = sum((k.toplam for k in self.kalemler), Decimal('0.00'))
         self.kdv_toplam = sum((k.kdv_tutar for k in self.kalemler), Decimal('0.00'))
         self.genel_toplam = self.ara_toplam + self.kdv_toplam
-        
+
         # Negatif olmadığını verify et
         assert self.genel_toplam >= Decimal('0.00'), f'Geçersiz total: {self.genel_toplam}'
-    
+
     def __repr__(self):
         return f'<IadeFatura {self.fatura_no}>'
 
@@ -400,27 +425,27 @@ class IadeFaturaKalem(db.Model):
         CheckConstraint('birim_fiyat >= 0', name='check_iade_kalem_fiyat'),
         CheckConstraint('kdv_orani >= 0 AND kdv_orani <= 100', name='check_iade_kalem_kdv'),
     )
-    
+
     id = db.Column(db.Integer, primary_key=True)
     fatura_id = db.Column(db.Integer, db.ForeignKey('iade_faturalari.id'), nullable=False)
     urun_id = db.Column(db.Integer, db.ForeignKey('urunler.id'))
-    
+
     aciklama = db.Column(db.String(300))
     miktar = db.Column(db.Numeric(12, 2), default=Decimal('1'), nullable=False)
     birim = db.Column(db.String(20), default='Adet', nullable=False)
     birim_fiyat = db.Column(db.Numeric(12, 2), default=Decimal('0.00'), nullable=False)
     kdv_orani = db.Column(db.Integer, default=20, nullable=False)
-    
+
     @property
     def toplam(self):
         """Kalem toplamı (KDV hariç)"""
         return self.miktar * self.birim_fiyat
-    
+
     @property
     def kdv_tutar(self):
         """KDV tutarı"""
         return self.toplam * (Decimal(self.kdv_orani) / Decimal('100'))
-    
+
     @property
     def genel_toplam(self):
         """KDV dahil toplam"""
@@ -515,7 +540,7 @@ def register_audit_listeners(db_instance):
 
 
 # Basit User modeli
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash  # noqa: E402
 
 
 class User(db.Model):
@@ -535,4 +560,3 @@ class User(db.Model):
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
-

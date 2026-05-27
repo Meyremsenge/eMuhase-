@@ -1,4 +1,4 @@
-"""
+﻿"""
 Ürün Repository - Ürün verisi erişim katmanı
 """
 from app.models import Urun
@@ -30,4 +30,4 @@ class UrunRepository(BaseRepository):
     @classmethod
     def get_stoklu(cls):
         """Stok miktarı sıfırdan büyük ürünleri döndürür."""
-        return Urun.query.filter(Urun.silinme_tarihi == None, Urun.stok_miktari > 0).all()
+        return Urun.query.filter(Urun.silinme_tarihi == None, Urun.stok_miktari > 0).all()  # noqa: E711

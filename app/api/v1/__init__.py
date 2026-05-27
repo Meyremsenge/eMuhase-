@@ -1,4 +1,4 @@
-"""
+﻿"""
 eMuhasebe Pro - API v1
 REST API v1 endpoint'leri - Pagination, Validation, Standardized Responses
 """
@@ -14,7 +14,7 @@ from app.validators import (
     MusteriCreateRequest, MusteriUpdateRequest,
     UrunCreateRequest, UrunUpdateRequest,
     AlisFaturaCreateRequest, SatisFaturaCreateRequest, IadeFaturaCreateRequest,
-    PaginationParams, validate_pagination_params
+    validate_pagination_params
 )
 from app.api_utils import (
     paginated_response, single_response, created_response,
@@ -37,12 +37,12 @@ api_v1 = Blueprint('api_v1', __name__, url_prefix='/api/v1')
 def list_musteriler():
     """
     Müşterileri sayfalama ile listele.
-    
+
     Query Parameters:
         - page: int (default: 1, min: 1)
         - per_page: int (default: 20, min: 1, max: 100)
         - q: str (arama keyword'ü)
-    
+
     Örnek: GET /api/v1/musteriler?page=2&per_page=50&q=abc
     """
     try:
@@ -51,10 +51,10 @@ def list_musteriler():
         if error:
             logger.warning(f"Pagination error: {error}")
             return bad_request_response(error)
-        
+
         # Arama keyword'ü kontrol  et
         keyword = request.args.get('q', '').strip()
-        
+
         if keyword:
             # Arama sonucunu da sayfala
             logger.debug(f"Searching musteriler with keyword: {keyword}")
@@ -87,12 +87,12 @@ def list_musteriler():
             # Get paginated musteriler
             from app.repositories.musteri_repository import MusteriRepository
             pagination = MusteriRepository.paginate(page=page, per_page=per_page)
-            
+
             total = pagination.total
             items = pagination.items
-            
+
             logger.info(f"Listed musteriler: page={page}, per_page={per_page}, total={total}")
-            
+
             return paginated_response(
                 items=items,
                 page=page,
@@ -100,7 +100,7 @@ def list_musteriler():
                 total=total,
                 serialize_func=musteri_to_dict
             )
-    
+
     except Exception as e:
         logger.error(f"Error listing musteriler: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -111,7 +111,7 @@ def list_musteriler():
 def get_musteri(musteri_id):
     """
     Müşteri detayını al.
-    
+
     Örnek: GET /api/v1/musteriler/5
     """
     try:
@@ -119,10 +119,10 @@ def get_musteri(musteri_id):
         if not musteri:
             logger.warning(f"Musteri not found: ID={musteri_id}")
             return not_found_response('Müşteri', musteri_id)
-        
+
         logger.debug(f"Retrieved musteri: ID={musteri_id}")
         return single_response(musteri, serialize_func=musteri_to_dict)
-    
+
     except Exception as e:
         logger.error(f"Error getting musteri {musteri_id}: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -134,7 +134,7 @@ def get_musteri(musteri_id):
 def create_musteri():
     """
     Yeni müşteri oluştur.
-    
+
     Request Body:
         {
             "unvan": "ABC Ltd",
@@ -148,25 +148,25 @@ def create_musteri():
         data = request.get_json()
         if not data:
             return bad_request_response('Request body boş')
-        
+
         # Validation ile request'i parse et
         validated_data = MusteriCreateRequest(**data)
-        
+
         # Service'e converted dict gönder
         musteri = MusteriService.create(validated_data.model_dump())
-        
+
         logger.info(f"Created musteri: ID={musteri.id}")
         return created_response(musteri, serialize_func=musteri_to_dict)
-    
+
     except ValidationError as e:
         logger.warning(f"Validation error creating musteri: {str(e)}")
         errors = pydantic_error_to_list(e.errors())
         return validation_error_response(errors)
-    
+
     except ValueError as e:
         logger.warning(f"Business logic error creating musteri: {str(e)}")
         return conflict_response(str(e), 'DUPLICATE_ENTRY')
-    
+
     except Exception as e:
         logger.error(f"Error creating musteri: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -178,7 +178,7 @@ def create_musteri():
 def update_musteri(musteri_id):
     """
     Müşteri güncelle.
-    
+
     Request Body (tüm alanlar opsiyonel):
         {
             "unvan": "ABC Inc",
@@ -189,33 +189,33 @@ def update_musteri(musteri_id):
         data = request.get_json()
         if not data:
             return bad_request_response('Request body boş')
-        
+
         # Müşteri var mı kontrol et
         if not MusteriService.get_by_id(musteri_id):
             logger.warning(f"Musteri not found for update: ID={musteri_id}")
             return not_found_response('Müşteri', musteri_id)
-        
+
         # Validation ile request'i parse et
         validated_data = MusteriUpdateRequest(**data)
-        
+
         # Null olmayan alanları filter et
         update_data = {k: v for k, v in validated_data.model_dump().items() if v is not None}
-        
+
         # Service'e gönder
         musteri = MusteriService.update(musteri_id, update_data)
-        
+
         logger.info(f"Updated musteri: ID={musteri_id}")
         return single_response(musteri, serialize_func=musteri_to_dict)
-    
+
     except ValidationError as e:
         logger.warning(f"Validation error updating musteri {musteri_id}: {str(e)}")
         errors = pydantic_error_to_list(e.errors())
         return validation_error_response(errors)
-    
+
     except ValueError as e:
         logger.warning(f"Business logic error updating musteri {musteri_id}: {str(e)}")
         return conflict_response(str(e), 'DUPLICATE_ENTRY')
-    
+
     except Exception as e:
         logger.error(f"Error updating musteri {musteri_id}: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -230,12 +230,12 @@ def delete_musteri(musteri_id):
         if not MusteriService.get_by_id(musteri_id):
             logger.warning(f"Musteri not found for delete: ID={musteri_id}")
             return not_found_response('Müşteri', musteri_id)
-        
+
         MusteriService.delete(musteri_id)
-        
+
         logger.info(f"Deleted musteri: ID={musteri_id}")
         return deleted_response(musteri_id, 'Müşteri')
-    
+
     except Exception as e:
         logger.error(f"Error deleting musteri {musteri_id}: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -251,9 +251,9 @@ def list_urunler():
         page, per_page, error = validate_pagination_params(request.args)
         if error:
             return bad_request_response(error)
-        
+
         keyword = request.args.get('q', '').strip()
-        
+
         if keyword:
             logger.debug(f"Searching urunler with keyword: {keyword}")
             urunler = UrunService.search(keyword)
@@ -281,9 +281,9 @@ def list_urunler():
         else:
             from app.repositories.urun_repository import UrunRepository
             pagination = UrunRepository.paginate(page=page, per_page=per_page)
-            
+
             logger.info(f"Listed urunler: page={page}, per_page={per_page}, total={pagination.total}")
-            
+
             return paginated_response(
                 items=pagination.items,
                 page=page,
@@ -291,7 +291,7 @@ def list_urunler():
                 total=pagination.total,
                 serialize_func=urun_to_dict
             )
-    
+
     except Exception as e:
         logger.error(f"Error listing urunler: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -306,10 +306,10 @@ def get_urun(urun_id):
         if not urun:
             logger.warning(f"Urun not found: ID={urun_id}")
             return not_found_response('Ürün', urun_id)
-        
+
         logger.debug(f"Retrieved urun: ID={urun_id}")
         return single_response(urun, serialize_func=urun_to_dict)
-    
+
     except Exception as e:
         logger.error(f"Error getting urun {urun_id}: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -324,22 +324,22 @@ def create_urun():
         data = request.get_json()
         if not data:
             return bad_request_response('Request body boş')
-        
+
         validated_data = UrunCreateRequest(**data)
         urun = UrunService.create(validated_data.model_dump())
-        
+
         logger.info(f"Created urun: ID={urun.id}")
         return created_response(urun, serialize_func=urun_to_dict)
-    
+
     except ValidationError as e:
         logger.warning(f"Validation error creating urun: {str(e)}")
         errors = pydantic_error_to_list(e.errors())
         return validation_error_response(errors)
-    
+
     except ValueError as e:
         logger.warning(f"Business logic error creating urun: {str(e)}")
         return conflict_response(str(e), 'DUPLICATE_ENTRY')
-    
+
     except Exception as e:
         logger.error(f"Error creating urun: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -354,28 +354,28 @@ def update_urun(urun_id):
         data = request.get_json()
         if not data:
             return bad_request_response('Request body boş')
-        
+
         if not UrunService.get_by_id(urun_id):
             logger.warning(f"Urun not found for update: ID={urun_id}")
             return not_found_response('Ürün', urun_id)
-        
+
         validated_data = UrunUpdateRequest(**data)
         update_data = {k: v for k, v in validated_data.model_dump().items() if v is not None}
-        
+
         urun = UrunService.update(urun_id, update_data)
-        
+
         logger.info(f"Updated urun: ID={urun_id}")
         return single_response(urun, serialize_func=urun_to_dict)
-    
+
     except ValidationError as e:
         logger.warning(f"Validation error updating urun {urun_id}: {str(e)}")
         errors = pydantic_error_to_list(e.errors())
         return validation_error_response(errors)
-    
+
     except ValueError as e:
         logger.warning(f"Business logic error updating urun {urun_id}: {str(e)}")
         return conflict_response(str(e), 'DUPLICATE_ENTRY')
-    
+
     except Exception as e:
         logger.error(f"Error updating urun {urun_id}: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -390,12 +390,12 @@ def delete_urun(urun_id):
         if not UrunService.get_by_id(urun_id):
             logger.warning(f"Urun not found for delete: ID={urun_id}")
             return not_found_response('Ürün', urun_id)
-        
+
         UrunService.delete(urun_id)
-        
+
         logger.info(f"Deleted urun: ID={urun_id}")
         return deleted_response(urun_id, 'Ürün')
-    
+
     except Exception as e:
         logger.error(f"Error deleting urun {urun_id}: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -409,14 +409,14 @@ def get_faturalar_summary():
     """Dashboard için fatura özet istatistikleri."""
     try:
         summary = FaturaService.get_summary()
-        logger.debug(f"Retrieved faturalar summary")
-        
+        logger.debug("Retrieved faturalar summary")
+
         from flask import jsonify
         return jsonify({
             'success': True,
             'data': summary
         }), 200
-    
+
     except Exception as e:
         logger.error(f"Error getting faturalar summary: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -430,12 +430,12 @@ def list_alis_faturalari():
         page, per_page, error = validate_pagination_params(request.args)
         if error:
             return bad_request_response(error)
-        
+
         from app.repositories.alis_fatura_repository import AlisFaturaRepository
         pagination = AlisFaturaRepository.paginate_with_kalemler(page=page, per_page=per_page)
-        
+
         logger.info(f"Listed alis faturalari: page={page}, total={pagination.total}")
-        
+
         return paginated_response(
             items=pagination.items,
             page=page,
@@ -443,7 +443,7 @@ def list_alis_faturalari():
             total=pagination.total,
             serialize_func=fatura_to_dict
         )
-    
+
     except Exception as e:
         logger.error(f"Error listing alis faturalari: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -458,10 +458,10 @@ def get_alis_faturasi(fatura_id):
         if not fatura:
             logger.warning(f"Alis fatura not found: ID={fatura_id}")
             return not_found_response('Alış Faturası', fatura_id)
-        
+
         logger.debug(f"Retrieved alis faturasi: ID={fatura_id}")
         return single_response(fatura, serialize_func=fatura_to_dict)
-    
+
     except Exception as e:
         logger.error(f"Error getting alis faturasi {fatura_id}: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -475,12 +475,12 @@ def list_satis_faturalari():
         page, per_page, error = validate_pagination_params(request.args)
         if error:
             return bad_request_response(error)
-        
+
         from app.repositories.satis_fatura_repository import SatisFaturaRepository
         pagination = SatisFaturaRepository.paginate_with_kalemler(page=page, per_page=per_page)
-        
+
         logger.info(f"Listed satis faturalari: page={page}, total={pagination.total}")
-        
+
         return paginated_response(
             items=pagination.items,
             page=page,
@@ -488,7 +488,7 @@ def list_satis_faturalari():
             total=pagination.total,
             serialize_func=fatura_to_dict
         )
-    
+
     except Exception as e:
         logger.error(f"Error listing satis faturalari: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -503,10 +503,10 @@ def get_satis_faturasi(fatura_id):
         if not fatura:
             logger.warning(f"Satis fatura not found: ID={fatura_id}")
             return not_found_response('Satış Faturası', fatura_id)
-        
+
         logger.debug(f"Retrieved satis faturasi: ID={fatura_id}")
         return single_response(fatura, serialize_func=fatura_to_dict)
-    
+
     except Exception as e:
         logger.error(f"Error getting satis faturasi {fatura_id}: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -520,12 +520,12 @@ def list_iade_faturalari():
         page, per_page, error = validate_pagination_params(request.args)
         if error:
             return bad_request_response(error)
-        
+
         from app.repositories.iade_fatura_repository import IadeFaturaRepository
         pagination = IadeFaturaRepository.paginate_with_kalemler(page=page, per_page=per_page)
-        
+
         logger.info(f"Listed iade faturalari: page={page}, total={pagination.total}")
-        
+
         return paginated_response(
             items=pagination.items,
             page=page,
@@ -533,7 +533,7 @@ def list_iade_faturalari():
             total=pagination.total,
             serialize_func=fatura_to_dict
         )
-    
+
     except Exception as e:
         logger.error(f"Error listing iade faturalari: {str(e)}", exc_info=True)
         return internal_error_response(str(e))
@@ -548,10 +548,10 @@ def get_iade_faturasi(fatura_id):
         if not fatura:
             logger.warning(f"Iade fatura not found: ID={fatura_id}")
             return not_found_response('İade Faturası', fatura_id)
-        
+
         logger.debug(f"Retrieved iade faturasi: ID={fatura_id}")
         return single_response(fatura, serialize_func=fatura_to_dict)
-    
+
     except Exception as e:
         logger.error(f"Error getting iade faturasi {fatura_id}: {str(e)}", exc_info=True)
         return internal_error_response(str(e))

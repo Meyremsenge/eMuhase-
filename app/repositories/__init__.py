@@ -1,4 +1,4 @@
-"""
+﻿"""
 eMuhasebe Pro - Repository Katmanı
 Tüm veri erişim işlemleri bu modül üzerinden yürütülür.
 Repository Pattern ile veri erişim kodu iş mantığından ayrılır.

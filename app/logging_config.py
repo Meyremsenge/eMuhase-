@@ -1,4 +1,4 @@
-"""
+﻿"""
 Logging Configuration Module
 Uygulamanın tüm logging ihtiyaçlarını merkezi olarak yönetir.
 - Console logging (development)
@@ -13,8 +13,6 @@ import logging
 import logging.handlers
 import os
 from pathlib import Path
-from datetime import datetime
-
 from flask import has_request_context, g
 
 
@@ -27,31 +25,31 @@ _PII_FIELDS = {
 def setup_logging(app):
     """
     Flask uygulaması için logging'i yapılandırır.
-    
+
     Args:
         app: Flask application instance
-    
+
     Environment Variables:
         FLASK_ENV: development|production (default: development)
         LOG_LEVEL: DEBUG|INFO|WARNING|ERROR|CRITICAL (default: INFO)
         LOG_DIR: Log dosyalarının dizini (default: ./logs)
     """
-    
+
     # Log dizini oluştur
     log_dir = Path(os.environ.get('LOG_DIR', 'logs'))
     log_dir.mkdir(exist_ok=True)
-    
+
     # Log seviyesi ayarla
     log_level = app.config.get('LOG_LEVEL', os.environ.get('LOG_LEVEL', 'INFO')).upper()
     numeric_level = getattr(logging, log_level, logging.INFO)
-    
+
     # Root logger'ı yapılandır
     root_logger = logging.getLogger()
     root_logger.setLevel(numeric_level)
-    
+
     # Mevcut handler'ları temizle (multiple initialization'den kaçın)
     root_logger.handlers.clear()
-    
+
     class PIIMaskFilter(logging.Filter):
         def filter(self, record):
             message = record.getMessage()
@@ -89,10 +87,13 @@ def setup_logging(app):
         detailed_formatter = JsonFormatter(datefmt='%Y-%m-%d %H:%M:%S')
     else:
         detailed_formatter = logging.Formatter(
-            fmt='%(asctime)s - %(name)s - %(levelname)s - [req=%(request_id)s] - [%(filename)s:%(lineno)d] - %(message)s',
+            fmt=(
+                '%(asctime)s - %(name)s - %(levelname)s - '
+                '[req=%(request_id)s] - [%(filename)s:%(lineno)d] - %(message)s'
+            ),
             datefmt='%Y-%m-%d %H:%M:%S'
         )
-    
+
     # Console Handler (her zaman ekrana yazı)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(numeric_level)
@@ -100,7 +101,7 @@ def setup_logging(app):
     console_handler.addFilter(RequestIdFilter())
     console_handler.addFilter(PIIMaskFilter())
     root_logger.addHandler(console_handler)
-    
+
     # File Handler - RotatingFileHandler (production)
     main_log_file = log_dir / 'app.log'
     file_handler = logging.handlers.RotatingFileHandler(
@@ -114,7 +115,7 @@ def setup_logging(app):
     file_handler.addFilter(RequestIdFilter())
     file_handler.addFilter(PIIMaskFilter())
     root_logger.addHandler(file_handler)
-    
+
     # Erro-specific File Handler
     error_log_file = log_dir / 'errors.log'
     error_handler = logging.handlers.RotatingFileHandler(
@@ -141,23 +142,23 @@ def setup_logging(app):
         json_handler.addFilter(RequestIdFilter())
         json_handler.addFilter(PIIMaskFilter())
         root_logger.addHandler(json_handler)
-    
+
     # SQL Query Logging (SQLAlchemy)
     if os.environ.get('FLASK_ENV') == 'development':
         logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
     else:
         logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
-    
+
     # Flask internal logger
     logging.getLogger('werkzeug').setLevel(logging.WARNING)
-    
+
     return root_logger
 
 
 def get_logger(name):
     """
     Adlandırılmış logger döndürür. Tüm modüllerde kullan:
-    
+
     Example:
         logger = get_logger(__name__)
         logger.info("User login: %s", username)
@@ -170,7 +171,7 @@ def get_logger(name):
 def log_audit_action(logger, user_id, action, tablo_adi, kayit_id, eski_veriler=None, yeni_veriler=None):
     """
     Muhasebe işlemlerini audit trail olarak kaydetir.
-    
+
     Args:
         logger: Logger instance
         user_id: İşlemi yapan kullanıcı ID'si
@@ -179,12 +180,12 @@ def log_audit_action(logger, user_id, action, tablo_adi, kayit_id, eski_veriler=
         kayit_id: Kayıt ID'si
         eski_veriler: Eski değerler (UPDATE/DELETE için)
         yeni_veriler: Yeni değerler (CREATE/UPDATE için)
-    
+
     Example:
         log_audit_action(
-            logger, 
-            user_id=1, 
-            action='UPDATE', 
+            logger,
+            user_id=1,
+            action='UPDATE',
             tablo_adi='musteriler',
             kayit_id=5,
             eski_veriler={'unvan': 'ABC Ltd'},
@@ -200,7 +201,7 @@ def log_audit_action(logger, user_id, action, tablo_adi, kayit_id, eski_veriler=
 def log_api_call(logger, method, endpoint, user_id=None, ip_address=None, response_code=None, duration_ms=None):
     """
     API çağrılarını kaydeder.
-    
+
     Args:
         logger: Logger instance
         method: HTTP method (GET, POST, PUT, DELETE)
@@ -209,7 +210,7 @@ def log_api_call(logger, method, endpoint, user_id=None, ip_address=None, respon
         ip_address: İstemci IP adresi
         response_code: HTTP response kodu
         duration_ms: İsteğin süresi (milisaniye)
-    
+
     Example:
         log_api_call(
             logger,
@@ -230,20 +231,20 @@ def log_api_call(logger, method, endpoint, user_id=None, ip_address=None, respon
         log_parts.append(f"status={response_code}")
     if duration_ms:
         log_parts.append(f"duration={duration_ms}ms")
-    
+
     logger.info(" | ".join(log_parts))
 
 
 def log_error_context(logger, error_type, error_msg, context=None):
     """
     Hatalar için context bilgisi ile log kaydı oluşturur.
-    
+
     Args:
         logger: Logger instance
         error_type: Hata sınıfı adı
         error_msg: Hata mesajı
         context: İlgili context bilgisi (dict)
-    
+
     Example:
         log_error_context(
             logger,

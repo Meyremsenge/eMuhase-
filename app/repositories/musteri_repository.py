@@ -1,4 +1,4 @@
-"""
+﻿"""
 Müşteri repository - müşteri/tedarikçi veri erişimi
 """
 from sqlalchemy import or_
@@ -37,7 +37,7 @@ class MusteriRepository(BaseRepository):
             return []
         pattern = f"%{keyword}%"
         return Musteri.query.filter(
-            Musteri.silinme_tarihi == None,
+            Musteri.silinme_tarihi == None,  # noqa: E711
             or_(
                 Musteri.unvan.ilike(pattern),
                 Musteri.vergi_no.ilike(pattern),

@@ -28,4 +28,3 @@ def duzenle(id):
 def detay(id):
     """Alış faturası detay sayfası"""
     return render_template('faturalar/alis/detay_firebase.html', fatura_id=id)
-

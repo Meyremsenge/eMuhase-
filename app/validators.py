@@ -1,4 +1,4 @@
-"""
+﻿"""
 Pydantic Validators - API input validation
 JSON request'leri doğrula ve type hints ile API endpoints'ini güvenli hale getir.
 """
@@ -39,7 +39,7 @@ class MusteriCreateRequest(BaseModel):
     telefon: Optional[str] = Field(None, max_length=20, description="Telefon numarası")
     adres: Optional[str] = Field(None, max_length=500, description="Adres")
     tip: Optional[str] = Field('musteri', description="Müşteri tipi")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -51,7 +51,7 @@ class MusteriCreateRequest(BaseModel):
             }
         }
     )
-    
+
     @field_validator('unvan')
     @classmethod
     def unvan_not_blank(cls, v):
@@ -59,7 +59,7 @@ class MusteriCreateRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError('Ünvan boş olamaz')
         return v.strip()
-    
+
     @field_validator('vergi_no')
     @classmethod
     def vergi_no_format(cls, v):
@@ -84,7 +84,7 @@ class MusteriUpdateRequest(BaseModel):
     telefon: Optional[str] = Field(None, max_length=20)
     adres: Optional[str] = Field(None, max_length=500)
     tip: Optional[str] = Field(None, description="Müşteri tipi")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -93,7 +93,7 @@ class MusteriUpdateRequest(BaseModel):
             }
         }
     )
-    
+
     @field_validator('vergi_no')
     @classmethod
     def vergi_no_format(cls, v):
@@ -117,7 +117,7 @@ class MusteriResponse(BaseModel):
     email: Optional[str]
     telefon: Optional[str]
     adres: Optional[str]
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -133,7 +133,7 @@ class UrunCreateRequest(BaseModel):
     alis_fiyat: Decimal = Field(..., gt=0, description="Alış fiyatı (>0)")
     satis_fiyat: Decimal = Field(..., gt=0, description="Satış fiyatı (>0)")
     stok_miktari: int = Field(0, ge=0, description="Stok miktarı (≥0)")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -146,7 +146,7 @@ class UrunCreateRequest(BaseModel):
             }
         }
     )
-    
+
     @field_validator('alis_fiyat', 'satis_fiyat', mode='before')
     @classmethod
     def parse_decimal(cls, v):
@@ -154,7 +154,7 @@ class UrunCreateRequest(BaseModel):
         if isinstance(v, str):
             return Decimal(v)
         return v
-    
+
     @field_validator('kod')
     @classmethod
     def kod_not_empty_if_provided(cls, v):
@@ -178,7 +178,7 @@ class UrunUpdateRequest(BaseModel):
     alis_fiyat: Optional[Decimal] = Field(None, gt=0)
     satis_fiyat: Optional[Decimal] = Field(None, gt=0)
     stok_miktari: Optional[int] = Field(None, ge=0)
-    
+
     @field_validator('alis_fiyat', 'satis_fiyat', mode='before')
     @classmethod
     def parse_decimal(cls, v):
@@ -205,7 +205,7 @@ class FaturaKalemRequest(BaseModel):
     birim_fiyat: Decimal = Field(..., ge=0, description="Birim fiyat")
     kdv_orani: int = Field(18, ge=0, le=100, description="KDV oranı (0-100%)")
     indirim_orani: int = Field(0, ge=0, le=100, description="İndirim oranı (0-100%)")
-    
+
     @field_validator('miktar', 'birim_fiyat', mode='before')
     @classmethod
     def parse_decimal(cls, v):
@@ -226,7 +226,7 @@ class FaturaKalemRequest(BaseModel):
         if v < 0 or v > 100:
             raise ValueError('İndirim oranı 0-100 aralığında olmalı')
         return v
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -247,7 +247,7 @@ class FaturaCreateRequest(BaseModel):
     fatura_tarihi: date = Field(..., description="Fatura tarihi (YYYY-MM-DD)")
     kalemler: list[FaturaKalemRequest] = Field(..., min_length=1, description="Fatura kalemoleri (en az 1)")
     notlar: Optional[str] = Field(None, max_length=500, description="Notlar")
-    
+
     @field_validator('kalemler')
     @classmethod
     def validate_kalemler(cls, v):
@@ -265,7 +265,7 @@ class FaturaCreateRequest(BaseModel):
         if parsed > datetime.now().date():
             raise ValueError('Fatura tarihi gelecek bir tarih olamaz')
         return parsed
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -412,7 +412,7 @@ class PaginationParams(BaseModel):
     """Sayfalama parametreleri."""
     page: int = Field(1, ge=1, description="Sayfa numarası (≥1)")
     per_page: int = Field(20, ge=1, le=100, description="Sayfa başına kayıt (1-100)")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -428,7 +428,7 @@ def validate_pagination_params(request_args):
     try:
         page = int(request_args.get('page', 1))
         per_page = int(request_args.get('per_page', 20))
-        
+
         # Validation
         if page < 1:
             page = 1
@@ -436,7 +436,7 @@ def validate_pagination_params(request_args):
             per_page = 20
         if per_page > 100:
             per_page = 100
-        
+
         return page, per_page, None  # (page, per_page, error)
     except (ValueError, TypeError) as e:
         return 1, 20, f"Geçersiz sayfalama parametreleri: {str(e)}"

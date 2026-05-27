@@ -22,4 +22,3 @@ def yeni():
 def duzenle(id):
     """Müşteri düzenleme formu"""
     return render_template('musteriler/form_firebase.html', musteri_id=id)
-
