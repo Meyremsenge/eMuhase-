@@ -2105,6 +2105,155 @@
 [data-theme="light"] .ai-section-card p,
 [data-theme="light"] .ai-section-card li { color: #1e293b; }
 
+/* ─── Human AI Report ─── */
+.ai-health-row {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.ai-health-label { display: flex; flex-direction: column; gap: 2px; }
+.ai-health-label strong { font-size: 1.05rem; font-weight: 700; line-height: 1.2; }
+.ai-health-label span { font-size: 0.72rem; opacity: 0.45; }
+
+.ai-stats-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    flex: 1;
+}
+
+.ai-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+}
+
+.ai-stat-val { font-size: 1rem; font-weight: 700; }
+.ai-stat-val.pos { color: #34d399; }
+.ai-stat-val.neg { color: #f87171; }
+.ai-stat-lbl { font-size: 0.65rem; opacity: 0.45; margin-top: 2px; }
+
+.ai-stat-sep {
+    width: 1px;
+    height: 26px;
+    background: rgba(255,255,255,0.1);
+    flex-shrink: 0;
+}
+
+.ai-genel-para {
+    font-size: 0.875rem;
+    line-height: 1.75;
+    color: var(--text-secondary);
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    border-left: 2px solid rgba(255,255,255,0.15);
+    margin: 0;
+}
+
+.ai-insight-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+    .ai-insight-cards { grid-template-columns: 1fr; }
+}
+
+.ai-insight-card {
+    border-radius: 14px;
+    padding: 0.9rem 1rem;
+    display: flex;
+    flex-direction: row;
+    gap: 0.75rem;
+    animation: aiFadeIn 0.4s ease both;
+}
+
+.ai-insight-card.is-green { background: rgba(52,211,153,0.09); animation-delay: 0.05s; }
+.ai-insight-card.is-amber { background: rgba(251,191,36,0.09); animation-delay: 0.1s; }
+.ai-insight-card.is-blue  { background: rgba(96,165,250,0.09); animation-delay: 0.15s; }
+
+.aic-icon {
+    font-size: 1rem;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.ai-insight-card.is-green .aic-icon { color: #34d399; background: rgba(52,211,153,0.18); }
+.ai-insight-card.is-amber .aic-icon { color: #fbbf24; background: rgba(251,191,36,0.18); }
+.ai-insight-card.is-blue  .aic-icon { color: #60a5fa; background: rgba(96,165,250,0.18); }
+
+.aic-body { flex: 1; min-width: 0; }
+
+.aic-title {
+    font-weight: 600;
+    font-size: 0.82rem;
+    margin-bottom: 0.4rem;
+}
+
+.ai-insight-card.is-green .aic-title { color: #6ee7b7; }
+.ai-insight-card.is-amber .aic-title { color: #fcd34d; }
+.ai-insight-card.is-blue  .aic-title { color: #93c5fd; }
+
+.aic-body ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
+
+.aic-body li {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    padding-left: 0.9rem;
+    position: relative;
+}
+
+.aic-body li::before { content: '›'; position: absolute; left: 0; opacity: 0.45; }
+
+.ai-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(255,255,255,0.07);
+}
+
+.aib-row { display: flex; align-items: center; gap: 0.7rem; font-size: 0.78rem; }
+.aib-lbl { width: 36px; text-align: right; opacity: 0.5; flex-shrink: 0; }
+.aib-track { flex: 1; height: 6px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
+.aib-fill { height: 100%; border-radius: 99px; transition: width 0.9s cubic-bezier(.2,.8,.4,1); }
+.aib-fill.is-income  { background: #34d399; }
+.aib-fill.is-expense { background: #f87171; }
+.aib-fill.is-returns { background: #fbbf24; }
+.aib-amount { opacity: 0.65; white-space: nowrap; }
+
+/* Light theme — Human AI Report */
+[data-theme="light"] .ai-health-row { border-bottom-color: rgba(0,0,0,0.06); }
+[data-theme="light"] .ai-genel-para { background: rgba(0,0,0,0.03); border-left-color: rgba(0,0,0,0.1); color: #334155; }
+[data-theme="light"] .ai-insight-card.is-green { background: rgba(52,211,153,0.08); }
+[data-theme="light"] .ai-insight-card.is-amber { background: rgba(251,191,36,0.07); }
+[data-theme="light"] .ai-insight-card.is-blue  { background: rgba(96,165,250,0.08); }
+[data-theme="light"] .ai-insight-card.is-green .aic-title { color: #059669; }
+[data-theme="light"] .ai-insight-card.is-amber .aic-title { color: #b45309; }
+[data-theme="light"] .ai-insight-card.is-blue  .aic-title { color: #2563eb; }
+[data-theme="light"] .ai-insight-card.is-green .aic-icon { background: rgba(52,211,153,0.18); }
+[data-theme="light"] .ai-insight-card.is-amber .aic-icon { background: rgba(251,191,36,0.18); }
+[data-theme="light"] .ai-insight-card.is-blue  .aic-icon { background: rgba(96,165,250,0.18); }
+[data-theme="light"] .aic-body li { color: #475569; }
+[data-theme="light"] .ai-bars { border-top-color: rgba(0,0,0,0.06); }
+[data-theme="light"] .aib-track { background: rgba(0,0,0,0.06); }
+[data-theme="light"] .ai-stat-sep { background: rgba(0,0,0,0.08); }
+
 [data-theme="light"] .ai-card {
     background: #f1f5f9;
     border-color: #e2e8f0;

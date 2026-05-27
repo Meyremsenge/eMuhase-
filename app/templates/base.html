@@ -337,18 +337,6 @@
                     </a>
                 </div>
 
-                <!-- Hesap -->
-                <div class="nav-section">
-                    <div class="nav-section-title">Hesap</div>
-                    <a href="{{ url_for('main.giris') }}" class="nav-item {% if request.endpoint == 'main.giris' %}active{% endif %}" id="navGirisLink">
-                        <i class="fas fa-right-to-bracket"></i>
-                        <span>Giriş</span>
-                    </a>
-                    <a href="#" class="nav-item" id="navCikisLink" onclick="logout(event)" hidden>
-                        <i class="fas fa-right-from-bracket"></i>
-                        <span>Çıkış</span>
-                    </a>
-                </div>
             </nav>
 
             <div class="sidebar-footer"></div>
@@ -369,10 +357,6 @@
                     </div>
                 </div>
                 <div class="header-actions">
-                    <button class="theme-toggle btn btn--ghost" id="themeToggle" type="button" title="Tema Değiştir" aria-label="Temayı değiştir">
-                        <span class="theme-toggle-icon" aria-hidden="true"><i class="fas fa-moon" id="themeIcon"></i></span>
-                        <span class="theme-toggle-label" id="themeLabel">Açık Tema</span>
-                    </button>
                     <!-- Profil Dropdown -->
                     <div class="profile-dropdown" id="profileDropdown">
                         <button class="profile-btn" id="profileBtn" type="button" aria-label="Profil ve Ayarlar" aria-expanded="false">
@@ -404,6 +388,10 @@
                         </div>
                     </div>
                     {% block header_actions %}{% endblock %}
+                    <button class="theme-toggle btn btn--ghost" id="themeToggle" type="button" title="Tema Değiştir" aria-label="Temayı değiştir">
+                        <span class="theme-toggle-icon" aria-hidden="true"><i class="fas fa-moon" id="themeIcon"></i></span>
+                        <span class="theme-toggle-label" id="themeLabel">Açık Tema</span>
+                    </button>
                 </div>
             </header>
 
@@ -1056,10 +1044,6 @@
                 .then(r => r.ok ? r.json() : null)
                 .then(user => {
                     if (user && user.id) {
-                        const giris = document.getElementById('navGirisLink');
-                        const cikis = document.getElementById('navCikisLink');
-                        if (giris) giris.hidden = true;
-                        if (cikis) cikis.hidden = false;
                     const profileGiris = document.getElementById('profileGirisLink');
                     const profileCikis = document.getElementById('profileCikisLink');
                     if (profileGiris) profileGiris.hidden = true;

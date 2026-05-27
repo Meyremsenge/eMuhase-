@@ -1249,7 +1249,7 @@ ${dataSummary}`;
         results.classList.add('active');
         results.innerHTML = `
 <div class="ai-report">
-    <div class="ai-report-top">
+    <div class="ai-health-row">
         <div class="ai-overall-score ${durumClass}">
             <div class="ai-score-ring">
                 ${svgDonut(Math.round(ortalamaSkor))}
@@ -1257,63 +1257,73 @@ ${dataSummary}`;
                     <span class="ai-score-num">${Math.round(ortalamaSkor)}</span><span class="ai-score-pct">%</span>
                 </div>
             </div>
-            <div class="ai-score-label-wrap">
-                <i class="fas fa-${durumIcon}"></i><strong>${durumText}</strong>
+            <div class="ai-health-label">
+                <strong>${durumText}</strong>
+                <span>Finansal Sağlık</span>
             </div>
         </div>
-        <div class="ai-key-metrics">
-            <div class="ai-key-metric">
-                <span class="akm-label">Kar Marjı</span>
-                <span class="akm-value ${pmClass}">${pmSign}${profitMargin}%</span>
+        <div class="ai-stats-inline">
+            <div class="ai-stat">
+                <span class="ai-stat-val ${pmClass}">${pmSign}${profitMargin}%</span>
+                <span class="ai-stat-lbl">kar marjı</span>
             </div>
-            <div class="ai-key-metric">
-                <span class="akm-label">Gelir</span>
-                <span class="akm-value pos">${formatShort(totalIncome)} TL</span>
+            <div class="ai-stat-sep"></div>
+            <div class="ai-stat">
+                <span class="ai-stat-val pos">${formatShort(totalIncome)} TL</span>
+                <span class="ai-stat-lbl">toplam gelir</span>
             </div>
-            <div class="ai-key-metric">
-                <span class="akm-label">Gider</span>
-                <span class="akm-value neg">${formatShort(totalExpense)} TL</span>
+            <div class="ai-stat-sep"></div>
+            <div class="ai-stat">
+                <span class="ai-stat-val neg">${formatShort(totalExpense)} TL</span>
+                <span class="ai-stat-lbl">toplam gider</span>
             </div>
-            <div class="ai-key-metric">
-                <span class="akm-label">Net K/Z</span>
-                <span class="akm-value ${netClass}">${netSign}${formatShort(netProfit)} TL</span>
+            <div class="ai-stat-sep"></div>
+            <div class="ai-stat">
+                <span class="ai-stat-val ${netClass}">${netSign}${formatShort(netProfit)} TL</span>
+                <span class="ai-stat-lbl">net kâr/zarar</span>
             </div>
         </div>
     </div>
-    <div class="ai-comparison-bar">
-        <div class="acb-row">
-            <span class="acb-label">Gelir</span>
-            <div class="acb-track"><div class="acb-fill income" style="width:${incPct}%"></div></div>
-            <span class="acb-amount">${formatShort(totalIncome)} TL</span>
+    ${sections.genel ? `<p class="ai-genel-para">${sections.genel}</p>` : ''}
+    <div class="ai-insight-cards">
+        <div class="ai-insight-card is-green">
+            <div class="aic-icon"><i class="fas fa-seedling"></i></div>
+            <div class="aic-body">
+                <div class="aic-title">Güçlü Yönler</div>
+                <ul>${renderBullets(sections.guclu)}</ul>
+            </div>
         </div>
-        <div class="acb-row">
-            <span class="acb-label">Gider</span>
-            <div class="acb-track"><div class="acb-fill expense" style="width:${expPct}%"></div></div>
-            <span class="acb-amount">${formatShort(totalExpense)} TL</span>
+        <div class="ai-insight-card is-amber">
+            <div class="aic-icon"><i class="fas fa-triangle-exclamation"></i></div>
+            <div class="aic-body">
+                <div class="aic-title">Dikkat Edilecekler</div>
+                <ul>${renderBullets(sections.dikkat)}</ul>
+            </div>
         </div>
-        ${(totalReturns>0) ? `<div class="acb-row">
-            <span class="acb-label">İade</span>
-            <div class="acb-track"><div class="acb-fill returns" style="width:${retPct}%"></div></div>
-            <span class="acb-amount">${formatShort(totalReturns)} TL</span>
+        <div class="ai-insight-card is-blue">
+            <div class="aic-icon"><i class="fas fa-lightbulb"></i></div>
+            <div class="aic-body">
+                <div class="aic-title">Öneriler</div>
+                <ul>${renderBullets(sections.oneri)}</ul>
+            </div>
+        </div>
+    </div>
+    <div class="ai-bars">
+        <div class="aib-row">
+            <span class="aib-lbl">Gelir</span>
+            <div class="aib-track"><div class="aib-fill is-income" style="width:${incPct}%"></div></div>
+            <span class="aib-amount">${formatShort(totalIncome)} TL</span>
+        </div>
+        <div class="aib-row">
+            <span class="aib-lbl">Gider</span>
+            <div class="aib-track"><div class="aib-fill is-expense" style="width:${expPct}%"></div></div>
+            <span class="aib-amount">${formatShort(totalExpense)} TL</span>
+        </div>
+        ${(totalReturns>0) ? `<div class="aib-row">
+            <span class="aib-lbl">İade</span>
+            <div class="aib-track"><div class="aib-fill is-returns" style="width:${retPct}%"></div></div>
+            <span class="aib-amount">${formatShort(totalReturns)} TL</span>
         </div>` : ''}
-    </div>
-    <div class="ai-sections">
-        <div class="ai-section-card genel">
-            <div class="asc-head"><i class="fas fa-info-circle"></i> Genel Durum</div>
-            <p>${sections.genel||'Analiz tamamlandı.'}</p>
-        </div>
-        <div class="ai-section-card guclu">
-            <div class="asc-head"><i class="fas fa-check-circle"></i> Güçlü Yönler</div>
-            <ul>${renderBullets(sections.guclu)}</ul>
-        </div>
-        <div class="ai-section-card dikkat">
-            <div class="asc-head"><i class="fas fa-exclamation-triangle"></i> Dikkat Edilmesi Gerekenler</div>
-            <ul>${renderBullets(sections.dikkat)}</ul>
-        </div>
-        <div class="ai-section-card oneri">
-            <div class="asc-head"><i class="fas fa-lightbulb"></i> Öneriler</div>
-            <ul>${renderBullets(sections.oneri)}</ul>
-        </div>
     </div>
 </div>`;
     } catch (error) {
