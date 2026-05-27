@@ -86,8 +86,7 @@
                         <th scope="col">İşlemler</th>
                     </tr>
                 </thead>
-                <tbody id="faturaListesi">
-                </tbody>
+                <tbody id="faturaListesi"></tbody>
             </table>
         </div>
 
@@ -118,6 +117,7 @@
     </div>
 </div>
 
+<div id="paginationBar" class="pagination-bar"></div>
 <div id="sonucSayisi" class="mt-1 text-center text-muted" aria-live="polite" aria-atomic="true"></div>
 {% endblock %}
 
@@ -127,6 +127,10 @@ import { init, SatisFaturalari, Musteriler } from '{{ url_for("static", filename
 
 let tumFaturalar = [];
 let musteriler = {};
+let currentFaturalar = [];
+let currentFiltreUygulanmis = false;
+let currentPage = 1;
+let pageSize = 100;
 
 document.addEventListener('DOMContentLoaded', async () => {
     const yukleniyorDiv = document.getElementById('yukleniyorDiv');
@@ -173,12 +177,33 @@ function durumBadge(durum) {
     }
 }
 
-function listeyiGuncelle(faturalar, filtreUygulanmis) {
+function renderPageNums(cur, total) {
+    if (total <= 1) return '';
+    const mkBtn = (p, label, active) =>
+        `<button class="pg-num${active ? ' is-active' : ''}" onclick="sayfaGit(${p})">${label}</button>`;
+    let nums = '';
+    if (total <= 7) {
+        for (let i = 1; i <= total; i++) nums += mkBtn(i, i, i === cur);
+    } else {
+        nums += mkBtn(1, 1, cur === 1);
+        if (cur > 3) nums += '<span class="pg-ellipsis">…</span>';
+        for (let i = Math.max(2, cur - 1); i <= Math.min(total - 1, cur + 1); i++)
+            nums += mkBtn(i, i, i === cur);
+        if (cur < total - 2) nums += '<span class="pg-ellipsis">…</span>';
+        nums += mkBtn(total, total, cur === total);
+    }
+    return nums;
+}
+
+function renderSayfa() {
+    const faturalar        = currentFaturalar;
+    const filtreUygulanmis = currentFiltreUygulanmis;
     const tbody          = document.getElementById('faturaListesi');
     const bosState       = document.getElementById('bosState');
     const filterBosState = document.getElementById('filterBosState');
     const sonucSayisi    = document.getElementById('sonucSayisi');
     const tblContainer   = document.getElementById('tblContainer');
+    const paginationBar  = document.getElementById('paginationBar');
 
     bosState.classList.add('is-hidden');
     filterBosState.classList.add('is-hidden');
@@ -186,6 +211,7 @@ function listeyiGuncelle(faturalar, filtreUygulanmis) {
     if (faturalar.length === 0) {
         tbody.innerHTML = '';
         tblContainer.style.display = 'none';
+        if (paginationBar) paginationBar.innerHTML = '';
         if (filtreUygulanmis) {
             filterBosState.classList.remove('is-hidden');
         } else {
@@ -196,14 +222,21 @@ function listeyiGuncelle(faturalar, filtreUygulanmis) {
     }
 
     tblContainer.style.display = '';
+    const totalPages = Math.max(1, Math.ceil(faturalar.length / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+    const start = (currentPage - 1) * pageSize;
+    const end = Math.min(start + pageSize, faturalar.length);
+    const sayfadakiler = faturalar.slice(start, end);
+
     const toplam = faturalar.reduce((t, f) => t + (parseFloat(f.genel_toplam) || 0), 0);
-    sonucSayisi.textContent = `Toplam ${faturalar.length} fatura — ₺${paraFormat(toplam)}`;
+    sonucSayisi.textContent = `${start + 1}–${end} / ${faturalar.length} fatura — ₺${paraFormat(toplam)}`;
 
     const esc = (s) => String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-    tbody.innerHTML = faturalar.map(fatura => {
+    tbody.innerHTML = sayfadakiler.map(fatura => {
         const safeId = encodeURIComponent(fatura.id || '');
         return `
         <tr>
@@ -234,7 +267,36 @@ function listeyiGuncelle(faturalar, filtreUygulanmis) {
             </td>
         </tr>`;
     }).join('');
+
+    if (paginationBar) {
+        paginationBar.innerHTML = `
+            <div class="pg-info">${currentPage} / ${totalPages} sayfa</div>
+            <div class="pg-nav">
+                <button class="pg-num" onclick="sayfaDegistir(-1)" ${currentPage <= 1 ? 'disabled' : ''}>‹ Önceki</button>
+                ${renderPageNums(currentPage, totalPages)}
+                <button class="pg-num" onclick="sayfaDegistir(1)" ${currentPage >= totalPages ? 'disabled' : ''}>Sonraki ›</button>
+            </div>
+            <div class="pg-size">
+                <label>Sayfa başına:</label>
+                <select onchange="sayfaBoyutuDegistir(+this.value)">
+                    <option value="100" ${pageSize === 100 ? 'selected' : ''}>100</option>
+                    <option value="200" ${pageSize === 200 ? 'selected' : ''}>200</option>
+                    <option value="300" ${pageSize === 300 ? 'selected' : ''}>300</option>
+                </select>
+            </div>`;
+    }
 }
+
+function listeyiGuncelle(faturalar, filtreUygulanmis) {
+    currentFaturalar = faturalar;
+    currentFiltreUygulanmis = filtreUygulanmis;
+    currentPage = 1;
+    renderSayfa();
+}
+
+window.sayfaDegistir = function(delta) { currentPage += delta; renderSayfa(); };
+window.sayfaGit = function(p) { currentPage = p; renderSayfa(); };
+window.sayfaBoyutuDegistir = function(n) { pageSize = n; currentPage = 1; renderSayfa(); };
 
 window.filtrele = function() {
     const arama  = document.getElementById('aramaInput').value.toLowerCase().trim();

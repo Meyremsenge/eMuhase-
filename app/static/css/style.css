@@ -2888,3 +2888,108 @@ textarea:focus-visible {
 [data-theme="light"] .profile-menu #aiSetupBtn:hover {
     background: #f8fafc !important;
 }
+
+/* ==================== PAGINATION BAR ==================== */
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    border-top: 1px solid var(--glass-border);
+    background: var(--card-bg, var(--bg-800));
+    border-radius: 0 0 12px 12px;
+}
+
+.pg-info {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.pg-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    flex-wrap: wrap;
+}
+
+.pg-num {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 0.55rem;
+    border-radius: 7px;
+    border: 1px solid var(--glass-border);
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.pg-num:hover:not(:disabled) {
+    background: var(--primary-600, #4f46e5);
+    color: #fff;
+    border-color: var(--primary-600, #4f46e5);
+}
+
+.pg-num.is-active {
+    background: var(--primary-600, #4f46e5);
+    color: #fff;
+    border-color: var(--primary-600, #4f46e5);
+    font-weight: 700;
+}
+
+.pg-num:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.pg-ellipsis {
+    padding: 0 0.2rem;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    line-height: 34px;
+}
+
+.pg-size {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.pg-size label { white-space: nowrap; }
+
+.pg-size select {
+    background: var(--card-bg, var(--bg-800));
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    border-radius: 6px;
+    padding: 0.2rem 0.45rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+[data-theme="light"] .pagination-bar {
+    background: #fff;
+    border-color: #e2e8f0;
+}
+
+[data-theme="light"] .pg-num {
+    border-color: #e2e8f0;
+    color: #334155;
+}
+
+[data-theme="light"] .pg-size select {
+    background: #fff;
+    border-color: #e2e8f0;
+    color: #334155;
+}
+
+[data-theme="light"] .pg-info,
+[data-theme="light"] .pg-size { color: #64748b; }
+
+[data-theme="light"] .pg-ellipsis { color: #94a3b8; }

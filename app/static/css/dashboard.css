@@ -2104,3 +2104,36 @@
 [data-theme="light"] .ai-section-card.oneri { background: rgba(96,165,250,0.06); }
 [data-theme="light"] .ai-section-card p,
 [data-theme="light"] .ai-section-card li { color: #1e293b; }
+
+[data-theme="light"] .ai-card {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #0f172a;
+}
+
+[data-theme="light"] .ai-content {
+    background: rgba(0,0,0,0.04);
+    border-color: rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .ai-tag {
+    background: rgba(0,0,0,0.08);
+    color: #1e293b;
+}
+
+[data-theme="light"] .ai-placeholder,
+[data-theme="light"] .ai-placeholder p { color: #64748b; }
+
+[data-theme="light"] .ai-btn {
+    background: #1e293b;
+    color: #f8fafc;
+}
+
+[data-theme="light"] .ai-btn:hover {
+    background: #0f172a;
+}
+
+[data-theme="light"] .akm-label { color: #475569; }
+[data-theme="light"] .acb-label { color: #475569; }
+[data-theme="light"] .acb-value { color: #1e293b; }
+[data-theme="light"] .ai-overall-score .aos-label { color: #475569; }
