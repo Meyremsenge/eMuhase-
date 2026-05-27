@@ -1093,158 +1093,236 @@ async function loadNakitAkisiTahmini() {
 }
 
 // ==================== AI ANALYSIS ====================
-// NOT: API anahtarı backend'de tutulur. Frontend `/api/ai/analyze` endpoint'ini çağırır.
+
+function formatShort(n) {
+    const abs = Math.abs(n), sign = n < 0 ? '-' : '';
+    if (abs >= 1e9) return sign + (abs/1e9).toFixed(1) + ' Mlr';
+    if (abs >= 1e6) return sign + (abs/1e6).toFixed(1) + ' M';
+    if (abs >= 1e3) return sign + (abs/1e3).toFixed(0) + ' B';
+    return sign + Math.abs(n).toLocaleString('tr-TR', {maximumFractionDigits:0});
+}
+
+function parseBullets(text) {
+    return text.split('\n').map(l => l.replace(/^[•\-\*\d]+\.?\s*/, '').trim()).filter(l => l.length > 5);
+}
+
+function parseAiSections(text) {
+    const r = { genel: '', guclu: [], dikkat: [], oneri: [] };
+    if (!text) return r;
+    const parts = text.split(/###([A-Z]+)###/);
+    if (parts.length > 1) {
+        for (let i = 1; i < parts.length; i += 2) {
+            const k = parts[i].trim(), v = (parts[i+1]||'').trim();
+            if (k==='GENEL') r.genel=v;
+            else if (k==='GUCLU') r.guclu=parseBullets(v);
+            else if (k==='DIKKAT') r.dikkat=parseBullets(v);
+            else if (k==='ONERI') r.oneri=parseBullets(v);
+        }
+        if (r.genel||r.guclu.length||r.dikkat.length) return r;
+    }
+    // Fallback: numbered sections
+    const secs = text.split(/\n(?=\d+\.\s)/);
+    r.genel = (secs[0]||'').trim();
+    const eb = s => (s||'').split('\n').filter(l=>/^\s*[\*\-•]/.test(l)).map(l=>l.replace(/^\s*[\*\-•]\s*/,'').trim()).filter(l=>l.length>5);
+    if (secs[1]) r.guclu=eb(secs[1]);
+    if (secs[2]) r.dikkat=eb(secs[2]);
+    if (secs[3]) r.oneri=eb(secs[3]);
+    if (!r.genel) r.genel = text.slice(0, 300);
+    return r;
+}
+
+function renderBullets(items) {
+    if (!items||!items.length) return '<li class="ai-li-empty">Bilgi yok</li>';
+    return items.map(item => `<li>${item}</li>`).join('');
+}
+
+function svgDonut(pct) {
+    const r = 32, circ = +(2*Math.PI*r).toFixed(2), fill = +((pct/100)*circ).toFixed(2);
+    return `<svg viewBox="0 0 80 80" style="width:80px;height:80px">
+        <circle cx="40" cy="40" r="${r}" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="8"/>
+        <circle cx="40" cy="40" r="${r}" fill="none" stroke="currentColor" stroke-width="8"
+                stroke-linecap="round" stroke-dasharray="${fill} ${circ}" transform="rotate(-90 40 40)"/>
+    </svg>`;
+}
 
 async function analyzeWithAI() {
     const btn = document.getElementById('aiAnalyzeBtn');
     const placeholder = document.getElementById('aiPlaceholder');
     const loading = document.getElementById('aiLoading');
     const results = document.getElementById('aiResults');
-    
-    // Loading state
+
     btn.disabled = true;
     btn.classList.add('loading');
     btn.innerHTML = '<i class="fas fa-spinner"></i><span>Analiz Ediliyor...</span>';
     placeholder.style.display = 'none';
     loading.style.display = 'flex';
     results.classList.remove('active');
-    
+
     try {
-        // Verileri topla
         const [musteriler, urunler, satisFaturalari, alisFaturalari, iadeFaturalari] = await Promise.all([
-            Musteriler.hepsiniGetir(),
-            Urunler.hepsiniGetir(),
-            SatisFaturalari.hepsiniGetir(),
-            AlisFaturalari.hepsiniGetir(),
+            Musteriler.hepsiniGetir(), Urunler.hepsiniGetir(),
+            SatisFaturalari.hepsiniGetir(), AlisFaturalari.hepsiniGetir(),
             IadeFaturalari.hepsiniGetir()
         ]);
-        
-        const totalIncome = satisFaturalari.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
-        const totalExpense = alisFaturalari.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
-        const totalReturns = iadeFaturalari.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
-        const netProfit = totalIncome - totalExpense - totalReturns;
-        const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0;
-        
-        const bekleyenSatis = satisFaturalari.filter(f => f.durum !== 'odendi').length;
-        const bekleyenAlis = alisFaturalari.filter(f => f.durum !== 'odendi').length;
-        
-        // AI'ya gönderilecek özet
-        const dataSummary = `
-İşletme Finansal Özeti:
-- Toplam Müşteri: ${musteriler.length}
-- Toplam Ürün: ${urunler.length}
-- Satış Fatura Sayısı: ${satisFaturalari.length}
-- Alış Fatura Sayısı: ${alisFaturalari.length}
-- İade Fatura Sayısı: ${iadeFaturalari.length}
+
+        const totalIncome  = satisFaturalari.reduce((s,f) => s+(parseFloat(f.genel_toplam)||0), 0);
+        const totalExpense = alisFaturalari.reduce((s,f) => s+(parseFloat(f.genel_toplam)||0), 0);
+        const totalReturns = iadeFaturalari.reduce((s,f) => s+(parseFloat(f.genel_toplam)||0), 0);
+        const netProfit    = totalIncome - totalExpense - totalReturns;
+        const profitMargin = totalIncome > 0 ? ((netProfit/totalIncome)*100).toFixed(1) : '0.0';
+        const bekleyenSatis = satisFaturalari.filter(f=>f.durum!=='odendi').length;
+        const bekleyenAlis  = alisFaturalari.filter(f=>f.durum!=='odendi').length;
+
+        const karlilikSkoru = Math.min(100,Math.max(0, 50+(netProfit/(totalIncome||1))*100));
+        const likiditeSkoru = Math.min(100,Math.max(0, 100-bekleyenSatis*2.5));
+        const buyumeSkoru   = Math.min(100,Math.max(0, Math.min(satisFaturalari.length*2.5,100)));
+        const riskSkoru     = Math.min(100,Math.max(0, 100-bekleyenAlis*2.5-iadeFaturalari.length*1.5));
+        const ortalamaSkor  = (karlilikSkoru+likiditeSkoru+buyumeSkoru+riskSkoru)/4;
+
+        let durumClass='critical', durumText='Kritik', durumIcon='exclamation-triangle';
+        if (ortalamaSkor>=80){durumClass='excellent';durumText='Mükemmel';durumIcon='trophy';}
+        else if (ortalamaSkor>=60){durumClass='good';durumText='İyi';durumIcon='thumbs-up';}
+        else if (ortalamaSkor>=40){durumClass='warning';durumText='Dikkat';durumIcon='exclamation-circle';}
+
+        const maxVal = Math.max(totalIncome,totalExpense,totalReturns||0,1);
+        const incPct = (totalIncome/maxVal*100).toFixed(1);
+        const expPct = (totalExpense/maxVal*100).toFixed(1);
+        const retPct = ((totalReturns||0)/maxVal*100).toFixed(1);
+
+        const dataSummary = `İşletme Finansal Özeti:
+- Müşteri Sayısı: ${musteriler.length}
+- Ürün Sayısı: ${urunler.length}
+- Satış Fatura: ${satisFaturalari.length} adet
+- Alış Fatura: ${alisFaturalari.length} adet
+- İade Fatura: ${iadeFaturalari.length} adet
 - Toplam Gelir: ${totalIncome.toLocaleString('tr-TR')} TL
 - Toplam Gider: ${totalExpense.toLocaleString('tr-TR')} TL
 - Toplam İade: ${totalReturns.toLocaleString('tr-TR')} TL
 - Net Kar/Zarar: ${netProfit.toLocaleString('tr-TR')} TL
 - Kar Marjı: %${profitMargin}
-- Bekleyen Satış Faturaları: ${bekleyenSatis}
-- Bekleyen Alış Faturaları: ${bekleyenAlis}
-`;
-        
-        const prompt = `Sen bir finansal danışmansın. Aşağıdaki işletme verilerini analiz et ve Türkçe olarak kısa, öz öneriler ver.
+- Bekleyen Satış: ${bekleyenSatis}, Bekleyen Alış: ${bekleyenAlis}`;
 
-${dataSummary}
+        const prompt = `Sen deneyimli bir Türk finansal danışmansın. Aşağıdaki işletme verilerini analiz et ve YALNIZCA bu formatta Türkçe yanıt ver (başka hiçbir şey ekleme):
 
-Lütfen şu formatta yanıt ver:
-1. Genel Durum (1-2 cümle)
-2. Güçlü Yönler (2-3 madde)
-3. Dikkat Edilmesi Gerekenler (2-3 madde)
-4. Öneriler (2-3 madde)
+###GENEL###
+[İşletmenin genel finansal durumunu anlatan 2 güçlü cümle]
 
-Kısa ve pratik öneriler ver.`;
+###GUCLU###
+• [Öne çıkan güçlü yön 1]
+• [Güçlü yön 2]
+• [Güçlü yön 3]
 
-        // UI'dan kaydedilmiş anahtar varsa header ile gönder
+###DIKKAT###
+• [En kritik risk veya sorun 1]
+• [Risk veya sorun 2]
+• [Risk veya sorun 3]
+
+###ONERI###
+• [Somut ve uygulanabilir öneri 1]
+• [Öneri 2]
+• [Öneri 3]
+
+${dataSummary}`;
+
         const aiHeaders = { 'Content-Type': 'application/json' };
         try {
             const k = localStorage.getItem('emuhasebe_ai_api_key');
             const m = localStorage.getItem('emuhasebe_ai_model');
             if (k) aiHeaders['X-OpenRouter-Key'] = k;
             if (m) aiHeaders['X-OpenRouter-Model'] = m;
-        } catch (e) { /* ignore */ }
+        } catch(e) {}
 
-        const response = await fetch('/api/ai/analyze', {
-            method: 'POST',
-            headers: aiHeaders,
+        const resp = await fetch('/api/ai/analyze', {
+            method: 'POST', headers: aiHeaders,
             body: JSON.stringify({ prompt, summary: dataSummary })
         });
+        if (!resp.ok) throw new Error('API hatası: ' + resp.status);
 
-        if (!response.ok) {
-            throw new Error('API hatası: ' + response.status);
-        }
+        const data = await resp.json();
+        const sections = parseAiSections(data.text || '');
+        const pmSign = parseFloat(profitMargin)>=0 ? '+' : '';
+        const netSign = netProfit>=0 ? '+' : '';
+        const pmClass = parseFloat(profitMargin)>=0 ? 'pos' : 'neg';
+        const netClass = netProfit>=0 ? 'pos' : 'neg';
 
-        const data = await response.json();
-        const aiResponse = data.text || data.error || 'Analiz tamamlanamadı.';
-        
-        // Skorları hesapla
-        const karlilikSkoru = Math.min(100, Math.max(0, 50 + (netProfit / (totalIncome || 1)) * 100));
-        const likiditeSkoru = Math.min(100, Math.max(0, 100 - (bekleyenSatis * 5)));
-        const buyumeSkoru = Math.min(100, Math.max(0, satisFaturalari.length * 4));
-        const riskSkoru = Math.min(100, Math.max(0, 100 - (bekleyenAlis * 5) - (iadeFaturalari.length * 3)));
-        
-        // Genel durum belirle
-        const ortalamaSkor = (karlilikSkoru + likiditeSkoru + buyumeSkoru + riskSkoru) / 4;
-        let durumClass = 'critical';
-        let durumText = 'Kritik';
-        let durumIcon = 'exclamation-triangle';
-        if (ortalamaSkor >= 80) { durumClass = 'excellent'; durumText = 'Mükemmel'; durumIcon = 'trophy'; }
-        else if (ortalamaSkor >= 60) { durumClass = 'good'; durumText = 'İyi'; durumIcon = 'thumbs-up'; }
-        else if (ortalamaSkor >= 40) { durumClass = 'warning'; durumText = 'Dikkat'; durumIcon = 'exclamation-circle'; }
-        
-        // Markdown formatlayıcı
-        function formatMarkdown(text) {
-            if (!text) return '';
-            let html = text
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/\n\n/g, '</p><p style="margin-top:0.75rem;">')
-                .replace(/\n/g, '<br>');
-            
-            // Satır başındaki maddeleri daha düzgün göster
-            html = html.replace(/(?:<br>|^)(\d+\.\s.*?(?=<br>|$))/g, (match) => {
-                return `<div style="margin: 8px 0; padding-left: 12px; border-left: 3px solid var(--primary-500);">${match.replace(/<br>/g, '')}</div>`;
-            });
-            // Tireli listeleri düzelt
-            html = html.replace(/(?:<br>|^)(-\s.*?(?=<br>|$))/g, (match) => {
-                return `<div style="margin: 4px 0 4px 16px; position: relative;"><span style="position: absolute; left: -12px; color: var(--primary-500);">&bull;</span>${match.replace(/^-\s/, '').replace(/<br>/g, '')}</div>`;
-            });
-            return '<p>' + html + '</p>';
-        }
-
-        // Sonuçları göster
         loading.style.display = 'none';
         results.classList.add('active');
         results.innerHTML = `
-            <div class="ai-results-summary">
-                <div class="ai-results-score ${durumClass}">
-                    <i class="fas fa-${durumIcon}"></i>
-                    <div>
-                        <strong>${durumText}</strong>
-                        <span>%${Math.round(ortalamaSkor)} genel skor</span>
-                    </div>
+<div class="ai-report">
+    <div class="ai-report-top">
+        <div class="ai-overall-score ${durumClass}">
+            <div class="ai-score-ring">
+                ${svgDonut(Math.round(ortalamaSkor))}
+                <div class="ai-score-center">
+                    <span class="ai-score-num">${Math.round(ortalamaSkor)}</span><span class="ai-score-pct">%</span>
                 </div>
-                <div class="ai-results-metrics">
-                    <div><span>Kar Marjı</span><strong>%${profitMargin}</strong></div>
-                    <div><span>Gelir</span><strong>${totalIncome.toLocaleString('tr-TR')} TL</strong></div>
-                    <div><span>Gider</span><strong>${totalExpense.toLocaleString('tr-TR')} TL</strong></div>
-                    <div><span>Net</span><strong>${netProfit.toLocaleString('tr-TR')} TL</strong></div>
-                </div>
-                <div class="ai-results-response" style="line-height: 1.6; font-size: 0.95rem;">${formatMarkdown(aiResponse)}</div>
             </div>
-        `;
+            <div class="ai-score-label-wrap">
+                <i class="fas fa-${durumIcon}"></i><strong>${durumText}</strong>
+            </div>
+        </div>
+        <div class="ai-key-metrics">
+            <div class="ai-key-metric">
+                <span class="akm-label">Kar Marjı</span>
+                <span class="akm-value ${pmClass}">${pmSign}${profitMargin}%</span>
+            </div>
+            <div class="ai-key-metric">
+                <span class="akm-label">Gelir</span>
+                <span class="akm-value pos">${formatShort(totalIncome)} TL</span>
+            </div>
+            <div class="ai-key-metric">
+                <span class="akm-label">Gider</span>
+                <span class="akm-value neg">${formatShort(totalExpense)} TL</span>
+            </div>
+            <div class="ai-key-metric">
+                <span class="akm-label">Net K/Z</span>
+                <span class="akm-value ${netClass}">${netSign}${formatShort(netProfit)} TL</span>
+            </div>
+        </div>
+    </div>
+    <div class="ai-comparison-bar">
+        <div class="acb-row">
+            <span class="acb-label">Gelir</span>
+            <div class="acb-track"><div class="acb-fill income" style="width:${incPct}%"></div></div>
+            <span class="acb-amount">${formatShort(totalIncome)} TL</span>
+        </div>
+        <div class="acb-row">
+            <span class="acb-label">Gider</span>
+            <div class="acb-track"><div class="acb-fill expense" style="width:${expPct}%"></div></div>
+            <span class="acb-amount">${formatShort(totalExpense)} TL</span>
+        </div>
+        ${(totalReturns>0) ? `<div class="acb-row">
+            <span class="acb-label">İade</span>
+            <div class="acb-track"><div class="acb-fill returns" style="width:${retPct}%"></div></div>
+            <span class="acb-amount">${formatShort(totalReturns)} TL</span>
+        </div>` : ''}
+    </div>
+    <div class="ai-sections">
+        <div class="ai-section-card genel">
+            <div class="asc-head"><i class="fas fa-info-circle"></i> Genel Durum</div>
+            <p>${sections.genel||'Analiz tamamlandı.'}</p>
+        </div>
+        <div class="ai-section-card guclu">
+            <div class="asc-head"><i class="fas fa-check-circle"></i> Güçlü Yönler</div>
+            <ul>${renderBullets(sections.guclu)}</ul>
+        </div>
+        <div class="ai-section-card dikkat">
+            <div class="asc-head"><i class="fas fa-exclamation-triangle"></i> Dikkat Edilmesi Gerekenler</div>
+            <ul>${renderBullets(sections.dikkat)}</ul>
+        </div>
+        <div class="ai-section-card oneri">
+            <div class="asc-head"><i class="fas fa-lightbulb"></i> Öneriler</div>
+            <ul>${renderBullets(sections.oneri)}</ul>
+        </div>
+    </div>
+</div>`;
     } catch (error) {
         console.error('AI analiz hatası:', error);
-        results.innerHTML = `
-            <div class="ai-results-summary is-error">
-                <strong>Analiz tamamlanamadı.</strong>
-                <span>Lütfen tekrar deneyin.</span>
-            </div>
-        `;
+        loading.style.display = 'none';
+        results.innerHTML = `<div class="ai-report"><div class="ai-error-state">
+            <i class="fas fa-exclamation-circle"></i>
+            <div><strong>Analiz tamamlanamadı</strong><span>${error.message}</span></div>
+        </div></div>`;
         results.classList.add('active');
     } finally {
         btn.disabled = false;

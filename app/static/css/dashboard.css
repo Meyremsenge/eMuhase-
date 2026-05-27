@@ -1851,3 +1851,256 @@
     margin-top: 0.5rem;
 }
 
+
+/* ═══════════════════════════════════════════════════
+   AI Report — Yeni görsel tasarım
+   ═══════════════════════════════════════════════════ */
+.ai-report { display: flex; flex-direction: column; gap: 1.1rem; }
+
+/* Top row: donut score + metric cards */
+.ai-report-top {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}
+
+/* Donut score */
+.ai-overall-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.45rem;
+    flex-shrink: 0;
+    min-width: 88px;
+}
+
+.ai-score-ring {
+    position: relative;
+    width: 80px;
+    height: 80px;
+}
+
+.ai-score-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+}
+
+.ai-score-num { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.ai-score-pct { font-size: 0.65rem; align-self: flex-end; margin-bottom: 4px; opacity: 0.8; }
+
+.ai-score-label-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+/* Score colors */
+.ai-overall-score.critical { color: #f87171; }
+.ai-overall-score.warning  { color: #fbbf24; }
+.ai-overall-score.good     { color: #34d399; }
+.ai-overall-score.excellent{ color: #4ade80; }
+
+/* Key metric cards */
+.ai-key-metrics {
+    display: flex;
+    flex: 1;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.ai-key-metric {
+    flex: 1;
+    min-width: 80px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    border: 1px solid rgba(255,255,255,0.07);
+}
+
+.akm-label {
+    font-size: 0.68rem;
+    opacity: 0.65;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    white-space: nowrap;
+}
+
+.akm-value { font-size: 1rem; font-weight: 700; white-space: nowrap; }
+.akm-value.pos { color: #34d399; }
+.akm-value.neg { color: #f87171; }
+
+/* Comparison Bar Chart */
+.ai-comparison-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(255,255,255,0.07);
+}
+
+.acb-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+}
+
+.acb-label {
+    width: 42px;
+    text-align: right;
+    opacity: 0.65;
+    flex-shrink: 0;
+    font-weight: 600;
+}
+
+.acb-track {
+    flex: 1;
+    height: 10px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.acb-fill {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 0.9s cubic-bezier(.2,.8,.4,1);
+}
+
+.acb-fill.income  { background: linear-gradient(90deg, #34d399, #10b981); }
+.acb-fill.expense { background: linear-gradient(90deg, #f87171, #ef4444); }
+.acb-fill.returns { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+
+.acb-amount {
+    width: 78px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    opacity: 0.85;
+    white-space: nowrap;
+}
+
+/* Section Cards Grid */
+.ai-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+    .ai-sections { grid-template-columns: 1fr; }
+    .ai-key-metrics { gap: 0.5rem; }
+    .ai-key-metric { min-width: 70px; padding: 0.55rem 0.7rem; }
+}
+
+.ai-section-card {
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    border-left: 3px solid;
+    animation: aiFadeIn 0.4s ease both;
+}
+
+.ai-section-card.genel { background: rgba(99,102,241,0.09);  border-color: #6366f1; animation-delay: 0.05s; }
+.ai-section-card.guclu { background: rgba(52,211,153,0.09);  border-color: #34d399; animation-delay: 0.1s;  }
+.ai-section-card.dikkat{ background: rgba(251,191,36,0.09);  border-color: #fbbf24; animation-delay: 0.15s; }
+.ai-section-card.oneri { background: rgba(96,165,250,0.09);  border-color: #60a5fa; animation-delay: 0.2s;  }
+
+@keyframes aiFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.asc-head {
+    font-size: 0.73rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.55rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.ai-section-card.genel .asc-head { color: #818cf8; }
+.ai-section-card.guclu .asc-head { color: #34d399; }
+.ai-section-card.dikkat .asc-head{ color: #fbbf24; }
+.ai-section-card.oneri .asc-head { color: #60a5fa; }
+
+.ai-section-card p {
+    font-size: 0.875rem;
+    line-height: 1.65;
+    opacity: 0.9;
+    margin: 0;
+}
+
+.ai-section-card ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.ai-section-card li {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    padding-left: 1.1rem;
+    position: relative;
+    opacity: 0.9;
+}
+
+.ai-section-card li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    opacity: 0.55;
+    font-size: 0.75rem;
+    top: 1px;
+}
+
+.ai-li-empty { opacity: 0.45; font-style: italic; }
+
+/* Error state */
+.ai-error-state {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(248,113,113,0.08);
+    border-radius: 10px;
+    border-left: 3px solid #f87171;
+    color: #fca5a5;
+}
+.ai-error-state i { font-size: 1.5rem; flex-shrink: 0; }
+.ai-error-state strong { display: block; }
+.ai-error-state span { font-size: 0.85rem; opacity: 0.8; }
+
+/* Light theme */
+[data-theme="light"] .ai-key-metric {
+    background: rgba(0,0,0,0.04);
+    border-color: rgba(0,0,0,0.06);
+}
+[data-theme="light"] .ai-comparison-bar {
+    background: rgba(0,0,0,0.03);
+    border-color: rgba(0,0,0,0.06);
+}
+[data-theme="light"] .acb-track { background: rgba(0,0,0,0.08); }
+[data-theme="light"] .ai-section-card.genel { background: rgba(99,102,241,0.06); }
+[data-theme="light"] .ai-section-card.guclu { background: rgba(52,211,153,0.06); }
+[data-theme="light"] .ai-section-card.dikkat{ background: rgba(251,191,36,0.06); }
+[data-theme="light"] .ai-section-card.oneri { background: rgba(96,165,250,0.06); }
+[data-theme="light"] .ai-section-card p,
+[data-theme="light"] .ai-section-card li { color: #1e293b; }
