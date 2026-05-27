@@ -7,7 +7,14 @@
       "Bash(python -c ' *)",
       "Bash(python -m pytest tests/ -x -q)",
       "Bash(python -m pytest tests/ -q)",
-      "Bash(python -m pytest tests/test_musteri_repository.py tests/test_urun_repository.py tests/test_services_comprehensive.py -q)"
+      "Bash(python -m pytest tests/test_musteri_repository.py tests/test_urun_repository.py tests/test_services_comprehensive.py -q)",
+      "Bash(.venv\\\\Scripts\\\\python.exe -c \"from dotenv import load_dotenv; load_dotenv\\(\\); import os; print\\('FIREBASE_PROJECT_ID:', os.environ.get\\('FIREBASE_PROJECT_ID'\\)\\); print\\('FIREBASE_DATABASE_URL:', os.environ.get\\('FIREBASE_DATABASE_URL'\\)\\)\")",
+      "PowerShell($pythonPath = \"c:\\\\Users\\\\Meyrem\\\\Desktop\\\\,\\\\Debsis\\\\yazılım mühendisliği2\\\\eMuhasebe - okul için\\\\.venv\\\\Scripts\\\\python.exe\"; & $pythonPath -c \"from dotenv import load_dotenv; load_dotenv\\(\\); import os; print\\('PROJECT_ID:', os.environ.get\\('FIREBASE_PROJECT_ID'\\)\\); print\\('DB_URL:', os.environ.get\\('FIREBASE_DATABASE_URL'\\)\\)\" 2>&1)",
+      "Bash(git pull *)",
+      "Bash(git stash *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
