@@ -127,6 +127,7 @@ class TestingConfig(Config):
     TESTING = True
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
     SECRET_KEY = 'test-secret-key-for-testing-only'
+    RATELIMIT_ENABLED = False  # testlerde rate limiting devre disi
 
 
 config = {
