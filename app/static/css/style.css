@@ -2655,3 +2655,236 @@ textarea:focus-visible {
 [data-theme="dark"] .firebase-setup-close:hover,
 [data-theme="dark"] .ai-setup-close:hover { background: #334155; color: #fff; }
 
+
+/* ═══════════════════════════════════════════════════
+   Profile Dropdown — Sağ üst köşe profil menüsü
+   ═══════════════════════════════════════════════════ */
+.profile-dropdown {
+    position: relative;
+}
+
+.profile-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary-600, #4f46e5);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    flex-shrink: 0;
+}
+
+.profile-btn:hover {
+    background: var(--primary-700, #4338ca);
+    transform: scale(1.06);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+
+@keyframes profilePulse {
+    0%   { box-shadow: 0 0 0 0   rgba(99, 102, 241, 0.6); }
+    60%  { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+    100% { box-shadow: 0 0 0 0   rgba(99, 102, 241, 0); }
+}
+
+.profile-btn.is-pulse {
+    animation: profilePulse 1.8s ease-in-out infinite;
+}
+
+/* Dropdown menu panel */
+.profile-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    min-width: 230px;
+    background: var(--bg-card, #1e293b);
+    border: 1px solid var(--border-default, rgba(255,255,255,0.1));
+    border-radius: 14px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+    z-index: 1200;
+    padding: 6px 0;
+    overflow: hidden;
+}
+
+.profile-dropdown.is-open .profile-menu {
+    display: block;
+    animation: profileMenuIn 0.18s cubic-bezier(.2,.8,.4,1) both;
+}
+
+@keyframes profileMenuIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0)  scale(1);    }
+}
+
+/* Mode row at top of menu */
+.profile-menu-section {
+    padding: 8px 14px 6px;
+}
+
+.profile-menu-mode {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-muted, #94a3b8);
+}
+
+.profile-mode-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #3b82f6;
+    flex-shrink: 0;
+    transition: background 0.3s;
+}
+
+.profile-mode-switch {
+    margin-left: auto;
+    padding: 3px 7px;
+    border: 1px solid var(--border-default, rgba(255,255,255,0.12));
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted, #94a3b8);
+    cursor: pointer;
+    font-size: 0.7rem;
+    transition: background 0.15s, color 0.15s;
+}
+
+.profile-sync-btn {
+    padding: 3px 7px;
+    border: 1px solid var(--border-default, rgba(255,255,255,0.12));
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted, #94a3b8);
+    cursor: pointer;
+    font-size: 0.7rem;
+    transition: background 0.15s, color 0.15s;
+}
+
+.profile-mode-switch:hover,
+.profile-sync-btn:hover {
+    background: rgba(255,255,255,0.07);
+    color: var(--text-primary, #e2e8f0);
+}
+
+/* Divider */
+.profile-menu-divider {
+    height: 1px;
+    background: var(--border-default, rgba(255,255,255,0.08));
+    margin: 4px 0;
+}
+
+/* Menu items — override old inline-flex from db-mode-sync-btn rules */
+.profile-menu-item {
+    display: flex !important;
+    align-items: center;
+    gap: 11px;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-primary, #e2e8f0);
+    cursor: pointer;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: background 0.15s;
+    text-align: left;
+    box-sizing: border-box;
+}
+
+.profile-menu-item:hover {
+    background: rgba(255,255,255,0.06);
+}
+
+.profile-menu-item i {
+    width: 16px;
+    text-align: center;
+    color: var(--text-muted, #94a3b8);
+    flex-shrink: 0;
+}
+
+.profile-menu-item--danger {
+    color: #f87171;
+}
+
+.profile-menu-item--danger i {
+    color: #f87171;
+}
+
+/* Light theme */
+[data-theme="light"] .profile-btn {
+    background: var(--primary-600, #4f46e5);
+}
+
+[data-theme="light"] .profile-menu {
+    background: #fff;
+    border-color: #e2e8f0;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+}
+
+[data-theme="light"] .profile-menu-mode {
+    color: #64748b;
+}
+
+[data-theme="light"] .profile-mode-switch,
+[data-theme="light"] .profile-sync-btn {
+    border-color: #d1d5db;
+    color: #64748b;
+}
+
+[data-theme="light"] .profile-mode-switch:hover,
+[data-theme="light"] .profile-sync-btn:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+[data-theme="light"] .profile-menu-divider {
+    background: #e2e8f0;
+}
+
+[data-theme="light"] .profile-menu-item {
+    color: #1e293b;
+}
+
+[data-theme="light"] .profile-menu-item:hover {
+    background: #f8fafc;
+}
+
+[data-theme="light"] .profile-menu-item i {
+    color: #64748b;
+}
+
+/* Override: Firebase/AI butonları artık profil menüsünde — eski floating stil iptal */
+.profile-menu #firebaseSetupBtn,
+.profile-menu #aiSetupBtn {
+    background: transparent !important;
+    color: var(--text-primary, #e2e8f0) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    padding: 10px 16px !important;
+    font-size: 0.875rem !important;
+}
+
+.profile-menu #firebaseSetupBtn:hover,
+.profile-menu #aiSetupBtn:hover {
+    background: rgba(255,255,255,0.06) !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .profile-menu #firebaseSetupBtn,
+[data-theme="light"] .profile-menu #aiSetupBtn {
+    color: #1e293b !important;
+}
+
+[data-theme="light"] .profile-menu #firebaseSetupBtn:hover,
+[data-theme="light"] .profile-menu #aiSetupBtn:hover {
+    background: #f8fafc !important;
+}

@@ -373,6 +373,36 @@
                         <span class="theme-toggle-icon" aria-hidden="true"><i class="fas fa-moon" id="themeIcon"></i></span>
                         <span class="theme-toggle-label" id="themeLabel">Açık Tema</span>
                     </button>
+                    <!-- Profil Dropdown -->
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <button class="profile-btn" id="profileBtn" type="button" aria-label="Profil ve Ayarlar" aria-expanded="false">
+                            <i class="fas fa-user"></i>
+                        </button>
+                        <div class="profile-menu" id="profileMenu" role="menu">
+                            <div class="profile-menu-section">
+                                <div class="profile-menu-mode">
+                                    <span class="profile-mode-dot" id="dbModeIcon"></span>
+                                    <span id="dbModeText">Yükleniyor...</span>
+                                    <button type="button" class="profile-mode-switch" id="dbModeBtn" onclick="showModePopup()" title="Modu değiştir"><i class="fas fa-exchange-alt"></i></button>
+                                    <button type="button" class="profile-sync-btn" id="syncBtn" onclick="manualSync()" title="Senkronize et" style="display:none"><i class="fas fa-sync-alt"></i></button>
+                                </div>
+                            </div>
+                            <div class="profile-menu-divider"></div>
+                            <button type="button" class="profile-menu-item" id="firebaseSetupBtn" onclick="showFirebaseSetup(); document.getElementById('profileDropdown').classList.remove('is-open');">
+                                <i class="fas fa-fire"></i><span>Firebase Bağla</span>
+                            </button>
+                            <button type="button" class="profile-menu-item" id="aiSetupBtn" onclick="showAiSetup(); document.getElementById('profileDropdown').classList.remove('is-open');">
+                                <i class="fas fa-robot"></i><span>Yapay Zeka Bağla</span>
+                            </button>
+                            <div class="profile-menu-divider"></div>
+                            <a href="{{ url_for('main.giris') }}" class="profile-menu-item" id="profileGirisLink">
+                                <i class="fas fa-right-to-bracket"></i><span>Giriş</span>
+                            </a>
+                            <a href="#" class="profile-menu-item profile-menu-item--danger" id="profileCikisLink" onclick="logout(event)" hidden>
+                                <i class="fas fa-right-from-bracket"></i><span>Çıkış Yap</span>
+                            </a>
+                        </div>
+                    </div>
                     {% block header_actions %}{% endblock %}
                 </div>
             </header>
@@ -402,31 +432,6 @@
         {% endif %}
     {% endwith %}
     
-    <!-- Veritabanı Mod Toggle ve Sync Butonları -->
-    <div id="dbModeToggle" class="db-mode-toggle">
-        <!-- Firebase Kurulum Butonu -->
-        <button id="firebaseSetupBtn" onclick="showFirebaseSetup()" class="db-mode-sync-btn" title="Firebase'i Bağla" aria-label="Firebase'i bağla">
-            <i class="fas fa-fire"></i>
-        </button>
-
-        <!-- AI Kurulum Butonu -->
-        <button id="aiSetupBtn" onclick="showAiSetup()" class="db-mode-sync-btn" title="Yapay Zeka Anahtarını Bağla" aria-label="Yapay zeka bağla">
-            <i class="fas fa-robot"></i>
-        </button>
-
-        <!-- Manuel Sync Butonu -->
-        <button id="syncBtn" onclick="manualSync()" class="db-mode-sync-btn" title="Verileri Senkronize Et">
-            <i class="fas fa-sync-alt"></i>
-        </button>
-
-        <!-- Mod Butonu -->
-        <button id="dbModeBtn" onclick="showModePopup()" class="db-mode-btn">
-            <span id="dbModeIcon" class="db-mode-icon"></span>
-            <span id="dbModeText">Yükleniyor...</span>
-            <i class="fas fa-exchange-alt db-mode-switch-icon"></i>
-        </button>
-    </div>
-
     <!-- Firebase Kurulum Modal -->
     <div id="firebaseSetupOverlay" class="firebase-setup-overlay" role="dialog" aria-modal="true" aria-labelledby="firebaseSetupTitle">
         <div class="firebase-setup-modal">
@@ -1055,6 +1060,10 @@
                         const cikis = document.getElementById('navCikisLink');
                         if (giris) giris.hidden = true;
                         if (cikis) cikis.hidden = false;
+                    const profileGiris = document.getElementById('profileGirisLink');
+                    const profileCikis = document.getElementById('profileCikisLink');
+                    if (profileGiris) profileGiris.hidden = true;
+                    if (profileCikis) profileCikis.hidden = false;
                     }
                 })
                 .catch(() => {});
@@ -1334,30 +1343,50 @@
         })();
     </script>
     
+    <script>
+        // Profile Dropdown Toggle
+        (function() {
+            var dropdown = document.getElementById('profileDropdown');
+            var btn = document.getElementById('profileBtn');
+            if (!dropdown || !btn) return;
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                var isOpen = dropdown.classList.contains('is-open');
+                dropdown.classList.toggle('is-open');
+                btn.setAttribute('aria-expanded', String(!isOpen));
+            });
+            document.addEventListener('click', function(e) {
+                if (!dropdown.contains(e.target)) {
+                    dropdown.classList.remove('is-open');
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && dropdown.classList.contains('is-open')) {
+                    dropdown.classList.remove('is-open');
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+            });
+        })();
+    </script>
+
     {% block extra_js %}{% endblock %}
 
     <script>
-        // İlk ziyarette Firebase + AI butonlarını "pulse" ile vurgula
+        // İlk ziyarette profil butonunu "pulse" ile vurgula
         (function() {
             const seen = localStorage.getItem('emuhasebe_setup_seen');
             if (seen) return;
-            const fb = document.getElementById('firebaseSetupBtn');
-            const ai = document.getElementById('aiSetupBtn');
-            if (fb) fb.classList.add('is-pulse');
-            if (ai) ai.classList.add('is-pulse');
-            // Tıklandıkları an pulse kaybolsun + işaret koy
-            [fb, ai].forEach(b => {
-                if (!b) return;
-                b.addEventListener('click', () => {
-                    fb && fb.classList.remove('is-pulse');
-                    ai && ai.classList.remove('is-pulse');
+            const profilePulseBtn = document.getElementById('profileBtn');
+            if (profilePulseBtn) profilePulseBtn.classList.add('is-pulse');
+            document.querySelectorAll('#firebaseSetupBtn, #aiSetupBtn').forEach(function(b) {
+                b.addEventListener('click', function() {
+                    if (profilePulseBtn) profilePulseBtn.classList.remove('is-pulse');
                     localStorage.setItem('emuhasebe_setup_seen', '1');
-                }, { once: false });
+                }, { once: true });
             });
-            // 20 saniye sonra pulse'ı otomatik kaldır (rahatsız etmesin)
-            setTimeout(() => {
-                fb && fb.classList.remove('is-pulse');
-                ai && ai.classList.remove('is-pulse');
+            setTimeout(function() {
+                if (profilePulseBtn) profilePulseBtn.classList.remove('is-pulse');
             }, 20000);
         })();
         // PWA Service Worker kaydı

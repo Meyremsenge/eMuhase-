@@ -6,6 +6,8 @@ import threading
 import sys
 import os
 import click
+from dotenv import load_dotenv
+load_dotenv()
 from app import create_app
 from app.models import db, User
 
