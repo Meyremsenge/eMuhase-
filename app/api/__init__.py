@@ -156,13 +156,13 @@ def get_firebase_config():
     
     # Firebase config'i env var'lardan yükle
     firebase_config = {
-        'apiKey': os.environ.get('VITE_FIREBASE_API_KEY'),
-        'authDomain': os.environ.get('VITE_FIREBASE_AUTH_DOMAIN'),
-        'databaseURL': os.environ.get('VITE_FIREBASE_DATABASE_URL'),
-        'projectId': os.environ.get('VITE_FIREBASE_PROJECT_ID'),
-        'storageBucket': os.environ.get('VITE_FIREBASE_STORAGE_BUCKET'),
-        'messagingSenderId': os.environ.get('VITE_FIREBASE_MESSAGING_SENDER_ID'),
-        'appId': os.environ.get('VITE_FIREBASE_APP_ID'),
+        'apiKey': os.environ.get('FIREBASE_API_KEY') or os.environ.get('VITE_FIREBASE_API_KEY'),
+        'authDomain': os.environ.get('FIREBASE_AUTH_DOMAIN') or os.environ.get('VITE_FIREBASE_AUTH_DOMAIN'),
+        'databaseURL': os.environ.get('FIREBASE_DATABASE_URL') or os.environ.get('VITE_FIREBASE_DATABASE_URL'),
+        'projectId': os.environ.get('FIREBASE_PROJECT_ID') or os.environ.get('VITE_FIREBASE_PROJECT_ID'),
+        'storageBucket': os.environ.get('FIREBASE_STORAGE_BUCKET') or os.environ.get('VITE_FIREBASE_STORAGE_BUCKET'),
+        'messagingSenderId': os.environ.get('FIREBASE_MESSAGING_SENDER_ID') or os.environ.get('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+        'appId': os.environ.get('FIREBASE_APP_ID') or os.environ.get('VITE_FIREBASE_APP_ID'),
     }
     
     # Zorunlu alanlar kontrol et
@@ -187,14 +187,39 @@ def ai_ping():
     """
     AI anahtarını DOĞRULA (token harcamadan).
 
-    OpenRouter'ın `/api/v1/auth/key` endpoint'ine HEAD-tarzı bir istek atar:
-    sadece anahtarın geçerli olduğunu söyler, hiç model çağırmaz.
+    Eğer anahtar AIzaSy ile başlıyorsa resmi Google Gemini API'ye,
+    aksi takdirde OpenRouter'a doğrulama isteği gönderir.
     """
     client_key = (request.headers.get('X-OpenRouter-Key') or '').strip()
-    api_key = client_key or os.environ.get('OPENROUTER_API_KEY')
+    api_key = client_key or os.environ.get('GEMINI_API_KEY') or os.environ.get('OPENROUTER_API_KEY')
     if not api_key:
         return jsonify({'ok': False, 'error': 'Anahtar yok'}), 400
 
+    if api_key.startswith('AIzaSy'):
+        # Google Gemini API Anahtar Doğrulaması
+        req = urllib.request.Request(
+            f'https://generativelanguage.googleapis.com/v1beta/models?key={api_key}',
+            method='GET',
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                payload = json.loads(resp.read().decode('utf-8') or '{}')
+                models = payload.get('models') or []
+                if models:
+                    return jsonify({
+                        'ok': True,
+                        'label': 'Google Gemini API',
+                        'usage': 0,
+                        'limit': None,
+                        'is_free_tier': True,
+                    })
+                return jsonify({'ok': False, 'error': 'Model listesi alınamadı'}), 200
+        except urllib.error.HTTPError as e:
+            return jsonify({'ok': False, 'error': f'Geçersiz Gemini anahtarı ({e.code})'}), 200
+        except Exception as e:
+            return jsonify({'ok': False, 'error': f'Gemini API\'ye bağlanılamadı: {str(e)}'}), 200
+
+    # Varsayılan OpenRouter Doğrulaması
     req = urllib.request.Request(
         'https://openrouter.ai/api/v1/auth/key',
         headers={
@@ -224,20 +249,20 @@ def ai_ping():
 @limiter.limit("10 per minute")
 def ai_analyze():
     """
-    OpenRouter API proxy.
+    Yapay Zeka Analiz Endpoint'i.
 
     Anahtar öncelik sırası:
       1) İstemcinin gönderdiği `X-OpenRouter-Key` header'ı (UI'daki AI Kurulum modal)
-      2) Backend `OPENROUTER_API_KEY` env değişkeni
+      2) Backend `GEMINI_API_KEY` veya `OPENROUTER_API_KEY` env değişkeni
 
     Model öncelik sırası:
       1) İstek body'sindeki `model` alanı
       2) İstemcinin `X-OpenRouter-Model` header'ı
       3) Backend `OPENROUTER_MODEL` env değişkeni
-      4) Varsayılan: mistralai/devstral-2512:free
+      4) Varsayılan: google/gemini-2.5-flash:free (veya native için gemini-1.5-flash)
     """
     client_key = (request.headers.get('X-OpenRouter-Key') or '').strip()
-    api_key = client_key or os.environ.get('OPENROUTER_API_KEY')
+    api_key = client_key or os.environ.get('GEMINI_API_KEY') or os.environ.get('OPENROUTER_API_KEY')
     if not api_key:
         return jsonify({'error': 'AI servisi yapılandırılmamış. AI Kurulum ekranından anahtar ekleyin.'}), 503
 
@@ -249,8 +274,42 @@ def ai_analyze():
     model = (data.get('model')
              or request.headers.get('X-OpenRouter-Model')
              or os.environ.get('OPENROUTER_MODEL')
-             or 'mistralai/devstral-2512:free')
+             or 'google/gemini-2.5-flash:free')
 
+    # 1) Google Gemini NATIVE API Çağrısı
+    if api_key.startswith('AIzaSy'):
+        gemini_model = 'gemini-1.5-flash'
+        if 'gemini-2.5-flash' in model.lower():
+            gemini_model = 'gemini-2.5-flash'
+        elif 'gemini-2.0' in model.lower():
+            gemini_model = 'gemini-2.0-flash-exp'
+        
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={api_key}'
+        body = json.dumps({
+            'contents': [{'parts': [{'text': prompt}]}]
+        }).encode('utf-8')
+
+        req = urllib.request.Request(
+            url,
+            data=body,
+            headers={'Content-Type': 'application/json'},
+            method='POST',
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                payload = json.loads(resp.read().decode('utf-8'))
+                text_out = payload['candidates'][0]['content']['parts'][0]['text']
+                return jsonify({'text': text_out, 'model': gemini_model})
+        except urllib.error.HTTPError as e:
+            try:
+                err_body = e.read().decode('utf-8')
+            except Exception:
+                err_body = ''
+            return jsonify({'error': f'Gemini API hatası: {e.code}', 'detail': err_body[:300]}), 502
+        except Exception as e:
+            return jsonify({'error': f'Gemini API\'ye ulaşılamadı: {str(e)}'}), 502
+
+    # 2) OpenRouter API Çağrısı
     body = json.dumps({
         'model': model,
         'messages': [{'role': 'user', 'content': prompt}],

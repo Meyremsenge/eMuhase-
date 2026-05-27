@@ -1194,6 +1194,28 @@ Kısa ve pratik öneriler ver.`;
         else if (ortalamaSkor >= 60) { durumClass = 'good'; durumText = 'İyi'; durumIcon = 'thumbs-up'; }
         else if (ortalamaSkor >= 40) { durumClass = 'warning'; durumText = 'Dikkat'; durumIcon = 'exclamation-circle'; }
         
+        // Markdown formatlayıcı
+        function formatMarkdown(text) {
+            if (!text) return '';
+            let html = text
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '</p><p style="margin-top:0.75rem;">')
+                .replace(/\n/g, '<br>');
+            
+            // Satır başındaki maddeleri daha düzgün göster
+            html = html.replace(/(?:<br>|^)(\d+\.\s.*?(?=<br>|$))/g, (match) => {
+                return `<div style="margin: 8px 0; padding-left: 12px; border-left: 3px solid var(--primary-500);">${match.replace(/<br>/g, '')}</div>`;
+            });
+            // Tireli listeleri düzelt
+            html = html.replace(/(?:<br>|^)(-\s.*?(?=<br>|$))/g, (match) => {
+                return `<div style="margin: 4px 0 4px 16px; position: relative;"><span style="position: absolute; left: -12px; color: var(--primary-500);">&bull;</span>${match.replace(/^-\s/, '').replace(/<br>/g, '')}</div>`;
+            });
+            return '<p>' + html + '</p>';
+        }
+
         // Sonuçları göster
         loading.style.display = 'none';
         results.classList.add('active');
@@ -1212,7 +1234,7 @@ Kısa ve pratik öneriler ver.`;
                     <div><span>Gider</span><strong>${totalExpense.toLocaleString('tr-TR')} TL</strong></div>
                     <div><span>Net</span><strong>${netProfit.toLocaleString('tr-TR')} TL</strong></div>
                 </div>
-                <div class="ai-results-response">${aiResponse.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                <div class="ai-results-response" style="line-height: 1.6; font-size: 0.95rem;">${formatMarkdown(aiResponse)}</div>
             </div>
         `;
     } catch (error) {

@@ -559,7 +559,7 @@
                 <div class="ai-setup-header-icon"><i class="fas fa-robot"></i></div>
                 <div>
                     <h3 class="ai-setup-title" id="aiSetupTitle">Yapay Zeka Bağla</h3>
-                    <p class="ai-setup-subtitle">OpenRouter API anahtarınla AI Analiz özelliğini etkinleştir</p>
+                    <p class="ai-setup-subtitle">Google Gemini veya OpenRouter API anahtarınla AI Analiz özelliğini etkinleştir</p>
                 </div>
                 <button type="button" class="ai-setup-close" id="aiSetupClose" aria-label="Kapat">
                     <i class="fas fa-times"></i>
@@ -572,33 +572,31 @@
 
                 <!-- Adım adım talimatlar -->
                 <details class="ai-setup-steps" open>
-                    <summary><strong>Nasıl OpenRouter API anahtarı alırım?</strong> (Tıkla)</summary>
+                    <summary><strong>Nasıl API anahtarı alırım?</strong> (Tıkla)</summary>
                     <ol class="ai-setup-steps-list">
-                        <li><a href="https://openrouter.ai/" target="_blank" rel="noopener">openrouter.ai</a>'a git ve ücretsiz hesap aç (Google/GitHub ile bir tıkta).</li>
-                        <li>Sağ üstte profil menüsünden <b>Keys</b> sayfasına gel.</li>
-                        <li><b>"Create Key"</b> butonuna tıkla, anahtara bir isim ver (ör. "eMuhasebe").</li>
-                        <li>Görüntülenen <code>sk-or-v1-…</code> anahtarını <b>kopyala</b> ve aşağıdaki alana yapıştır.</li>
-                        <li>Model olarak ücretsiz model seçebilirsin: <code>mistralai/devstral-2512:free</code> veya <code>google/gemini-2.0-flash-exp:free</code>. İsterse plan satın alıp daha güçlü modelleri (ör. <code>anthropic/claude-3.5-sonnet</code>) kullanabilirsin.</li>
+                        <li><strong>Google Gemini API için (Önerilen):</strong> <a href="https://aistudio.google.com/" target="_blank" rel="noopener">Google AI Studio</a>'ya gidin, <b>"Get API Key"</b> butonuna tıklayarak ücretsiz <code>AIzaSy...</code> ile başlayan anahtarınızı oluşturun ve kopyalayın.</li>
+                        <li><strong>OpenRouter için:</strong> <a href="https://openrouter.ai/" target="_blank" rel="noopener">openrouter.ai</a>'a gidin, hesap oluşturup <b>Keys</b> sekmesinden <code>sk-or-v1-...</code> anahtarınızı alın.</li>
                     </ol>
                     <p class="ai-setup-hint">
                         <i class="fas fa-shield-alt"></i>
-                        Anahtarın yalnızca tarayıcında localStorage'da tutulur. AI istekleri backend üzerinden iletilir (anahtar hiçbir zaman 3. partilere açılmaz).
+                        Anahtarınız yalnızca tarayıcınızda (localStorage) şifreli tutulur. Backend, yapıştırdığınız anahtar formatına göre otomatik olarak doğru API'ye (Google Gemini veya OpenRouter) yönlendirme yapar.
                     </p>
                 </details>
 
                 <!-- Form -->
                 <div class="form-group">
-                    <label class="form-label" for="aiApiKey">OpenRouter API Anahtarı *</label>
+                    <label class="form-label" for="aiApiKey">Gemini veya OpenRouter API Anahtarı *</label>
                     <input type="password" id="aiApiKey" class="form-control" autocomplete="off"
-                           placeholder="sk-or-v1-...">
-                    <div class="form-help">Anahtar gizli kalır; URL'de veya log'larda görünmez.</div>
+                           placeholder="AIzaSy... (Gemini Anahtarı) veya sk-or-... (OpenRouter Anahtarı)">
+                    <div class="form-help">Anahtarınız gizli kalır; hiçbir şekilde loglanmaz.</div>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label" for="aiModel">Model</label>
                     <select id="aiModel" class="form-control form-select">
-                        <option value="mistralai/devstral-2512:free">Mistral Devstral (Ücretsiz) — varsayılan</option>
+                        <option value="google/gemini-2.5-flash:free" selected>Google Gemini 2.5 Flash (Ücretsiz - Önerilen)</option>
                         <option value="google/gemini-2.0-flash-exp:free">Google Gemini 2.0 Flash (Ücretsiz)</option>
+                        <option value="mistralai/devstral-2512:free">Mistral Devstral (Ücretsiz)</option>
                         <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (Ücretsiz)</option>
                         <option value="anthropic/claude-3.5-sonnet">Anthropic Claude 3.5 Sonnet (Ücretli)</option>
                         <option value="anthropic/claude-3.7-sonnet">Anthropic Claude 3.7 Sonnet (Ücretli)</option>
@@ -611,7 +609,7 @@
                 <div class="ai-setup-actions">
                     <button type="button" class="btn btn-secondary" id="aiClearBtn">
                         <i class="fas fa-trash-alt"></i> Bağlantıyı Kaldır
-                    </button>
+                     </button>
                     <div class="ai-setup-actions-right">
                         <button type="button" class="btn btn--ghost" id="aiTestBtn">
                             <i class="fas fa-vial"></i> Test Et
@@ -1362,7 +1360,6 @@
                 ai && ai.classList.remove('is-pulse');
             }, 20000);
         })();
-
         // PWA Service Worker kaydı
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
