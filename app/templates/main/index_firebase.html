@@ -1145,6 +1145,22 @@ function svgDonut(pct) {
     </svg>`;
 }
 
+function svgDonutNew(pct, cls) {
+    const r = 30, circ = +(2*Math.PI*r).toFixed(2), fill = +((pct/100)*circ).toFixed(2);
+    const colors = { excellent:'#6ee7b7', good:'#86efac', warning:'#fcd34d', critical:'#fca5a5' };
+    const stroke = colors[cls] || '#94a3b8';
+    return `<svg viewBox="0 0 76 76" style="width:76px;height:76px;position:absolute;inset:0">
+        <circle cx="38" cy="38" r="${r}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="7"/>
+        <circle cx="38" cy="38" r="${r}" fill="none" stroke="${stroke}" stroke-width="7"
+                stroke-linecap="round" stroke-dasharray="${fill} ${circ}" transform="rotate(-90 38 38)"/>
+    </svg>`;
+}
+
+function renderBulletsNew(items) {
+    if (!items||!items.length) return '<li>Bilgi yok</li>';
+    return items.map(item => `<li>${item}</li>`).join('');
+}
+
 async function analyzeWithAI() {
     const btn = document.getElementById('aiAnalyzeBtn');
     const placeholder = document.getElementById('aiPlaceholder');
@@ -1189,38 +1205,72 @@ async function analyzeWithAI() {
         const expPct = (totalExpense/maxVal*100).toFixed(1);
         const retPct = ((totalReturns||0)/maxVal*100).toFixed(1);
 
-        const dataSummary = `İşletme Finansal Özeti:
-- Müşteri Sayısı: ${musteriler.length}
-- Ürün Sayısı: ${urunler.length}
-- Satış Fatura: ${satisFaturalari.length} adet
-- Alış Fatura: ${alisFaturalari.length} adet
-- İade Fatura: ${iadeFaturalari.length} adet
-- Toplam Gelir: ${totalIncome.toLocaleString('tr-TR')} TL
-- Toplam Gider: ${totalExpense.toLocaleString('tr-TR')} TL
-- Toplam İade: ${totalReturns.toLocaleString('tr-TR')} TL
-- Net Kar/Zarar: ${netProfit.toLocaleString('tr-TR')} TL
-- Kar Marjı: %${profitMargin}
-- Bekleyen Satış: ${bekleyenSatis}, Bekleyen Alış: ${bekleyenAlis}`;
+        // Detaylı analiz için ek hesaplamalar
+        const musteriGelir = {};
+        satisFaturalari.forEach(f => {
+            const m = f.musteri_adi || 'Bilinmiyor';
+            musteriGelir[m] = (musteriGelir[m] || 0) + (parseFloat(f.genel_toplam) || 0);
+        });
+        const topMusteriler = Object.entries(musteriGelir)
+            .sort(([,a],[,b]) => b-a).slice(0,3)
+            .map(([ad,g]) => `${ad}: ${formatShort(g)} TL`).join(' | ') || 'Veri yok';
+        const iadeOrani = totalIncome > 0 ? ((totalReturns/totalIncome)*100).toFixed(1) : '0.0';
+        const odenenSatisSayisi = satisFaturalari.filter(f=>f.durum==='odendi').length;
+        const odenenAlisSayisi = alisFaturalari.filter(f=>f.durum==='odendi').length;
+        const ortSatisTutar = satisFaturalari.length ? Math.round(totalIncome/satisFaturalari.length) : 0;
+        const ortAlisTutar = alisFaturalari.length ? Math.round(totalExpense/alisFaturalari.length) : 0;
+        const satisAnomaliSayisi = anomaliTespiti(satisFaturalari, 2.5).length;
+        const alisAnomaliSayisi = anomaliTespiti(alisFaturalari, 2.5).length;
+        const toplamAnomali = satisAnomaliSayisi + alisAnomaliSayisi;
+        const bekleyenAlacak = satisFaturalari.filter(f=>f.durum!=='odendi').reduce((s,f)=>s+(parseFloat(f.genel_toplam)||0),0);
+        const bekleyenBorc = alisFaturalari.filter(f=>f.durum!=='odendi').reduce((s,f)=>s+(parseFloat(f.genel_toplam)||0),0);
 
-        const prompt = `Sen deneyimli bir Türk finansal danışmansın. Aşağıdaki işletme verilerini analiz et ve YALNIZCA bu formatta Türkçe yanıt ver (başka hiçbir şey ekleme):
+        const dataSummary = `İşletme Kapsamlı Finansal Analiz Raporu:
+── Genel Tablo ──
+• Müşteri/Tedarikçi: ${musteriler.length} kayıt | Ürün/Hizmet: ${urunler.length} kalem
+• Satış Fatura: ${satisFaturalari.length} adet (${odenenSatisSayisi} ödendi, ${bekleyenSatis} beklemede)
+• Alış Fatura: ${alisFaturalari.length} adet (${odenenAlisSayisi} ödendi, ${bekleyenAlis} beklemede)
+• İade Fatura: ${iadeFaturalari.length} adet
+── Finansal Özet ──
+• Toplam Gelir: ${totalIncome.toLocaleString('tr-TR')} TL
+• Toplam Gider: ${totalExpense.toLocaleString('tr-TR')} TL
+• Toplam İade: ${totalReturns.toLocaleString('tr-TR')} TL (İade/Gelir Oranı: %${iadeOrani})
+• Net Kar/Zarar: ${netProfit.toLocaleString('tr-TR')} TL | Kar Marjı: %${profitMargin}
+• Ort. Satış Fatura: ${ortSatisTutar.toLocaleString('tr-TR')} TL | Ort. Alış Fatura: ${ortAlisTutar.toLocaleString('tr-TR')} TL
+── Müşteri Analizi ──
+• En Yüksek Cirolu Müşteriler: ${topMusteriler}
+── Risk & Anomali ──
+• Anomali Tespit: ${toplamAnomali} şüpheli fatura (Satış: ${satisAnomaliSayisi}, Alış: ${alisAnomaliSayisi})
+• Tahsil Edilmemiş Alacak: ${bekleyenAlacak.toLocaleString('tr-TR')} TL (${bekleyenSatis} fatura)
+• Ödenmemiş Borç: ${bekleyenBorc.toLocaleString('tr-TR')} TL (${bekleyenAlis} fatura)`;
+
+        const prompt = `Sen 20 yıllık deneyimli bir Türk CPA (Sertifikalı Kamu Muhasebecisi) ve finansal analistsın. Aşağıdaki işletme finansal verilerini derinlemesine analiz et. Muğlak ifadeler kullanma, rakama dayalı somut tespitler yap.
+
+YALNIZCA bu formatta Türkçe yanıt ver (başka hiçbir şey ekleme):
 
 ###GENEL###
-[İşletmenin genel finansal durumunu anlatan 2 güçlü cümle]
+[İşletmenin gerçek durumunu net ortaya koyan, rakamlar içeren 2-3 cümle]
 
 ###GUCLU###
-• [Öne çıkan güçlü yön 1]
+• [Somut veriye dayalı güçlü yön — mutlaka rakam içersin]
 • [Güçlü yön 2]
 • [Güçlü yön 3]
+• [Güçlü yön 4]
+• [Güçlü yön 5]
 
 ###DIKKAT###
-• [En kritik risk veya sorun 1]
-• [Risk veya sorun 2]
-• [Risk veya sorun 3]
+• [En kritik risk — neden kritik olduğunu rakamla açıkla]
+• [Risk 2]
+• [Risk 3]
+• [Risk 4]
+• [Anomali varsa belirt, yoksa başka bir risk yaz]
 
 ###ONERI###
-• [Somut ve uygulanabilir öneri 1]
+• [Spesifik, uygulanabilir öneri — ne yapılmalı, hangi sürede]
 • [Öneri 2]
 • [Öneri 3]
+• [Öneri 4]
+• [Öneri 5]
 
 ${dataSummary}`;
 
@@ -1248,91 +1298,86 @@ ${dataSummary}`;
         loading.style.display = 'none';
         results.classList.add('active');
         results.innerHTML = `
-<div class="ai-report">
-    <div class="ai-health-row">
-        <div class="ai-overall-score ${durumClass}">
-            <div class="ai-score-ring">
-                ${svgDonut(Math.round(ortalamaSkor))}
-                <div class="ai-score-center">
-                    <span class="ai-score-num">${Math.round(ortalamaSkor)}</span><span class="ai-score-pct">%</span>
+<div class="air-report">
+    <div class="air-header">
+        <div class="air-score-block ${durumClass}">
+            <div class="air-ring">
+                ${svgDonutNew(Math.round(ortalamaSkor), durumClass)}
+                <div class="air-score-num-wrap">
+                    <span class="air-score-num">${Math.round(ortalamaSkor)}</span><span class="air-score-pct">%</span>
                 </div>
             </div>
-            <div class="ai-health-label">
-                <strong>${durumText}</strong>
-                <span>Finansal Sağlık</span>
+            <div class="air-status">
+                <span class="air-status-badge">${durumText}</span>
+                <div class="air-status-sub">Finansal Sağlık</div>
             </div>
         </div>
-        <div class="ai-stats-inline">
-            <div class="ai-stat">
-                <span class="ai-stat-val ${pmClass}">${pmSign}${profitMargin}%</span>
-                <span class="ai-stat-lbl">kar marjı</span>
+        <div class="air-metrics">
+            <div class="air-metric">
+                <span class="air-metric-val ${pmClass}">${pmSign}${profitMargin}%</span>
+                <span class="air-metric-key">Kar Marjı</span>
             </div>
-            <div class="ai-stat-sep"></div>
-            <div class="ai-stat">
-                <span class="ai-stat-val pos">${formatShort(totalIncome)} TL</span>
-                <span class="ai-stat-lbl">toplam gelir</span>
+            <div class="air-sep"></div>
+            <div class="air-metric">
+                <span class="air-metric-val pos">${formatShort(totalIncome)} TL</span>
+                <span class="air-metric-key">Gelir</span>
             </div>
-            <div class="ai-stat-sep"></div>
-            <div class="ai-stat">
-                <span class="ai-stat-val neg">${formatShort(totalExpense)} TL</span>
-                <span class="ai-stat-lbl">toplam gider</span>
+            <div class="air-sep"></div>
+            <div class="air-metric">
+                <span class="air-metric-val neg">${formatShort(totalExpense)} TL</span>
+                <span class="air-metric-key">Gider</span>
             </div>
-            <div class="ai-stat-sep"></div>
-            <div class="ai-stat">
-                <span class="ai-stat-val ${netClass}">${netSign}${formatShort(netProfit)} TL</span>
-                <span class="ai-stat-lbl">net kâr/zarar</span>
+            <div class="air-sep"></div>
+            <div class="air-metric">
+                <span class="air-metric-val ${netClass}">${netSign}${formatShort(netProfit)} TL</span>
+                <span class="air-metric-key">Net K/Z</span>
             </div>
-        </div>
-    </div>
-    ${sections.genel ? `<p class="ai-genel-para">${sections.genel}</p>` : ''}
-    <div class="ai-insight-cards">
-        <div class="ai-insight-card is-green">
-            <div class="aic-icon"><i class="fas fa-seedling"></i></div>
-            <div class="aic-body">
-                <div class="aic-title">Güçlü Yönler</div>
-                <ul>${renderBullets(sections.guclu)}</ul>
-            </div>
-        </div>
-        <div class="ai-insight-card is-amber">
-            <div class="aic-icon"><i class="fas fa-triangle-exclamation"></i></div>
-            <div class="aic-body">
-                <div class="aic-title">Dikkat Edilecekler</div>
-                <ul>${renderBullets(sections.dikkat)}</ul>
-            </div>
-        </div>
-        <div class="ai-insight-card is-blue">
-            <div class="aic-icon"><i class="fas fa-lightbulb"></i></div>
-            <div class="aic-body">
-                <div class="aic-title">Öneriler</div>
-                <ul>${renderBullets(sections.oneri)}</ul>
-            </div>
+            ${totalReturns > 0 ? `<div class="air-sep"></div><div class="air-metric"><span class="air-metric-val neu">${formatShort(totalReturns)} TL</span><span class="air-metric-key">İade</span></div>` : ''}
+            ${toplamAnomali > 0 ? `<div class="air-sep"></div><div class="air-metric"><span class="air-metric-val neg">${toplamAnomali}</span><span class="air-metric-key">Anomali</span></div>` : ''}
         </div>
     </div>
-    <div class="ai-bars">
-        <div class="aib-row">
-            <span class="aib-lbl">Gelir</span>
-            <div class="aib-track"><div class="aib-fill is-income" style="width:${incPct}%"></div></div>
-            <span class="aib-amount">${formatShort(totalIncome)} TL</span>
+    ${sections.genel ? `<div class="air-summary">${sections.genel}</div>` : ''}
+    <div class="air-sections">
+        <div class="air-section air-section--strength">
+            <div class="air-section-head">
+                <span class="air-section-icon"><i class="fas fa-check-circle"></i></span>
+                <span class="air-section-title">Güçlü Yönler</span>
+            </div>
+            <ul class="air-list">${renderBulletsNew(sections.guclu)}</ul>
         </div>
-        <div class="aib-row">
-            <span class="aib-lbl">Gider</span>
-            <div class="aib-track"><div class="aib-fill is-expense" style="width:${expPct}%"></div></div>
-            <span class="aib-amount">${formatShort(totalExpense)} TL</span>
+        <div class="air-section air-section--risk">
+            <div class="air-section-head">
+                <span class="air-section-icon"><i class="fas fa-exclamation-triangle"></i></span>
+                <span class="air-section-title">Riskler & Dikkat</span>
+            </div>
+            <ul class="air-list">${renderBulletsNew(sections.dikkat)}</ul>
         </div>
-        ${(totalReturns>0) ? `<div class="aib-row">
-            <span class="aib-lbl">İade</span>
-            <div class="aib-track"><div class="aib-fill is-returns" style="width:${retPct}%"></div></div>
-            <span class="aib-amount">${formatShort(totalReturns)} TL</span>
-        </div>` : ''}
+        <div class="air-section air-section--advice">
+            <div class="air-section-head">
+                <span class="air-section-icon"><i class="fas fa-lightbulb"></i></span>
+                <span class="air-section-title">Öneriler</span>
+            </div>
+            <ul class="air-list">${renderBulletsNew(sections.oneri)}</ul>
+        </div>
+    </div>
+    <div class="air-bars">
+        <div class="airb-row">
+            <span class="airb-lbl">Gelir</span>
+            <div class="airb-track"><div class="airb-fill is-income" style="width:${incPct}%"></div></div>
+            <span class="airb-amount">${formatShort(totalIncome)} TL</span>
+        </div>
+        <div class="airb-row">
+            <span class="airb-lbl">Gider</span>
+            <div class="airb-track"><div class="airb-fill is-expense" style="width:${expPct}%"></div></div>
+            <span class="airb-amount">${formatShort(totalExpense)} TL</span>
+        </div>
+        ${totalReturns > 0 ? `<div class="airb-row"><span class="airb-lbl">İade</span><div class="airb-track"><div class="airb-fill is-returns" style="width:${retPct}%"></div></div><span class="airb-amount">${formatShort(totalReturns)} TL</span></div>` : ''}
     </div>
 </div>`;
     } catch (error) {
         console.error('AI analiz hatası:', error);
         loading.style.display = 'none';
-        results.innerHTML = `<div class="ai-report"><div class="ai-error-state">
-            <i class="fas fa-exclamation-circle"></i>
-            <div><strong>Analiz tamamlanamadı</strong><span>${error.message}</span></div>
-        </div></div>`;
+        results.innerHTML = `<div class="air-report"><div class="air-error"><i class="fas fa-exclamation-circle"></i><div><strong>Analiz tamamlanamadı</strong> — ${error.message}</div></div></div>`;
         results.classList.add('active');
     } finally {
         btn.disabled = false;
