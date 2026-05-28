@@ -308,6 +308,10 @@ def ai_analyze():
                 err_body = e.read().decode('utf-8')
             except Exception:
                 err_body = ''
+            if e.code == 429:
+                return jsonify({'error': 'Gemini ücretsiz kotanız doldu. Birkaç dakika (veya günlük limit içinse 24 saat) bekleyin ya da AI Kurulum ekranından farklı bir API anahtarı girin.'}), 429
+            if e.code in (401, 403):
+                return jsonify({'error': 'Gemini API anahtarı geçersiz veya yetkisiz. AI Kurulum ekranından anahtarı kontrol edin.'}), 401
             return jsonify({'error': f'Gemini API hatası: {e.code}', 'detail': err_body[:300]}), 502
         except Exception as e:
             return jsonify({'error': f'Gemini API\'ye ulaşılamadı: {str(e)}'}), 502
@@ -339,6 +343,10 @@ def ai_analyze():
             err_body = e.read().decode('utf-8')
         except Exception:
             err_body = ''
+        if e.code == 429:
+            return jsonify({'error': 'AI servisi kotası/hız limiti aşıldı. Birkaç dakika bekleyip tekrar deneyin veya AI Kurulum ekranından farklı bir anahtar/model seçin.'}), 429
+        if e.code in (401, 403):
+            return jsonify({'error': 'AI API anahtarı geçersiz veya yetkisiz. AI Kurulum ekranından anahtarı kontrol edin.'}), 401
         return jsonify({'error': f'AI servisi hata: {e.code}', 'detail': err_body[:300]}), 502
     except Exception as e:
         return jsonify({'error': f'AI servisine ulaşılamadı: {str(e)}'}), 502

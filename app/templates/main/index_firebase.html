@@ -953,32 +953,33 @@ async function loadNotificationsAndActivity() {
             });
         });
         
-        // Aktiviteleri render et
+        // Aktiviteleri render et (bu bölüm sayfada olmayabilir — null-safe)
         const activityContainer = document.getElementById('activityTimeline');
-        
-        if (activities.length > 0) {
-            activityContainer.innerHTML = activities.map(a => `
-                <div class="activity-item ${a.type}">
-                    <div class="activity-text">${a.text}</div>
-                    <div class="activity-time">${a.time}</div>
-                </div>
-            `).join('');
-        } else {
-            activityContainer.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-info-circle"></i>
-                    <p>Veri yok</p>
-                </div>
-            `;
+        if (activityContainer) {
+            if (activities.length > 0) {
+                activityContainer.innerHTML = activities.map(a => `
+                    <div class="activity-item ${a.type}">
+                        <div class="activity-text">${a.text}</div>
+                        <div class="activity-time">${a.time}</div>
+                    </div>
+                `).join('');
+            } else {
+                activityContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-info-circle"></i>
+                        <p>Veri yok</p>
+                    </div>
+                `;
+            }
         }
-        
-        // Footer stats
-        document.getElementById('footerProfit').textContent = formatCurrency(Math.max(kar, 0));
-        document.getElementById('footerInvoices').textContent = satisFaturalari.length + alisFaturalari.length;
-        document.getElementById('footerCustomers').textContent = musteriler.length;
-        
+
+        // Footer stats (her element için null-safe — bir partial eksikse diğerleri çalışsın)
         const bekleyenToplam = bekleyenSatis.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
-        document.getElementById('footerPending').textContent = formatCurrency(bekleyenToplam);
+        const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setText('footerProfit', formatCurrency(Math.max(kar, 0)));
+        setText('footerInvoices', satisFaturalari.length + alisFaturalari.length);
+        setText('footerCustomers', musteriler.length);
+        setText('footerPending', formatCurrency(bekleyenToplam));
         
         console.log('🔔 Bildirimler ve aktiviteler yüklendi!');
     } catch (error) {
@@ -1418,9 +1419,14 @@ ${dataSummary}`;
             method: 'POST', headers: aiHeaders,
             body: JSON.stringify({ prompt, summary: dataSummary })
         });
-        if (!resp.ok) throw new Error('API hatası: ' + resp.status);
 
-        const data = await resp.json();
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+            // Backend gerçek sebebi error + detail alanlarında döndürür
+            const mesaj = data.error || ('API hatası: ' + resp.status);
+            const detay = data.detail ? ` (${data.detail})` : '';
+            throw new Error(mesaj + detay);
+        }
         const sections = parseAiSections(data.text || '');
         const pmSign = parseFloat(profitMargin)>=0 ? '+' : '';
         const netSign = netProfit>=0 ? '+' : '';
