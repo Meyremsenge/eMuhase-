@@ -5,6 +5,7 @@ Frontend (Firebase) ile paralel çalışır; backend tarafında da tam CRUD dest
 """
 import os
 import json
+import time
 import urllib.request
 import urllib.error
 from sqlalchemy import text
@@ -298,23 +299,51 @@ def ai_analyze():
             headers={'Content-Type': 'application/json'},
             method='POST',
         )
-        try:
-            with urllib.request.urlopen(req, timeout=90) as resp:
-                payload = json.loads(resp.read().decode('utf-8'))
-                text_out = payload['candidates'][0]['content']['parts'][0]['text']
-                return jsonify({'text': text_out, 'model': gemini_model})
-        except urllib.error.HTTPError as e:
+        # 503 (aşırı yük) ve 500 geçici hatalarında kısa beklemeyle 3 kez dene
+        last_err = None
+        for deneme in range(3):
             try:
-                err_body = e.read().decode('utf-8')
-            except Exception:
-                err_body = ''
-            if e.code == 429:
-                return jsonify({'error': 'Gemini ücretsiz kotanız doldu. Birkaç dakika (veya günlük limit içinse 24 saat) bekleyin ya da AI Kurulum ekranından farklı bir API anahtarı girin.'}), 429
-            if e.code in (401, 403):
-                return jsonify({'error': 'Gemini API anahtarı geçersiz veya yetkisiz. AI Kurulum ekranından anahtarı kontrol edin.'}), 401
-            return jsonify({'error': f'Gemini API hatası: {e.code}', 'detail': err_body[:300]}), 502
-        except Exception as e:
-            return jsonify({'error': f'Gemini API\'ye ulaşılamadı: {str(e)}'}), 502
+                with urllib.request.urlopen(req, timeout=90) as resp:
+                    payload = json.loads(resp.read().decode('utf-8'))
+                    text_out = payload['candidates'][0]['content']['parts'][0]['text']
+                    return jsonify({'text': text_out, 'model': gemini_model})
+            except urllib.error.HTTPError as e:
+                try:
+                    err_body = e.read().decode('utf-8')
+                except Exception:
+                    err_body = ''
+                if e.code == 429:
+                    return jsonify({'error': (
+                        'Gemini ücretsiz kotanız doldu. Birkaç dakika (veya günlük '
+                        'limit içinse 24 saat) bekleyin ya da AI Kurulum ekranından '
+                        'farklı bir API anahtarı girin.'
+                    )}), 429
+                if e.code in (401, 403):
+                    return jsonify({'error': (
+                        'Gemini API anahtarı geçersiz veya yetkisiz. '
+                        'AI Kurulum ekranından anahtarı kontrol edin.'
+                    )}), 401
+                if e.code in (500, 503) and deneme < 2:
+                    last_err = err_body
+                    time.sleep(2 * (deneme + 1))  # 2sn, 4sn artan bekleme
+                    continue
+                if e.code == 503:
+                    return jsonify({'error': (
+                        'Gemini modeli şu an çok yoğun (geçici). '
+                        'Lütfen birkaç dakika sonra tekrar deneyin.'
+                    )}), 503
+                return jsonify({'error': f'Gemini API hatası: {e.code}',
+                                'detail': err_body[:300]}), 502
+            except Exception as e:
+                last_err = str(e)
+                if deneme < 2:
+                    time.sleep(2 * (deneme + 1))
+                    continue
+                return jsonify({'error': f'Gemini API\'ye ulaşılamadı: {str(e)}'}), 502
+        return jsonify({'error': (
+            'Gemini modeli yoğunluk nedeniyle yanıt vermedi. '
+            'Birkaç dakika sonra tekrar deneyin.'
+        ), 'detail': (last_err or '')[:300]}), 503
 
     # 2) OpenRouter API Çağrısı
     body = json.dumps({
@@ -344,10 +373,17 @@ def ai_analyze():
         except Exception:
             err_body = ''
         if e.code == 429:
-            return jsonify({'error': 'AI servisi kotası/hız limiti aşıldı. Birkaç dakika bekleyip tekrar deneyin veya AI Kurulum ekranından farklı bir anahtar/model seçin.'}), 429
+            return jsonify({'error': (
+                'AI servisi kotası/hız limiti aşıldı. Birkaç dakika bekleyip tekrar '
+                'deneyin veya AI Kurulum ekranından farklı bir anahtar/model seçin.'
+            )}), 429
         if e.code in (401, 403):
-            return jsonify({'error': 'AI API anahtarı geçersiz veya yetkisiz. AI Kurulum ekranından anahtarı kontrol edin.'}), 401
-        return jsonify({'error': f'AI servisi hata: {e.code}', 'detail': err_body[:300]}), 502
+            return jsonify({'error': (
+                'AI API anahtarı geçersiz veya yetkisiz. '
+                'AI Kurulum ekranından anahtarı kontrol edin.'
+            )}), 401
+        return jsonify({'error': f'AI servisi hata: {e.code}',
+                        'detail': err_body[:300]}), 502
     except Exception as e:
         return jsonify({'error': f'AI servisine ulaşılamadı: {str(e)}'}), 502
 
