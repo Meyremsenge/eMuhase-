@@ -185,7 +185,11 @@ function listeyiGuncelle(urunler, filtreUygulanmis) {
             <td>${esc(urun.birim || '-')}</td>
             <td>₺${paraFormat(alisFiyat)}</td>
             <td>₺${paraFormat(satisFiyat)}</td>
-            <td>${esc(stok)} ${esc(urun.birim || '')}</td>
+            <td>
+                ${parseFloat(stok) <= 5 
+                    ? `<span class="badge ${parseFloat(stok) <= 0 ? 'badge-danger' : 'badge-warning'}"><i class="fas fa-exclamation-triangle"></i> ${esc(stok)}</span> ${esc(urun.birim || '')}`
+                    : `${esc(stok)} ${esc(urun.birim || '')}`}
+            </td>
             <td>
                 ${urun.aktif
                     ? '<span class="badge badge-success">Aktif</span>'

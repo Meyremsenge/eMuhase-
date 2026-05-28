@@ -44,6 +44,7 @@
     {% include 'main/partials/nakit_tahmin.html' %}
     {% include 'main/partials/mini_stats.html' %}
     {% include 'main/partials/charts_section.html' %}
+    {% include 'main/partials/critical_stock.html' %}
     {% include 'main/partials/tables_section.html' %}
     {% include 'main/partials/bottom_section.html' %}
     {% include 'main/partials/footer_stats.html' %}
@@ -189,6 +190,25 @@ async function loadDashboardStats() {
             animateValue(profitEl, 0, Math.abs(netProfit), 1200, (val) => '-' + formatCurrency(val));
         }
         profitEl.title = formatCurrencyFull(netProfit);
+        
+        // Kritik Stok
+        const kritikUrunler = urunler.filter(u => parseFloat(u.stok_miktari) <= 5);
+        if (kritikUrunler.length > 0) {
+            document.getElementById('criticalStockSection').style.display = 'block';
+            document.getElementById('criticalStockCount').textContent = kritikUrunler.length;
+            
+            const tbody = document.getElementById('criticalStockList');
+            tbody.innerHTML = kritikUrunler.map(u => `
+                <tr>
+                    <td><strong>${u.kod}</strong></td>
+                    <td>${u.ad}</td>
+                    <td><span class="badge ${u.stok_miktari <= 0 ? 'badge-danger' : 'badge-warning'}">${u.stok_miktari} ${u.birim || 'Adet'}</span></td>
+                    <td><span class="text-danger"><i class="fas fa-exclamation-circle"></i> Stok Kritik</span></td>
+                </tr>
+            `).join('');
+        } else {
+            document.getElementById('criticalStockSection').style.display = 'none';
+        }
         
         console.log('✅ Dashboard yüklendi!');
     } catch (error) {

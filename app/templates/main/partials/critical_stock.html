@@ -1,0 +1,30 @@
+<!-- Kritik Stok Uyarıları -->
+<div class="row" id="criticalStockSection" style="display: none; margin-bottom: 2rem;">
+    <div class="col-12">
+        <div class="card danger-border">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title text-danger">
+                    <i class="fas fa-exclamation-triangle"></i> Kritik Stok Uyarıları (<span id="criticalStockCount">0</span>)
+                </h3>
+                <a href="/urunler" class="btn btn-sm btn-outline-danger">Stokları Yönet</a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Ürün Kodu</th>
+                                <th>Ürün Adı</th>
+                                <th>Mevcut Stok</th>
+                                <th>Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="criticalStockList">
+                            <!-- JS ile doldurulacak -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

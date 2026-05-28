@@ -591,44 +591,109 @@ export const Musteriler = {
 // ==================== ÜRÜNLER ====================
 export const Urunler = createCRUD('urunler');
 
+// ==================== STOK YÖNETİMİ ====================
+export const StokYonetimi = {
+    stokEkle: async (urun_id, miktar) => {
+        if (!urun_id) return;
+        const urun = await Urunler.getir(urun_id);
+        if (urun) {
+            urun.stok_miktari = (parseFloat(urun.stok_miktari) || 0) + parseFloat(miktar);
+            await Urunler.guncelle(urun_id, urun);
+        }
+    },
+    stokDus: async (urun_id, miktar) => {
+        if (!urun_id) return;
+        const urun = await Urunler.getir(urun_id);
+        if (urun) {
+            urun.stok_miktari = (parseFloat(urun.stok_miktari) || 0) - parseFloat(miktar);
+            await Urunler.guncelle(urun_id, urun);
+        }
+    }
+};
+
+function getKalemler(fatura) {
+    if (!fatura || !fatura.kalemler) return [];
+    return Array.isArray(fatura.kalemler) ? fatura.kalemler : Object.values(fatura.kalemler);
+}
+
 // ==================== ALIŞ FATURALARI ====================
+const AlisBase = createCRUD('alis_faturalari');
 export const AlisFaturalari = {
-    ...createCRUD('alis_faturalari'),
-    
-    // Bu ayki toplam
+    ...AlisBase,
+    ekle: async (item) => {
+        const id = await AlisBase.ekle(item);
+        for (let k of getKalemler(item)) await StokYonetimi.stokEkle(k.urun_id, k.miktar);
+        return id;
+    },
+    sil: async (id) => {
+        const fatura = await AlisBase.getir(id);
+        if (fatura) {
+            for (let k of getKalemler(fatura)) await StokYonetimi.stokDus(k.urun_id, k.miktar);
+        }
+        await AlisBase.sil(id);
+    },
     aylikToplam: async () => {
-        const faturalar = await AlisFaturalari.hepsiniGetir();
+        const faturalar = await AlisBase.hepsiniGetir();
         const buAy = new Date();
         const ayBaslangic = new Date(buAy.getFullYear(), buAy.getMonth(), 1);
-        
-        return faturalar
-            .filter(f => new Date(f.fatura_tarihi) >= ayBaslangic)
+        return faturalar.filter(f => new Date(f.fatura_tarihi) >= ayBaslangic)
             .reduce((toplam, f) => toplam + (parseFloat(f.genel_toplam) || 0), 0);
     }
 };
 
 // ==================== SATIŞ FATURALARI ====================
+const SatisBase = createCRUD('satis_faturalari');
 export const SatisFaturalari = {
-    ...createCRUD('satis_faturalari'),
-    
-    // Bu ayki toplam
+    ...SatisBase,
+    ekle: async (item) => {
+        const id = await SatisBase.ekle(item);
+        for (let k of getKalemler(item)) await StokYonetimi.stokDus(k.urun_id, k.miktar);
+        return id;
+    },
+    sil: async (id) => {
+        const fatura = await SatisBase.getir(id);
+        if (fatura) {
+            for (let k of getKalemler(fatura)) await StokYonetimi.stokEkle(k.urun_id, k.miktar);
+        }
+        await SatisBase.sil(id);
+    },
     aylikToplam: async () => {
-        const faturalar = await SatisFaturalari.hepsiniGetir();
+        const faturalar = await SatisBase.hepsiniGetir();
         const buAy = new Date();
         const ayBaslangic = new Date(buAy.getFullYear(), buAy.getMonth(), 1);
-        
-        return faturalar
-            .filter(f => new Date(f.fatura_tarihi) >= ayBaslangic)
+        return faturalar.filter(f => new Date(f.fatura_tarihi) >= ayBaslangic)
             .reduce((toplam, f) => toplam + (parseFloat(f.genel_toplam) || 0), 0);
     }
 };
 
 // ==================== İADE FATURALARI ====================
-export const IadeFaturalari = createCRUD('iade_faturalari');
+const IadeBase = createCRUD('iade_faturalari');
+export const IadeFaturalari = {
+    ...IadeBase,
+    ekle: async (item) => {
+        const id = await IadeBase.ekle(item);
+        if (item.iade_tipi === 'satis_iade') {
+            for (let k of getKalemler(item)) await StokYonetimi.stokEkle(k.urun_id, k.miktar);
+        } else if (item.iade_tipi === 'alis_iade') {
+            for (let k of getKalemler(item)) await StokYonetimi.stokDus(k.urun_id, k.miktar);
+        }
+        return id;
+    },
+    sil: async (id) => {
+        const fatura = await IadeBase.getir(id);
+        if (fatura) {
+            if (fatura.iade_tipi === 'satis_iade') {
+                for (let k of getKalemler(fatura)) await StokYonetimi.stokDus(k.urun_id, k.miktar);
+            } else if (fatura.iade_tipi === 'alis_iade') {
+                for (let k of getKalemler(fatura)) await StokYonetimi.stokEkle(k.urun_id, k.miktar);
+            }
+        }
+        await IadeBase.sil(id);
+    }
+};
 
 // ==================== DASHBOARD İSTATİSTİKLERİ ====================
 export const Dashboard = {
-    // Tüm istatistikleri getir
     istatistikler: async () => {
         const [alis, satis, iade, musteriler, urunler] = await Promise.all([
             AlisFaturalari.hepsiniGetir(),
@@ -641,13 +706,13 @@ export const Dashboard = {
         const buAy = new Date();
         const ayBaslangic = new Date(buAy.getFullYear(), buAy.getMonth(), 1);
 
-        const aylikAlis = alis
-            .filter(f => new Date(f.fatura_tarihi) >= ayBaslangic)
+        const aylikAlis = alis.filter(f => new Date(f.fatura_tarihi) >= ayBaslangic)
             .reduce((t, f) => t + (parseFloat(f.genel_toplam) || 0), 0);
 
-        const aylikSatis = satis
-            .filter(f => new Date(f.fatura_tarihi) >= ayBaslangic)
+        const aylikSatis = satis.filter(f => new Date(f.fatura_tarihi) >= ayBaslangic)
             .reduce((t, f) => t + (parseFloat(f.genel_toplam) || 0), 0);
+            
+        const kritikUrunler = urunler.filter(u => parseFloat(u.stok_miktari) <= 5);
 
         return {
             toplam_alis_fatura: alis.length,
@@ -655,6 +720,8 @@ export const Dashboard = {
             toplam_iade_fatura: iade.length,
             toplam_musteri: musteriler.length,
             toplam_urun: urunler.length,
+            kritik_urun_sayisi: kritikUrunler.length,
+            kritik_urunler: kritikUrunler,
             aylik_alis_toplam: aylikAlis,
             aylik_satis_toplam: aylikSatis,
             son_alis_faturalari: alis.sort((a, b) => new Date(b.olusturma_tarihi) - new Date(a.olusturma_tarihi)).slice(0, 5),
