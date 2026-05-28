@@ -5,14 +5,15 @@
 {% block extra_css %}
 <style>
 .quick-actions-hero {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    background: linear-gradient(135deg, var(--glass-05) 0%, var(--glass-12) 100%);
     border-radius: 1.5rem;
     padding: 3rem 2rem;
-    color: white;
+    color: var(--text-primary);
     margin-bottom: 2.5rem;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 10px 25px -5px rgba(var(--primary-rgb), 0.4);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-card);
 }
 
 .quick-actions-hero::after {
@@ -47,7 +48,7 @@
 
 .hero-subtitle {
     font-size: 1.1rem;
-    opacity: 0.9;
+    color: var(--text-secondary);
     max-width: 600px;
     position: relative;
     z-index: 1;
@@ -68,7 +69,7 @@
     align-items: flex-start;
     gap: 1.25rem;
     text-decoration: none;
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
     border: 1px solid var(--border-color);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
@@ -88,11 +89,13 @@
     transform: translateY(-5px) scale(1.02);
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     border-color: transparent;
+    color: var(--text-primary) !important;
 }
 
 html[data-theme="dark"] .action-card:hover {
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
     background: var(--surface-hover);
+    color: var(--text-primary) !important;
 }
 
 .action-card:hover::before {
@@ -100,22 +103,62 @@ html[data-theme="dark"] .action-card:hover {
 }
 
 .action-icon-wrapper {
-    width: 60px;
-    height: 60px;
-    border-radius: 1rem;
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
-    color: white;
+    font-size: 1.4rem;
     flex-shrink: 0;
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-    transition: transform 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    background: transparent;
+}
+
+/* Soft UI / Tinted Backgrounds for Icons */
+.soft-green { 
+    background-color: rgba(16, 185, 129, 0.12); 
+    color: #10b981 !important; 
+    box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.1), 0 8px 16px -4px rgba(16, 185, 129, 0.15);
+}
+.soft-blue { 
+    background-color: rgba(59, 130, 246, 0.12); 
+    color: #3b82f6 !important; 
+    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.1), 0 8px 16px -4px rgba(59, 130, 246, 0.15);
+}
+.soft-purple { 
+    background-color: rgba(139, 92, 246, 0.12); 
+    color: #8b5cf6 !important; 
+    box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.1), 0 8px 16px -4px rgba(139, 92, 246, 0.15);
+}
+.soft-orange { 
+    background-color: rgba(245, 158, 11, 0.12); 
+    color: #f59e0b !important; 
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.1), 0 8px 16px -4px rgba(245, 158, 11, 0.15);
+}
+.soft-red { 
+    background-color: rgba(239, 68, 68, 0.12); 
+    color: #ef4444 !important; 
+    box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.1), 0 8px 16px -4px rgba(239, 68, 68, 0.15);
+}
+.soft-teal { 
+    background-color: rgba(20, 184, 166, 0.12); 
+    color: #14b8a6 !important; 
+    box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.1), 0 8px 16px -4px rgba(20, 184, 166, 0.15);
 }
 
 .action-card:hover .action-icon-wrapper {
-    transform: scale(1.1) rotate(-5deg);
+    transform: scale(1.1) translateY(-2px);
 }
+
+.action-card:hover .soft-green { box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2), 0 12px 24px -4px rgba(16, 185, 129, 0.3); }
+.action-card:hover .soft-blue { box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.2), 0 12px 24px -4px rgba(59, 130, 246, 0.3); }
+.action-card:hover .soft-purple { box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.2), 0 12px 24px -4px rgba(139, 92, 246, 0.3); }
+.action-card:hover .soft-orange { box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.2), 0 12px 24px -4px rgba(245, 158, 11, 0.3); }
+.action-card:hover .soft-red { box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.2), 0 12px 24px -4px rgba(239, 68, 68, 0.3); }
+.action-card:hover .soft-teal { box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.2), 0 12px 24px -4px rgba(20, 184, 166, 0.3); }
 
 .action-content {
     flex: 1;
@@ -128,6 +171,7 @@ html[data-theme="dark"] .action-card:hover {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    color: var(--text-primary) !important;
 }
 
 .action-title i.fa-arrow-right {
@@ -135,6 +179,7 @@ html[data-theme="dark"] .action-card:hover {
     opacity: 0;
     transform: translateX(-10px);
     transition: all 0.3s ease;
+    color: var(--text-primary) !important;
 }
 
 .action-card:hover .action-title i.fa-arrow-right {
@@ -144,18 +189,10 @@ html[data-theme="dark"] .action-card:hover {
 
 .action-desc {
     font-size: 0.9rem;
-    color: var(--text-secondary);
+    color: var(--text-secondary) !important;
     line-height: 1.5;
     margin: 0;
 }
-
-/* Gradients for icons */
-.grad-green { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
-.grad-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-.grad-purple { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
-.grad-orange { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-.grad-red { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
-.grad-teal { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }
 
 </style>
 {% endblock %}
@@ -172,7 +209,7 @@ html[data-theme="dark"] .action-card:hover {
         
         <!-- Satış Faturası -->
         <a href="{{ url_for('satis.yeni') }}" class="action-card">
-            <div class="action-icon-wrapper grad-green">
+            <div class="action-icon-wrapper soft-green">
                 <i class="fas fa-file-invoice-dollar"></i>
             </div>
             <div class="action-content">
@@ -186,7 +223,7 @@ html[data-theme="dark"] .action-card:hover {
 
         <!-- Alış Faturası -->
         <a href="{{ url_for('alis.yeni') }}" class="action-card">
-            <div class="action-icon-wrapper grad-blue">
+            <div class="action-icon-wrapper soft-blue">
                 <i class="fas fa-file-import"></i>
             </div>
             <div class="action-content">
@@ -200,7 +237,7 @@ html[data-theme="dark"] .action-card:hover {
 
         <!-- Yeni Müşteri -->
         <a href="{{ url_for('musteriler.yeni') }}" class="action-card">
-            <div class="action-icon-wrapper grad-purple">
+            <div class="action-icon-wrapper soft-purple">
                 <i class="fas fa-user-plus"></i>
             </div>
             <div class="action-content">
@@ -214,7 +251,7 @@ html[data-theme="dark"] .action-card:hover {
 
         <!-- Yeni Ürün -->
         <a href="{{ url_for('urunler.yeni') }}" class="action-card">
-            <div class="action-icon-wrapper grad-orange">
+            <div class="action-icon-wrapper soft-orange">
                 <i class="fas fa-box-open"></i>
             </div>
             <div class="action-content">
@@ -228,7 +265,7 @@ html[data-theme="dark"] .action-card:hover {
 
         <!-- İade Faturası (YENİ ÖNERİ) -->
         <a href="{{ url_for('iade.yeni') }}" class="action-card">
-            <div class="action-icon-wrapper grad-red">
+            <div class="action-icon-wrapper soft-red">
                 <i class="fas fa-undo-alt"></i>
             </div>
             <div class="action-content">
@@ -242,7 +279,7 @@ html[data-theme="dark"] .action-card:hover {
 
         <!-- Genel Rapor (YENİ ÖNERİ) -->
         <a href="{{ url_for('main.index') }}" class="action-card">
-            <div class="action-icon-wrapper grad-teal">
+            <div class="action-icon-wrapper soft-teal">
                 <i class="fas fa-chart-pie"></i>
             </div>
             <div class="action-content">
