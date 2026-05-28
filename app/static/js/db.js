@@ -815,42 +815,51 @@ export const Sync = {
             if (showToast) notify.warning('Firebase bağlantısı yok, veriler yüklenemedi.');
             return false;
         }
-        
+
         if (Sync.isSyncing) return false;
         Sync.isSyncing = true;
-        
+
         try {
             const { ref, set, get } = await getFirebaseRefs();
             let uploadedCount = 0;
-            
+
             for (const col of Sync.collections) {
                 const localData = LocalDB.get(col);
                 const localEntries = Object.entries(localData);
-                
-                if (localEntries.length > 0) {
-                    // Firebase'deki mevcut verileri al
-                    const snapshot = await get(ref(firebaseDb, col));
-                    const firebaseData = snapshot.val() || {};
-                    
-                    // Local verileri Firebase'e yükle (merge)
-                    for (const [localId, data] of localEntries) {
-                        // Eğer Firebase'de bu ID yoksa veya local daha yeniyse yükle
-                        if (!firebaseData[localId]) {
-                            if (localId.startsWith('local_')) {
-                                // Local ID'li kayıtları yeni Firebase ID ile yükle
-                                const { push, set: setFn } = await getFirebaseRefs();
-                                const newRef = push(ref(firebaseDb, col));
-                                await setFn(newRef, { ...data, syncedAt: new Date().toISOString() });
-                            } else {
-                                // Normal ID'li kayıtları aynı ID ile yükle
-                                await set(ref(firebaseDb, `${col}/${localId}`), { ...data, syncedAt: new Date().toISOString() });
-                            }
-                            uploadedCount++;
+
+                if (localEntries.length === 0) continue;
+
+                // Firebase'deki mevcut verileri al
+                const snapshot = await get(ref(firebaseDb, col));
+                const firebaseData = snapshot.val() || {};
+
+                // Local verileri Firebase'e yükle (merge)
+                for (const [localId, data] of localEntries) {
+                    if (!firebaseData[localId]) {
+                        if (localId.startsWith('local_')) {
+                            // local_ önekli kayıt: Firebase'e yeni ID ile yükle,
+                            // ardından LocalStorage'daki eski local_ kaydını yeni ID ile değiştir.
+                            // Böylece bir sonraki sync'te aynı kayıt tekrar yüklenmez.
+                            const { push, set: setFn } = await getFirebaseRefs();
+                            const newRef = push(ref(firebaseDb, col));
+                            const newId = newRef.key;
+                            const syncedData = { ...data, syncedAt: new Date().toISOString() };
+                            await setFn(newRef, syncedData);
+
+                            // LocalStorage: eski local_ girişini sil, yeni Firebase ID ile kaydet
+                            const fresh = LocalDB.get(col);
+                            delete fresh[localId];
+                            fresh[newId] = syncedData;
+                            LocalDB.set(col, fresh);
+                        } else {
+                            // Normal ID'li kayıtları aynı ID ile yükle
+                            await set(ref(firebaseDb, `${col}/${localId}`), { ...data, syncedAt: new Date().toISOString() });
                         }
+                        uploadedCount++;
                     }
                 }
             }
-            
+
             Sync.setLastSyncTime();
             console.log(`✅ ${uploadedCount} kayıt Firebase'e yüklendi`);
             if (showToast && uploadedCount > 0) {
@@ -1122,12 +1131,10 @@ export async function init() {
             // Canlı bildirimleri başlat
             baslatCanliBildirimler();
 
-            // Sessiz arka plan sync (toast yok — sadece manuel sync'te göster)
-            setTimeout(async () => {
-                await Sync.fullSync(false);
-                // Her 5 dakikada bir sessiz otomatik sync
-                Sync.startAutoSync(300000);
-            }, 2000);
+            // Sayfa ilk açıldığında local_xxx kayıtları varsa bir kez Firebase'e yükle.
+            // Otomatik periyodik sync KALDIRILDI: her N dakikada tüm koleksiyonun
+            // okunup tekrar yazılması büyük veri setlerinde üstel büyümeye yol açıyordu.
+            setTimeout(() => Sync.uploadToFirebase(false), 2000);
         }
         
         const status = mode === 'firebase' ? '🔥 Firebase' : '💾 LocalStorage';

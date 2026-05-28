@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% block title %}Veri Temizleme — eMuhasebe Pro{% endblock %}
+{% block page_title %}Firebase Veri Temizleme{% endblock %}
+{% block page_subtitle %}Yinelenen fatura kayıtlarını tespit et ve sil{% endblock %}
+
+{% block content %}
+<div class="card fade-in">
+  <div class="card-header">
+    <h3 class="card-title">
+      <i class="fas fa-broom u-text-warning-500 u-mr-0-5"></i>
+      Yinelenen Kayıt Temizleyici
+    </h3>
+    <a href="/" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Dashboard</a>
+  </div>
+  <div class="card-body">
+
+    <div class="alert alert-warning u-mb-1">
+      <i class="fas fa-exclamation-triangle"></i>
+      <strong>Dikkat:</strong> Bu araç Firebase veritabanındaki yinelenen fatura kayıtlarını siler.
+      Silinen veriler geri getirilemez. Önce <strong>Analiz Et</strong> butonuna basarak neyin silineceğini gör.
+    </div>
+
+    <div class="details-grid u-mb-1" id="statsGrid" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Alış Faturası</label>
+        <p id="statAlis" class="u-font-semibold">—</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Satış Faturası</label>
+        <p id="statSatis" class="u-font-semibold">—</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">İade Faturası</label>
+        <p id="statIade" class="u-font-semibold">—</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Müşteri</label>
+        <p id="statMusteri" class="u-font-semibold">—</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ürün</label>
+        <p id="statUrun" class="u-font-semibold">—</p>
+      </div>
+    </div>
+
+    <div id="logBox" style="background:#0f172a;color:#94a3b8;border-radius:8px;padding:1rem;font-family:monospace;font-size:12px;height:320px;overflow-y:auto;display:none;white-space:pre-wrap;"></div>
+
+    <div class="u-flex u-gap-0-5 u-mt-1 u-flex-wrap">
+      <button id="btnAnaliz" class="btn btn-primary" onclick="analiz()">
+        <i class="fas fa-search"></i> Analiz Et (Silme)
+      </button>
+      <button id="btnTemizle" class="btn btn-danger" onclick="temizle()" disabled>
+        <i class="fas fa-trash"></i> Yinelenenları Sil
+      </button>
+      <button class="btn btn-secondary" onclick="localTemizle()">
+        <i class="fas fa-desktop"></i> LocalStorage Temizle
+      </button>
+    </div>
+
+    <p class="u-mt-1" style="font-size:12px;color:#64748b;">
+      <strong>Ne yapar?</strong> Her koleksiyonda aynı <code>fatura_no</code> değerine sahip kayıtları bulur,
+      en eskilerini siler, tek bir kopya bırakır. <code>fatura_no</code> yoksa <code>olusturma_tarihi</code>'ne göre birleştirir.
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module">
+import { init } from '{{ url_for("static", filename="js/db.js") }}';
+
+const log = (msg, color = '#94a3b8') => {
+    const box = document.getElementById('logBox');
+    box.style.display = 'block';
+    box.innerHTML += `<span style="color:${color}">${msg}\n</span>`;
+    box.scrollTop = box.scrollHeight;
+};
+
+const collections = ['alis_faturalari', 'satis_faturalari', 'iade_faturalari', 'musteriler', 'urunler'];
+const keyFields = {
+    alis_faturalari: 'fatura_no',
+    satis_faturalari: 'fatura_no',
+    iade_faturalari: 'fatura_no',
+    musteriler: 'vergi_no',
+    urunler: 'kod',
+};
+
+// cleanDataMap: { collection: { id: data, ... } } — sadece tutulacak kayıtlar
+let cleanDataMap = {};
+let totalDupCount = 0;
+
+async function getFirebaseFns() {
+    const { initializeApp, getApps, getApp } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js');
+    const { getDatabase, ref, get, set } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js');
+    return { ref, get, set, getDatabase, initializeApp, getApps, getApp };
+}
+
+async function getDb() {
+    const fns = await getFirebaseFns();
+    let app;
+    if (fns.getApps().length) {
+        app = fns.getApp();
+    } else {
+        const resp = await fetch('/api/config/firebase');
+        const cfg = await resp.json();
+        if (!cfg.apiKey) throw new Error('Firebase yapılandırması bulunamadı');
+        app = fns.initializeApp(cfg);
+    }
+    return fns.getDatabase(app);
+}
+
+const statIds = {
+    alis_faturalari: 'statAlis',
+    satis_faturalari: 'statSatis',
+    iade_faturalari: 'statIade',
+    musteriler: 'statMusteri',
+    urunler: 'statUrun',
+};
+
+window.analiz = async function() {
+    const btn = document.getElementById('btnAnaliz');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analiz ediliyor...';
+    document.getElementById('logBox').innerHTML = '';
+    cleanDataMap = {};
+    totalDupCount = 0;
+
+    try {
+        await init();
+        const db = await getDb();
+        const { ref, get } = await getFirebaseFns();
+
+        document.getElementById('statsGrid').style.display = 'grid';
+
+        for (const col of collections) {
+            log(`\n📦 ${col} okunuyor...`);
+            const snap = await get(ref(db, col));
+            const data = snap.val() || {};
+            const entries = Object.entries(data);
+            log(`  Toplam: ${entries.length} kayıt`, '#60a5fa');
+
+            const keyField = keyFields[col];
+            const grouped = {};
+
+            for (const [id, val] of entries) {
+                const key = val[keyField] || val['olusturma_tarihi'] || id;
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push({ id, val });
+            }
+
+            // Her grup için en yeni kaydı tut, diğerlerini at
+            const clean = {};
+            let dupCount = 0;
+            for (const group of Object.values(grouped)) {
+                if (group.length > 1) {
+                    group.sort((a, b) => {
+                        const da = a.val.syncedAt || a.val.guncelleme_tarihi || a.val.olusturma_tarihi || '';
+                        const db2 = b.val.syncedAt || b.val.guncelleme_tarihi || b.val.olusturma_tarihi || '';
+                        return da > db2 ? -1 : 1;
+                    });
+                    dupCount += group.length - 1;
+                }
+                const winner = group[0];
+                clean[winner.id] = winner.val;
+            }
+
+            cleanDataMap[col] = clean;
+            totalDupCount += dupCount;
+
+            const el = document.getElementById(statIds[col]);
+            if (el) el.innerHTML = `${entries.length} kayıt → <span style="color:#4ade80">${Object.keys(clean).length} benzersiz</span>, <span style="color:#ef4444">${dupCount} yinelenen</span>`;
+            log(`  Tutulacak: ${Object.keys(clean).length}  |  Silinecek: ${dupCount}`, dupCount > 0 ? '#fbbf24' : '#4ade80');
+        }
+
+        if (totalDupCount === 0) {
+            log('\n✅ Yinelenen kayıt bulunamadı! Veritabanı zaten temiz.', '#4ade80');
+            document.getElementById('btnTemizle').disabled = true;
+        } else {
+            log(`\n🔴 Toplam ${totalDupCount} yinelenen bulundu.`, '#f87171');
+            log('⚡ Temizleme tek seferde set() ile yapılacak — 5 yazma işlemi ile biter.', '#a78bfa');
+            document.getElementById('btnTemizle').disabled = false;
+        }
+    } catch (e) {
+        log('❌ Hata: ' + e.message, '#f87171');
+        console.error(e);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-search"></i> Analiz Et (Silme)';
+    }
+};
+
+window.temizle = async function() {
+    if (!Object.keys(cleanDataMap).length) {
+        log('Önce Analiz Et butonuna basın.', '#f87171');
+        return;
+    }
+    const btn = document.getElementById('btnTemizle');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yazılıyor...';
+
+    try {
+        const db = await getDb();
+        const { ref, set } = await getFirebaseFns();
+
+        // Her koleksiyonu TEK SET() çağrısıyla yaz — 93.000 silme yerine 5 yazma
+        for (const col of collections) {
+            const clean = cleanDataMap[col];
+            if (!clean) continue;
+            const originalCount = Object.keys(clean).length + (totalDupCount > 0 ? 1 : 0);
+            log(`⏳ ${col} yazılıyor (${Object.keys(clean).length} benzersiz kayıt)...`, '#60a5fa');
+            await set(ref(db, col), Object.keys(clean).length > 0 ? clean : null);
+            log(`✅ ${col} tamamlandı`, '#4ade80');
+        }
+
+        log(`\n🎉 Bitti! ${totalDupCount} yinelenen temizlendi. Yalnızca ${
+            Object.values(cleanDataMap).reduce((s,v) => s + Object.keys(v).length, 0)
+        } benzersiz kayıt kaldı.`, '#4ade80');
+
+        // LocalStorage sıfırla — sayfa yenilenince Firebase'den temiz veri çekilir
+        ['musteriler','urunler','alis_faturalari','satis_faturalari','iade_faturalari'].forEach(k => {
+            localStorage.removeItem(`emuhasebe_${k}`);
+        });
+        log('LocalStorage temizlendi. Dashboard\'a dönebilirsiniz.', '#94a3b8');
+
+        cleanDataMap = {};
+        totalDupCount = 0;
+
+    } catch (e) {
+        log('❌ Yazma hatası: ' + e.message, '#f87171');
+        console.error(e);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-trash"></i> Yinelenenları Sil';
+    }
+};
+
+window.localTemizle = function() {
+    ['musteriler','urunler','alis_faturalari','satis_faturalari','iade_faturalari'].forEach(k => {
+        localStorage.removeItem(`emuhasebe_${k}`);
+    });
+    log('✅ LocalStorage temizlendi. Sayfa yenilenince Firebase\'den taze veri çekilecek.', '#4ade80');
+};
+</script>
+{% endblock %}

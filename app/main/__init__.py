@@ -30,3 +30,9 @@ def bildirimler():
 def giris():
     """Login sayfasi - JWT API'ye fetch ile baglanan tek sayfa form"""
     return render_template('auth/login.html')
+
+
+@main_bp.route('/veri-temizle')
+def veri_temizle():
+    """Firebase yinelenen kayit temizleme aracı"""
+    return render_template('main/temizle.html')
