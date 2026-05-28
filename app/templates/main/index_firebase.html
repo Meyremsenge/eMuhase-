@@ -472,15 +472,16 @@ function createPieChart(satisCount, alisCount, iadeCount) {
 
 async function loadTables() {
     try {
-        const [satisFaturalari, alisFaturalari, iadeFaturalari, urunler] = await Promise.all([
+        const [satisFaturalari, alisFaturalari, iadeFaturalari, urunler, musteriler] = await Promise.all([
             SatisFaturalari.hepsiniGetir(),
             AlisFaturalari.hepsiniGetir(),
             IadeFaturalari.hepsiniGetir(),
-            Urunler.hepsiniGetir()
+            Urunler.hepsiniGetir(),
+            Musteriler.hepsiniGetir()
         ]);
         
-        // Son faturalar tablosu
-        renderRecentInvoices(satisFaturalari, alisFaturalari, iadeFaturalari);
+        // Son aktiviteler
+        renderRecentActivities(satisFaturalari, alisFaturalari, iadeFaturalari, urunler, musteriler);
         
         // En çok satanlar
         renderTopProducts(satisFaturalari, urunler);
@@ -491,77 +492,95 @@ async function loadTables() {
     }
 }
 
-function renderRecentInvoices(satisFaturalari, alisFaturalari, iadeFaturalari) {
-    const detailUrlTemplates = {
-        satis: "{{ url_for('satis.detay', id='__ID__') }}",
-        alis: "{{ url_for('alis.detay', id='__ID__') }}",
-        iade: "{{ url_for('iade.detay', id='__ID__') }}"
-    };
+function renderRecentActivities(satisFaturalari, alisFaturalari, iadeFaturalari, urunler, musteriler) {
+    // Tüm verileri ortak formata getir
+    const allActivities = [
+        ...satisFaturalari.map(f => ({
+            id: f.id,
+            tarih: new Date(f.olusturma_tarihi || f.fatura_tarihi),
+            icon: 'file-invoice-dollar',
+            renk: 'success',
+            baslik: 'Yeni Satış Faturası',
+            detay: `${f.fatura_no || '-'} / ${formatCurrency(parseFloat(f.genel_toplam) || 0)}`,
+            url: `/satis/detay/${f.id}`
+        })),
+        ...alisFaturalari.map(f => ({
+            id: f.id,
+            tarih: new Date(f.olusturma_tarihi || f.fatura_tarihi),
+            icon: 'file-invoice',
+            renk: 'primary',
+            baslik: 'Yeni Alış Faturası',
+            detay: `${f.fatura_no || '-'} / ${formatCurrency(parseFloat(f.genel_toplam) || 0)}`,
+            url: `/alis/detay/${f.id}`
+        })),
+        ...iadeFaturalari.map(f => ({
+            id: f.id,
+            tarih: new Date(f.olusturma_tarihi || f.fatura_tarihi),
+            icon: 'undo-alt',
+            renk: 'warning',
+            baslik: 'İade Faturası',
+            detay: `${f.fatura_no || '-'} / ${formatCurrency(parseFloat(f.genel_toplam) || 0)}`,
+            url: `/iade/detay/${f.id}`
+        })),
+        ...urunler.map(u => ({
+            id: u.id,
+            tarih: new Date(u.olusturma_tarihi || new Date()),
+            icon: 'box',
+            renk: 'orange',
+            baslik: 'Yeni Ürün/Hizmet',
+            detay: u.ad || '-',
+            url: `/urunler/duzenle/${u.id}`
+        })),
+        ...musteriler.map(m => ({
+            id: m.id,
+            tarih: new Date(m.olusturma_tarihi || new Date()),
+            icon: 'users',
+            renk: 'purple',
+            baslik: 'Yeni ' + (m.tip === 'tedarikci' ? 'Tedarikçi' : 'Müşteri'),
+            detay: m.unvan || m.ad_soyad || '-',
+            url: `/musteriler/duzenle/${m.id}`
+        }))
+    ];
 
-    // Tüm faturaları birleştir ve sırala
-    const allInvoices = [
-        ...satisFaturalari.map(f => ({ ...f, tip: 'satis', tipLabel: 'Satış' })),
-        ...alisFaturalari.map(f => ({ ...f, tip: 'alis', tipLabel: 'Alış' })),
-        ...iadeFaturalari.map(f => ({ ...f, tip: 'iade', tipLabel: 'İade' }))
-    ].sort((a, b) => new Date(b.fatura_tarihi || b.olusturma_tarihi) - new Date(a.fatura_tarihi || a.olusturma_tarihi))
-     .slice(0, 8);
+    // Tarihe göre yeniden eskiye sırala ve en son 8 kaydı al
+    allActivities.sort((a, b) => b.tarih - a.tarih);
+    const recentActivities = allActivities.slice(0, 8);
     
-    const container = document.getElementById('recentInvoicesTable');
+    const container = document.getElementById('recentActivitiesList');
     
-    if (allInvoices.length === 0) {
+    if (recentActivities.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <i class="fas fa-file-invoice"></i>
-                <p>Veri yok</p>
+                <div class="empty-state-icon">
+                    <i class="fas fa-history"></i>
+                </div>
+                <p>Henüz aktivite yok</p>
             </div>
         `;
         return;
     }
     
-    // XSS önlemek için escape ediyoruz
-    const esc = (s) => String(s == null ? '' : s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
 
     container.innerHTML = `
         <table class="premium-table">
-            <thead>
-                <tr>
-                    <th>Tip</th>
-                    <th>Fatura No</th>
-                    <th>Müşteri/Tedarikçi</th>
-                    <th>Tutar</th>
-                    <th>Durum</th>
-                </tr>
-            </thead>
             <tbody>
-                ${allInvoices.map(f => {
-                    const durum = f.durum || 'beklemede';
-                    const durumClass = durum === 'odendi' ? 'success' : durum === 'beklemede' ? 'warning' : 'danger';
-                    const durumLabel = durum === 'odendi' ? 'Ödendi' : durum === 'beklemede' ? 'Beklemede' : 'Gecikmiş';
-                    const tarih = new Date(f.fatura_tarihi || f.olusturma_tarihi).toLocaleDateString('tr-TR');
-                    const detailUrl = detailUrlTemplates[f.tip]
-                        ? detailUrlTemplates[f.tip].replace('__ID__', encodeURIComponent(f.id || ''))
-                        : '#';
-                    const safeTipClass = (f.tip === 'satis' || f.tip === 'alis' || f.tip === 'iade') ? f.tip : 'satis';
-
-                    return `
-                        <tr class="table-row-link" data-href="${esc(detailUrl)}" onclick="window.location.href=this.dataset.href">
-                            <td>
-                                <div class="invoice-type">
-                                    <div class="invoice-type-icon ${safeTipClass}">
-                                        <i class="fas fa-${safeTipClass === 'satis' ? 'arrow-up' : safeTipClass === 'alis' ? 'arrow-down' : 'rotate-left'}"></i>
-                                    </div>
-                                    <span>${esc(f.tipLabel)}</span>
-                                </div>
-                            </td>
-                            <td><strong>${esc(f.fatura_no || ('FTR-' + (f.id?.slice(-6) || '')))}</strong><br><small class="table-date">${esc(tarih)}</small></td>
-                            <td>${esc(f.musteri_adi || f.tedarikci_adi || '-')}</td>
-                            <td><strong>${formatCurrency(parseFloat(f.genel_toplam) || 0)}</strong></td>
-                            <td><span class="table-badge ${durumClass}">${durumLabel}</span></td>
-                        </tr>
-                    `;
-                }).join('')}
+                ${recentActivities.map(a => `
+                    <tr class="table-row-link" onclick="window.location.href='${esc(a.url)}'">
+                        <td style="width: 50px;">
+                            <div class="invoice-type-icon bg-${esc(a.renk)} text-white u-round-full u-flex u-align-center u-justify-center" style="width: 36px; height: 36px; display: inline-flex;">
+                                <i class="fas fa-${esc(a.icon)}"></i>
+                            </div>
+                        </td>
+                        <td>
+                            <strong style="color: var(--text-primary); font-size: 0.95rem;">${esc(a.baslik)}</strong><br>
+                            <span style="color: var(--text-secondary); font-size: 0.85rem;">${esc(a.detay)}</span>
+                        </td>
+                        <td class="u-text-right">
+                            <small class="table-date">${a.tarih.toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit' })}</small>
+                        </td>
+                    </tr>
+                `).join('')}
             </tbody>
         </table>
     `;
