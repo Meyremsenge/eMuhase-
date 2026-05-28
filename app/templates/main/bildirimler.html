@@ -405,6 +405,12 @@
         <button class="notif-filter-btn" data-filter="Ödeme" onclick="filterNotifs('Ödeme', this)">
             <i class="fas fa-credit-card"></i> Ödeme <span class="count-pill" id="countOdeme">0</span>
         </button>
+        <button class="notif-filter-btn" data-filter="İade" onclick="filterNotifs('İade', this)">
+            <i class="fas fa-undo-alt"></i> İade <span class="count-pill" id="countIade">0</span>
+        </button>
+        <button class="notif-filter-btn" data-filter="Stok" onclick="filterNotifs('Stok', this)">
+            <i class="fas fa-box-open"></i> Stok <span class="count-pill" id="countStok">0</span>
+        </button>
     </div>
 
     <!-- Yükleniyor -->
@@ -448,7 +454,9 @@ const catIcons = {
     'Ödeme': 'credit-card',
     'Müşteri': 'users',
     'Finansal': 'chart-line',
-    'AI Anomali': 'robot'
+    'AI Anomali': 'robot',
+    'İade': 'undo-alt',
+    'Stok': 'box-open'
 };
 
 // Bildirim text/detail kullanıcı kontrolündeki alanlardan oluşabilir → XSS önle
@@ -544,6 +552,8 @@ function updateCounts(notifs) {
     const success = notifs.filter(n => n.type === 'success').length;
     const ai      = notifs.filter(n => n.category === 'AI Anomali').length;
     const odeme   = notifs.filter(n => n.category === 'Ödeme').length;
+    const iade    = notifs.filter(n => n.category === 'İade').length;
+    const stok    = notifs.filter(n => n.category === 'Stok').length;
 
     document.getElementById('totalBadge').textContent = total;
     document.getElementById('sumTotal').textContent   = total;
@@ -557,6 +567,10 @@ function updateCounts(notifs) {
     document.getElementById('countSuccess').textContent = success;
     document.getElementById('countAI').textContent     = ai;
     document.getElementById('countOdeme').textContent  = odeme;
+    const iadeEl = document.getElementById('countIade');
+    const stokEl = document.getElementById('countStok');
+    if (iadeEl) iadeEl.textContent = iade;
+    if (stokEl) stokEl.textContent = stok;
 }
 
 function loadNotifications() {
