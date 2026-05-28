@@ -1,11 +1,39 @@
 {% extends 'base.html' %}
-
 {% block title %}Ürünler / Hizmetler - eMuhasebe Pro{% endblock %}
-
 {% block page_title %}Ürünler / Hizmetler{% endblock %}
 {% block page_subtitle %}Ürün ve hizmet tanımları{% endblock %}
-
 {% block header_actions %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.filter-row { display:flex; flex-wrap:wrap; gap:.75rem; align-items:flex-end; padding:1rem 1.25rem; border-bottom:1px solid var(--glass-border); background:var(--bg-900); }
+.filter-row .fg { display:flex; flex-direction:column; gap:.3rem; }
+.filter-row .fg label { font-size:.75rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; }
+.filter-row .fg input, .filter-row .fg select { min-width:200px; }
+.filter-row .fg.grow { flex:1; }
+.filter-actions { display:flex; gap:.5rem; align-self:flex-end; flex-wrap:wrap; }
+.tbl-summary { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem; padding:.6rem 1.25rem; border-top:1px solid var(--glass-border); background:var(--bg-900); font-size:.82rem; color:var(--text-muted); }
+.pg-bar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; padding:.75rem 1.25rem; background:var(--bg-900); border-top:1px solid var(--glass-border); border-radius:0 0 12px 12px; }
+.pg-info { font-size:.8rem; color:var(--text-muted); white-space:nowrap; }
+.pg-nav { display:flex; align-items:center; gap:.25rem; flex-wrap:wrap; }
+.pg-btn { min-width:34px; height:34px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg-800); color:var(--text-primary); font-size:.82rem; cursor:pointer; padding:0 .6rem; transition:background .15s,color .15s,border-color .15s; display:inline-flex; align-items:center; justify-content:center; font-weight:500; }
+.pg-btn:hover:not(:disabled) { background:var(--primary-600); color:#fff; border-color:var(--primary-600); }
+.pg-btn.active { background:var(--primary-600); color:#fff; border-color:var(--primary-600); font-weight:700; }
+.pg-btn:disabled { opacity:.4; cursor:not-allowed; }
+.pg-ellipsis { padding:0 .3rem; color:var(--text-muted); font-size:.82rem; }
+.pg-size { display:flex; align-items:center; gap:.5rem; font-size:.8rem; color:var(--text-muted); }
+.pg-size select { padding:.25rem .5rem; border-radius:6px; border:1px solid var(--glass-border); background:var(--bg-800); color:var(--text-primary); font-size:.8rem; cursor:pointer; }
+th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+th.sortable:hover { background:color-mix(in srgb, var(--primary-600) 6%, transparent); }
+th.sortable .sort-icon { margin-left:.3rem; opacity:.4; font-size:.7rem; }
+th.sortable.asc .sort-icon::after { content:'▲'; opacity:1; }
+th.sortable.desc .sort-icon::after { content:'▼'; opacity:1; }
+th.sortable:not(.asc):not(.desc) .sort-icon::after { content:'⇅'; }
+.skeleton-row { display:flex; gap:1rem; padding:.9rem 1.25rem; border-bottom:1px solid var(--glass-border); }
+.sk { background:var(--bg-700); border-radius:4px; animation:pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -14,266 +42,238 @@
         <p class="page-subtitle">Ürün ve hizmet tanımları</p>
     </div>
     <div class="page-actions">
-        <a href="{{ url_for('urunler.yeni') }}" class="btn btn-primary" aria-label="Yeni ürün veya hizmet ekle">
-            <i class="fas fa-plus" aria-hidden="true"></i>
-            Yeni Ürün/Hizmet
-        </a>
+        <a href="{{ url_for('urunler.yeni') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Yeni Ürün/Hizmet</a>
     </div>
 </div>
 
-<!-- Filtreler -->
-<div class="filter-bar" role="search" aria-label="Ürün filtreleme">
-    <div class="flex flex-wrap gap-1 w-full items-end">
-        <div class="form-group">
-            <label class="form-label" for="aramaInput">Arama</label>
-            <input type="text" id="aramaInput" class="form-control" placeholder="Kod veya ad..."
-                   aria-label="Ürün kodu veya adı ara">
-        </div>
-        <div class="form-group">
-            <button type="button" onclick="filtrele()" class="btn btn-primary" aria-label="Filtrele">
-                <i class="fas fa-search" aria-hidden="true"></i>
-                Filtrele
-            </button>
-            <button type="button" onclick="temizle()" class="btn btn-secondary" aria-label="Filtreleri temizle">
-                <i class="fas fa-times" aria-hidden="true"></i>
-                Temizle
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Skeleton Loader (Sprint 3) -->
-<div id="yukleniyorDiv" class="card is-hidden" aria-label="Veriler yükleniyor" aria-live="polite" role="status">
+<div id="skeletonCard" class="card">
     <div class="card-body p-0">
-        <div style="padding:1rem 1rem 0.5rem; border-bottom:1px solid var(--glass-border)">
-            <div class="skeleton-base skeleton-text skeleton-text-lg skeleton-w-1-4"></div>
-        </div>
-        {% for _ in range(5) %}
+        {% for _ in range(6) %}
         <div class="skeleton-row">
-            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:70px"></div>
-            <div class="skeleton-base skeleton-text skeleton-w-1-2" style="min-width:130px"></div>
-            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:60px"></div>
-            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:80px"></div>
-            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:80px"></div>
-            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:60px"></div>
+            <div class="sk" style="width:80px;height:16px"></div>
+            <div class="sk" style="width:180px;height:16px"></div>
+            <div class="sk" style="width:60px;height:16px"></div>
+            <div class="sk" style="width:90px;height:16px"></div>
+            <div class="sk" style="width:90px;height:16px"></div>
+            <div class="sk" style="width:70px;height:16px"></div>
+            <div class="sk" style="width:80px;height:16px;margin-left:auto"></div>
         </div>
         {% endfor %}
     </div>
 </div>
 
-<!-- Liste -->
-<div class="card" id="listeCard">
-    <div class="card-body p-0">
-        <div class="table-container" id="tblContainer">
-            <table class="table" aria-label="Ürün / Hizmet Listesi">
-                <thead>
-                    <tr>
-                        <th scope="col">Kod</th>
-                        <th scope="col">Ad</th>
-                        <th scope="col">Birim</th>
-                        <th scope="col">Alış Fiyatı</th>
-                        <th scope="col">Satış Fiyatı</th>
-                        <th scope="col">Stok</th>
-                        <th scope="col">Durum</th>
-                        <th scope="col">İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody id="urunListesi"></tbody>
-            </table>
+<div class="card is-hidden" id="listeCard">
+    <div class="filter-row">
+        <div class="fg grow">
+            <label for="aramaInput">Arama</label>
+            <input type="search" id="aramaInput" name="ara_q_x" class="form-control" placeholder="Kod veya ürün adı..." autocomplete="off" autocorrect="off" spellcheck="false">
         </div>
-
-        <!-- Empty State: Hiç kayıt yok -->
-        <div id="bosState" class="empty-state is-hidden" role="status">
-            <div class="empty-state-icon">
-                <i class="fas fa-box" aria-hidden="true"></i>
-            </div>
-            <h3>Henüz ürün yok</h3>
-            <p>İlk ürün veya hizmetinizi ekleyerek başlayın.</p>
-            <a href="{{ url_for('urunler.yeni') }}" class="btn btn-primary">
-                <i class="fas fa-plus" aria-hidden="true"></i>
-                Yeni Ürün/Hizmet Ekle
-            </a>
+        <div class="fg">
+            <label for="stokSelect">Stok Durumu</label>
+            <select id="stokSelect" class="form-control form-select">
+                <option value="">Tümü</option>
+                <option value="kritik">Kritik (≤5)</option>
+                <option value="tukendi">Tükendi (0)</option>
+            </select>
         </div>
+        <div class="filter-actions">
+            <button type="button" class="btn btn-secondary btn--sm" onclick="temizle()"><i class="fas fa-times"></i> Temizle</button>
+        </div>
+    </div>
 
-        <!-- Empty State: Filtre sonucu boş (Sprint 3) -->
-        <div id="filterBosState" class="empty-state-filter is-hidden" role="status">
-            <div class="empty-state-filter-icon">
-                <i class="fas fa-filter" aria-hidden="true"></i>
+    <div class="table-container" id="tblWrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="sortable" data-col="kod" onclick="sirala(this)">Kod <span class="sort-icon"></span></th>
+                    <th class="sortable" data-col="ad" onclick="sirala(this)">Ad <span class="sort-icon"></span></th>
+                    <th>Birim</th>
+                    <th class="sortable" data-col="alis_fiyat" onclick="sirala(this)">Alış Fiyatı <span class="sort-icon"></span></th>
+                    <th class="sortable" data-col="satis_fiyat" onclick="sirala(this)">Satış Fiyatı <span class="sort-icon"></span></th>
+                    <th class="sortable" data-col="stok_miktari" onclick="sirala(this)">Stok <span class="sort-icon"></span></th>
+                    <th>Durum</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="urunListesi"></tbody>
+        </table>
+    </div>
+
+    <div id="bosState" class="empty-state is-hidden">
+        <div class="empty-state-icon"><i class="fas fa-box"></i></div>
+        <h3>Henüz ürün yok</h3>
+        <p>İlk ürün veya hizmetinizi ekleyerek başlayın.</p>
+        <a href="{{ url_for('urunler.yeni') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Yeni Ürün/Hizmet</a>
+    </div>
+    <div id="filterBosState" class="is-hidden" style="padding:2rem;text-align:center;color:var(--text-muted)">
+        <i class="fas fa-search" style="font-size:2rem;margin-bottom:.75rem;display:block;opacity:.4"></i>
+        <strong>Eşleşen ürün bulunamadı</strong>
+        <p style="margin:.25rem 0 .75rem;font-size:.85rem">Farklı bir anahtar kelime deneyin.</p>
+        <button class="btn btn-secondary btn--sm" onclick="temizle()"><i class="fas fa-times"></i> Filtreleri Temizle</button>
+    </div>
+
+    <div id="tblFooter" class="is-hidden">
+        <div class="tbl-summary"><span id="sonucSayisi"></span></div>
+        <div class="pg-bar">
+            <div class="pg-info" id="pgInfo"></div>
+            <div class="pg-nav" id="pgNav"></div>
+            <div class="pg-size">
+                <span>Sayfa başına:</span>
+                <select id="pgSizeSelect" onchange="sayfaBoyutuDegistir(+this.value)">
+                    <option value="25">25</option><option value="50" selected>50</option>
+                    <option value="100">100</option><option value="200">200</option>
+                </select>
             </div>
-            <h4>Arama kriterlerine uyan ürün bulunamadı</h4>
-            <p>Farklı bir anahtar kelime deneyin.</p>
-            <button type="button" class="btn btn--ghost" onclick="temizle()" aria-label="Aramayı temizle">
-                <i class="fas fa-times" aria-hidden="true"></i> Aramayı Temizle
-            </button>
         </div>
     </div>
 </div>
-
-<div id="sonucSayisi" class="mt-1 text-center text-muted" aria-live="polite" aria-atomic="true"></div>
 {% endblock %}
 
 {% block extra_js %}
 <script type="module">
 import { init, Urunler } from '{{ url_for("static", filename="js/db.js") }}';
 
-let tumUrunler = [];
+let tumUrunler = [], filtreli = [];
+let currentPage = 1, pageSize = 50, sortCol = 'ad', sortDir = 'asc';
 
-document.addEventListener('DOMContentLoaded', () => {
-    const yukleniyorDiv = document.getElementById('yukleniyorDiv');
-    const listeCard     = document.getElementById('listeCard');
-    yukleniyorDiv.classList.remove('is-hidden');
-    listeCard.style.display = 'none';
+const paraFmt = v => new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2 }).format(v || 0);
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const num = u => ({ alis: u.alis_fiyat ?? u.birim_fiyat ?? 0, satis: u.satis_fiyat ?? u.birim_fiyat ?? 0, stok: parseFloat(u.stok_miktari ?? u.stok ?? 0) });
 
-    Urunler.dinle((urunler) => {
-        tumUrunler = urunler;
-        yukleniyorDiv.classList.add('is-hidden');
-        listeCard.style.display = 'block';
-        listeyiGuncelle(urunler, false);
-    });
+document.addEventListener('DOMContentLoaded', async () => {
+    const ai = document.getElementById('aramaInput');
+    ai.value = ''; requestAnimationFrame(() => { ai.value = ''; });
 
-    // Arama: 250ms debounce
-    const aramaInput = document.getElementById('aramaInput');
-    let _debounceTimer = null;
-    if (aramaInput) aramaInput.addEventListener('input', () => {
-        clearTimeout(_debounceTimer);
-        _debounceTimer = setTimeout(() => window.filtrele(), 250);
-    });
+    await init();
+    tumUrunler = (await Urunler.hepsiniGetir()).sort((a,b)=>(a.ad||'').localeCompare(b.ad||'','tr'));
+
+    document.getElementById('skeletonCard').classList.add('is-hidden');
+    document.getElementById('listeCard').classList.remove('is-hidden');
+    filtreli = tumUrunler;
+    renderSayfa();
+
+    let timer;
+    ai.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(uygula, 180); });
+    document.getElementById('stokSelect').addEventListener('change', uygula);
 });
 
-function paraFormat(tutar) {
-    return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tutar || 0);
+function uygula() {
+    const q = document.getElementById('aramaInput').value.toLowerCase().trim();
+    const s = document.getElementById('stokSelect').value;
+    filtreli = tumUrunler.filter(u => {
+        const matchQ = !q || (u.kod||'').toLowerCase().includes(q) || (u.ad||'').toLowerCase().includes(q);
+        const stok = num(u).stok;
+        const matchS = !s || (s==='kritik' && stok<=5) || (s==='tukendi' && stok<=0);
+        return matchQ && matchS;
+    });
+    currentPage = 1; renderSayfa();
 }
-
-function listeyiGuncelle(urunler, filtreUygulanmis) {
-    const tbody          = document.getElementById('urunListesi');
-    const bosState       = document.getElementById('bosState');
-    const filterBosState = document.getElementById('filterBosState');
-    const sonucSayisi    = document.getElementById('sonucSayisi');
-    const tblContainer   = document.getElementById('tblContainer');
-
-    bosState.classList.add('is-hidden');
-    filterBosState.classList.add('is-hidden');
-
-    if (urunler.length === 0) {
-        tbody.innerHTML = '';
-        tblContainer.style.display = 'none';
-        if (filtreUygulanmis) {
-            filterBosState.classList.remove('is-hidden');
-        } else {
-            bosState.classList.remove('is-hidden');
-        }
-        sonucSayisi.textContent = '';
-        return;
-    }
-
-    tblContainer.style.display = '';
-    sonucSayisi.textContent = `Toplam ${urunler.length} ürün/hizmet`;
-
-    const esc = (s) => String(s == null ? '' : s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-    tbody.innerHTML = urunler.map(urun => {
-        const alisFiyat  = urun.alis_fiyat  ?? urun.alisFiyat  ?? urun.birim_fiyat ?? urun.fiyat ?? 0;
-        const satisFiyat = urun.satis_fiyat ?? urun.satisFiyat ?? urun.birim_fiyat ?? urun.fiyat ?? 0;
-        const stok = urun.stok_miktari ?? urun.stok ?? 0;
-        const safeId = encodeURIComponent(urun.id || '');
-        return `
-        <tr>
-            <td><code>${esc(urun.kod || '-')}</code></td>
-            <td class="font-semibold">${esc(urun.ad || '-')}</td>
-            <td>${esc(urun.birim || '-')}</td>
-            <td>₺${paraFormat(alisFiyat)}</td>
-            <td>₺${paraFormat(satisFiyat)}</td>
-            <td>
-                ${parseFloat(stok) <= 5 
-                    ? `<span class="badge ${parseFloat(stok) <= 0 ? 'badge-danger' : 'badge-warning'}"><i class="fas fa-exclamation-triangle"></i> ${esc(stok)}</span> ${esc(urun.birim || '')}`
-                    : `${esc(stok)} ${esc(urun.birim || '')}`}
-            </td>
-            <td>
-                ${urun.aktif
-                    ? '<span class="badge badge-success">Aktif</span>'
-                    : '<span class="badge badge-danger">Pasif</span>'}
-            </td>
-            <td>
-                <div class="table-actions">
-                    <a href="/urunler/duzenle/${safeId}"
-                       class="btn btn-sm btn-secondary" title="Düzenle" aria-label="${esc(urun.ad || '')} ürününü düzenle">
-                        <i class="fas fa-edit" aria-hidden="true"></i>
-                    </a>
-                    <button type="button"
-                            data-id="${esc(urun.id || '')}"
-                            data-ad="${esc(urun.ad || '')}"
-                            onclick="urunSil(this.dataset.id, this.dataset.ad)"
-                            class="btn btn-sm btn-danger" title="Sil" aria-label="${esc(urun.ad || '')} ürününü sil">
-                        <i class="fas fa-trash" aria-hidden="true"></i>
-                    </button>
-                </div>
-            </td>
-        </tr>`;
-    }).join('');
-}
-
-window.filtrele = function() {
-    const arama = document.getElementById('aramaInput').value.toLowerCase().trim();
-    const filtreUygulanmis = !!arama;
-
-    let filtrelenmis = tumUrunler;
-    if (arama) {
-        filtrelenmis = filtrelenmis.filter(u =>
-            (u.kod && u.kod.toLowerCase().includes(arama)) ||
-            (u.ad  && u.ad.toLowerCase().includes(arama))
-        );
-    }
-
-    listeyiGuncelle(filtrelenmis, filtreUygulanmis);
-};
-
+window.filtrele = uygula;
 window.temizle = function() {
     document.getElementById('aramaInput').value = '';
-    listeyiGuncelle(tumUrunler, false);
+    document.getElementById('stokSelect').value = '';
+    filtreli = tumUrunler; currentPage = 1; renderSayfa();
 };
 
-window.urunSil = async function(id, ad) {
-    const confirmed = await window.showConfirm({
-        title:    'Ürünü silmek istediğinize emin misiniz?',
-        message:  'Bu işlem 5 saniye içinde geri alınabilir.',
-        itemName: ad || id,
-        okLabel:  'Ürünü Sil',
-        type:     'danger',
-        icon:     'box-open'
+window.sirala = function(th) {
+    const col = th.dataset.col;
+    if (sortCol === col) sortDir = sortDir==='asc'?'desc':'asc'; else { sortCol = col; sortDir = 'asc'; }
+    document.querySelectorAll('th.sortable').forEach(t=>t.classList.remove('asc','desc'));
+    th.classList.add(sortDir);
+    filtreli = [...filtreli].sort((a,b) => {
+        if (col==='alis_fiyat'||col==='satis_fiyat'||col==='stok_miktari') {
+            const va=parseFloat(a[col])||0, vb=parseFloat(b[col])||0;
+            return sortDir==='asc'?va-vb:vb-va;
+        }
+        const va=(a[col]||''), vb=(b[col]||'');
+        return sortDir==='asc'?va.localeCompare(vb,'tr'):vb.localeCompare(va,'tr');
     });
-    if (!confirmed) return;
+    currentPage = 1; renderSayfa();
+};
 
-    let snapshot = null;
-    try { snapshot = await Urunler.getir(id); } catch (e) { snapshot = null; }
+function renderSayfa() {
+    const tbody = document.getElementById('urunListesi');
+    const bos = document.getElementById('bosState'), fbos = document.getElementById('filterBosState');
+    const wrap = document.getElementById('tblWrap'), footer = document.getElementById('tblFooter');
+    bos.classList.add('is-hidden'); fbos.classList.add('is-hidden'); wrap.classList.add('is-hidden'); footer.classList.add('is-hidden');
 
-    try {
-        await Urunler.sil(id);
-    } catch (error) {
-        if (window.notify) notify.error('Silme işlemi başarısız: ' + error.message, 6000);
+    if (filtreli.length === 0) {
+        tbody.innerHTML = '';
+        const hasFilter = !!(document.getElementById('aramaInput').value || document.getElementById('stokSelect').value);
+        (hasFilter ? fbos : bos).classList.remove('is-hidden');
         return;
     }
+    wrap.classList.remove('is-hidden'); footer.classList.remove('is-hidden');
 
-    if (window.showUndoToast && snapshot) {
-        const undoClicked = await window.showUndoToast({
-            message: `"${ad || 'Ürün'}" silindi.`,
-            duration: 5000
-        });
-        if (undoClicked) {
-            try {
-                const { id: _omitId, olusturma_tarihi, guncelleme_tarihi, ...veri } = snapshot;
-                await Urunler.ekle(veri);
-                if (window.notify) notify.success('Ürün geri alındı.', 3000);
-            } catch (e) {
-                if (window.notify) notify.error('Geri alma başarısız: ' + e.message, 5000);
-            }
-        } else {
-            if (window.notify) notify.success('Ürün silindi.', 3000);
-        }
-    } else {
-        if (window.notify) notify.success('Ürün başarıyla silindi.', 4000);
+    const total = Math.max(1, Math.ceil(filtreli.length/pageSize));
+    currentPage = Math.min(Math.max(1,currentPage), total);
+    const start = (currentPage-1)*pageSize;
+    const sayfa = filtreli.slice(start, start+pageSize);
+    document.getElementById('sonucSayisi').textContent = `${start+1}–${Math.min(start+pageSize,filtreli.length)} / ${filtreli.length} ürün/hizmet`;
+
+    tbody.innerHTML = sayfa.map(u => {
+        const sid = encodeURIComponent(u.id||'');
+        const v = num(u);
+        const stokHtml = v.stok <= 5
+            ? `<span class="badge ${v.stok<=0?'badge-danger':'badge-warning'}"><i class="fas fa-exclamation-triangle"></i> ${esc(v.stok)}</span> ${esc(u.birim||'')}`
+            : `${esc(v.stok)} ${esc(u.birim||'')}`;
+        const durum = u.aktif ? '<span class="badge badge-success">Aktif</span>' : '<span class="badge badge-danger">Pasif</span>';
+        return `<tr>
+            <td><code>${esc(u.kod||'-')}</code></td>
+            <td class="u-font-semibold">${esc(u.ad||'-')}</td>
+            <td>${esc(u.birim||'-')}</td>
+            <td>₺${paraFmt(v.alis)}</td>
+            <td>₺${paraFmt(v.satis)}</td>
+            <td>${stokHtml}</td>
+            <td>${durum}</td>
+            <td><div class="table-actions">
+                <a href="/urunler/duzenle/${sid}" class="btn btn-sm btn-secondary" title="Düzenle"><i class="fas fa-edit"></i></a>
+                <button data-id="${esc(u.id||'')}" data-ad="${esc(u.ad||'')}" onclick="urunSil(this.dataset.id,this.dataset.ad)" class="btn btn-sm btn-danger" title="Sil"><i class="fas fa-trash"></i></button>
+            </div></td>
+        </tr>`;
+    }).join('');
+    renderPagination(currentPage, total);
+}
+
+function renderPagination(cur, total) {
+    document.getElementById('pgInfo').textContent = `${cur} / ${total} sayfa`;
+    const nav = document.getElementById('pgNav');
+    if (total <= 1) { nav.innerHTML = ''; return; }
+    const mk = (p,l,a,d) => `<button class="pg-btn${a?' active':''}" onclick="sayfaGit(${p})" ${d?'disabled':''}>${l}</button>`;
+    let h = mk(cur-1,'‹',false,cur<=1);
+    if (total<=7) { for(let i=1;i<=total;i++) h+=mk(i,i,i===cur,false); }
+    else {
+        h += mk(1,1,cur===1,false);
+        if (cur>3) h += '<span class="pg-ellipsis">…</span>';
+        for (let i=Math.max(2,cur-1);i<=Math.min(total-1,cur+1);i++) h+=mk(i,i,i===cur,false);
+        if (cur<total-2) h += '<span class="pg-ellipsis">…</span>';
+        h += mk(total,total,cur===total,false);
     }
+    h += mk(cur+1,'›',false,cur>=total);
+    nav.innerHTML = h;
+}
+
+window.sayfaGit = function(p){ currentPage=p; renderSayfa(); window.scrollTo({top:0,behavior:'smooth'}); };
+window.sayfaBoyutuDegistir = function(n){ pageSize=n; currentPage=1; renderSayfa(); };
+
+window.urunSil = async function(id, ad) {
+    const ok = await window.showConfirm?.({ title:'Ürün silinsin mi?', message:'5 saniye içinde geri alınabilir.', itemName:ad||id, okLabel:'Sil', type:'danger', icon:'box-open' }) ?? confirm(`"${ad}" silinsin mi?`);
+    if (!ok) return;
+    let snap = null;
+    try { snap = await Urunler.getir(id); } catch(e) {}
+    try { await Urunler.sil(id); tumUrunler = tumUrunler.filter(u=>u.id!==id); uygula(); }
+    catch(err) { window.notify?.error('Silme başarısız: '+err.message); return; }
+    if (window.showUndoToast && snap) {
+        const undo = await window.showUndoToast({ message:`"${ad}" silindi.`, duration:5000 });
+        if (undo) {
+            try {
+                const { id:_, olusturma_tarihi, guncelleme_tarihi, ...veri } = snap;
+                const nid = await Urunler.ekle(veri);
+                tumUrunler = [...tumUrunler,{id:nid,...veri}].sort((a,b)=>(a.ad||'').localeCompare(b.ad||'','tr'));
+                uygula(); window.notify?.success('Ürün geri alındı.');
+            } catch(e){ window.notify?.error('Geri alma başarısız.'); }
+        }
+    } else window.notify?.success('Ürün silindi.');
 };
 </script>
 {% endblock %}

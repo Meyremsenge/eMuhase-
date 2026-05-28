@@ -1685,12 +1685,15 @@ textarea.form-control {
 
 .invoice-totals {
     margin-top: 1rem;
-    padding: 1.25rem;
+    margin-left: auto;
+    padding: 1rem 1.25rem;
     background: var(--bg-800);
     border-radius: var(--r-xl);
     border: 1px solid var(--bg-600);
     display: flex;
-    justify-content: flex-end;
+    flex-direction: column;
+    width: 340px;
+    max-width: 100%;
 }
 
 .invoice-totals-table { width: 300px; }
@@ -1718,6 +1721,26 @@ textarea.form-control {
 
 .invoice-items-form { margin-top: 1rem; }
 
+/* Kalem tablosu başlık satırı — kullanıcı hangi alana ne yazacağını görsün */
+.invoice-items-header {
+    display: grid;
+    grid-template-columns: 3fr 1fr 1fr 1fr 1fr auto;
+    gap: 0.625rem;
+    padding: 0 0.75rem 0.5rem;
+    margin-bottom: 0.25rem;
+    border-bottom: 2px solid var(--glass-border);
+}
+.invoice-items-header span {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-muted);
+}
+.invoice-items-header .col-num { text-align: right; }
+.invoice-items-header .col-sil { width: 32px; }
+@media (max-width: 900px) { .invoice-items-header { display: none; } }
+
 .invoice-item-row {
     display: grid;
     grid-template-columns: 3fr 1fr 1fr 1fr 1fr auto;
@@ -1727,9 +1750,13 @@ textarea.form-control {
     border: 1px solid var(--glass-border);
     border-radius: var(--r-lg);
     margin-bottom: 0.5rem;
-    align-items: center;
+    align-items: start;
     transition: var(--transition);
 }
+/* Tek satırlık inputlar, ürün seçim bloğunun (dropdown+açıklama) ilk satırıyla hizalansın */
+.invoice-item-row > input,
+.invoice-item-row > select.kalem-kdv,
+.invoice-item-row > .btn-remove-item { margin-top: 0; }
 
 .invoice-item-row:hover { border-color: var(--glass-border-bright); }
 .invoice-item-row .form-control { margin-bottom: 0; }

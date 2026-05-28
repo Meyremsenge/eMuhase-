@@ -98,6 +98,14 @@
             </div>
         </div>
         <div class="card-body">
+            <div class="invoice-items-header">
+                <span>Ürün / Hizmet</span>
+                <span class="col-num">Miktar</span>
+                <span class="col-num">Birim Fiyat (₺)</span>
+                <span>KDV %</span>
+                <span class="col-num">Toplam</span>
+                <span class="col-sil"></span>
+            </div>
             <div class="invoice-items-form" id="kalemlerContainer"></div>
             
             <div class="u-flex u-gap-0-5 u-flex-wrap">
@@ -165,9 +173,9 @@ function bugun() {
 
 // Sayfa yüklendiğinde
 document.addEventListener('DOMContentLoaded', async () => {
-    // Bugünün tarihini ayarla
+    await init();
     document.getElementById('fatura_tarihi').value = bugun();
-    
+
     // Tedarikçileri yükle
     tedarikciler = await Musteriler.hepsiniGetir();
     const tedarikciSelect = document.getElementById('tedarikci_id');
@@ -190,19 +198,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('fatura_no').value = fatura.fatura_no || '';
             document.getElementById('fatura_tarihi').value = fatura.fatura_tarihi || '';
             document.getElementById('vade_tarihi').value = fatura.vade_tarihi || '';
-            document.getElementById('tedarikci_id').value = fatura.tedarikci_id || '';
             document.getElementById('durum').value = fatura.durum || 'beklemede';
             document.getElementById('aciklama').value = fatura.aciklama || '';
-            
-            // Kalemleri yükle
-            if (fatura.kalemler && fatura.kalemler.length > 0) {
-                fatura.kalemler.forEach(kalem => kalemEkle(kalem));
-            } else {
-                kalemEkle();
+
+            const tedSelect = document.getElementById('tedarikci_id');
+            if (fatura.tedarikci_id) {
+                tedSelect.value = fatura.tedarikci_id;
+            } else if (fatura.tedarikci_adi) {
+                const opt = [...tedSelect.options].find(o => o.textContent.trim() === fatura.tedarikci_adi.trim());
+                if (opt) tedSelect.value = opt.value;
             }
+
+            const kalemList = Array.isArray(fatura.kalemler)
+                ? fatura.kalemler
+                : (fatura.kalemler ? Object.values(fatura.kalemler) : []);
+            if (kalemList.length > 0) kalemList.forEach(k => kalemEkle(k));
+            else kalemEkle();
+        } else {
+            kalemEkle();
         }
     } else {
-        // Yeni fatura - boş kalem ekle
         kalemEkle();
     }
 });
@@ -210,21 +225,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Kalem ekle
 window.kalemEkle = function(kalem = null) {
     kalemSayaci++;
+    const localId = kalemSayaci;
     const container = document.getElementById('kalemlerContainer');
-    
+
     const row = document.createElement('div');
     row.className = 'invoice-item-row';
-    row.id = `kalem-${kalemSayaci}`;
-    
+    row.id = `kalem-${localId}`;
+
+    const mevcutAciklama = kalem?.aciklama || kalem?.urun_adi || kalem?.ad || '';
+    const mevcutUrunId   = kalem?.urun_id || '';
+    // Alışta ürünün ALIŞ fiyatı önerilir
+    const urunOptions = urunler.map(u =>
+        `<option value="${u.id}" data-fiyat="${u.alis_fiyat||0}" data-kdv="${u.kdv_orani||20}" data-ad="${(u.ad||'').replace(/"/g,'&quot;')}" ${mevcutUrunId===u.id?'selected':''}>
+            ${u.ad}${u.kod ? ' ('+u.kod+')' : ''}
+        </option>`).join('');
+
     row.innerHTML = `
-        <input type="text" name="kalem_aciklama[]" class="form-control" 
-            placeholder="Ürün/Hizmet açıklaması" value="${kalem?.aciklama || ''}" required>
-        <input type="number" name="kalem_miktar[]" class="form-control kalem-miktar" 
-            step="0.01" min="0" placeholder="Miktar" value="${kalem?.miktar || 1}" 
-            onchange="toplamlariHesapla()" required>
-        <input type="number" name="kalem_fiyat[]" class="form-control kalem-fiyat" 
-            step="0.01" min="0" placeholder="Birim Fiyat" value="${kalem?.birim_fiyat || 0}" 
-            onchange="toplamlariHesapla()" required>
+        <input type="hidden" name="kalem_urun_id[]" class="kalem-urun-id" value="${mevcutUrunId}">
+        <div style="display:flex;flex-direction:column;gap:4px">
+            <select class="form-control form-select kalem-urun-sec" onchange="urunSecildi(this)">
+                <option value="">— Ürün seç (opsiyonel) —</option>
+                ${urunOptions}
+            </select>
+            <input type="text" name="kalem_aciklama[]" class="form-control kalem-aciklama" placeholder="Ürün/Hizmet adı veya açıklama" value="${mevcutAciklama.replace(/"/g,'&quot;')}" required autocomplete="off">
+        </div>
+        <input type="number" name="kalem_miktar[]" class="form-control kalem-miktar" step="0.01" min="0" placeholder="Miktar" value="${kalem?.miktar || 1}" onchange="toplamlariHesapla()" required>
+        <input type="number" name="kalem_fiyat[]" class="form-control kalem-fiyat" step="0.01" min="0" placeholder="Birim Fiyat" value="${kalem?.birim_fiyat || 0}" onchange="toplamlariHesapla()" required>
         <select name="kalem_kdv[]" class="form-control form-select kalem-kdv" onchange="toplamlariHesapla()">
             <option value="0" ${kalem?.kdv_orani == 0 ? 'selected' : ''}>%0</option>
             <option value="1" ${kalem?.kdv_orani == 1 ? 'selected' : ''}>%1</option>
@@ -234,12 +260,25 @@ window.kalemEkle = function(kalem = null) {
             <option value="20" ${!kalem || kalem?.kdv_orani == 20 ? 'selected' : ''}>%20</option>
         </select>
         <input type="text" class="form-control kalem-toplam" readonly value="₺0,00">
-        <button type="button" onclick="kalemSil(${kalemSayaci})" class="btn-remove-item" title="Kalemi Sil">
+        <button type="button" onclick="kalemSil(${localId})" class="btn-remove-item" title="Kalemi Sil">
             <i class="fas fa-times"></i>
         </button>
     `;
-    
+
     container.appendChild(row);
+    toplamlariHesapla();
+};
+
+// Ürün seçilince açıklama/fiyat/kdv otomatik doldur
+window.urunSecildi = function(sel) {
+    const row = sel.closest('.invoice-item-row');
+    const opt = sel.selectedOptions[0];
+    if (!opt || !opt.value) return;
+    row.querySelector('.kalem-urun-id').value = opt.value;
+    row.querySelector('.kalem-aciklama').value = opt.dataset.ad || '';
+    row.querySelector('.kalem-fiyat').value = opt.dataset.fiyat || 0;
+    const kdvSel = row.querySelector('.kalem-kdv');
+    [...kdvSel.options].forEach(o => { o.selected = o.value == (opt.dataset.kdv || 20); });
     toplamlariHesapla();
 };
 
@@ -519,8 +558,13 @@ window.kaydet = async function(e) {
         const tutar = miktar * birim_fiyat;
         const kdv_tutar = tutar * kdv_orani / 100;
         
+        const aciklama = row.querySelector('input[name="kalem_aciklama[]"]').value;
+        const urun_id  = row.querySelector('.kalem-urun-id')?.value || '';
+        const urun = urunler.find(u => u.id === urun_id);
         kalemler.push({
-            aciklama: row.querySelector('input[name="kalem_aciklama[]"]').value,
+            urun_id,
+            urun_adi: urun?.ad || aciklama,
+            aciklama,
             miktar,
             birim_fiyat,
             kdv_orani,

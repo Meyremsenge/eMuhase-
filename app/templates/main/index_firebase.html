@@ -786,13 +786,17 @@ async function loadNotificationsAndActivity() {
             tumAnomali.slice(0, 5).forEach(a => {
                 const toplam = getFaturaToplam(a);
                 const faturaTipi = a._tip;
+                // Spesifik faturanın detay sayfasına yönlendir (id varsa); yoksa liste sayfası
+                const detayLink = a.id
+                    ? (faturaTipi === 'satis' ? `/satis/detay/${encodeURIComponent(a.id)}` : `/alis/detay/${encodeURIComponent(a.id)}`)
+                    : (faturaTipi === 'satis' ? "{{ url_for('satis.liste') }}" : "{{ url_for('alis.liste') }}");
                 notifications.push({
                     type: 'danger',
                     icon: a.seviye === 'kritik' ? 'exclamation-circle' : 'exclamation-triangle',
                     category: 'AI Anomali',
                     text: `Şüpheli fatura: ${a.fatura_no || a.musteri_adi || 'Fatura'} — ${formatMoneySafe(toplam)}`,
                     detail: `Fatura No: ${a.fatura_no || 'Bilinmiyor'} | Müşteri/Tedarikçi: ${a.musteri_adi || a.tedarikci_adi || 'Bilinmiyor'} | Tutar: ${formatMoneySafe(toplam)} | Durum: ${a.seviye === 'kritik' ? 'Kritik' : 'İnceleme'}.`,
-                    link: faturaTipi === 'satis' ? "{{ url_for('satis.liste') }}" : "{{ url_for('alis.liste') }}",
+                    link: detayLink,
                     time: 'Bildirim'
                 });
             });
@@ -1004,15 +1008,20 @@ function initNotificationDropdown() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initNotificationDropdown();
     updateDateTime();
     setInterval(updateDateTime, 1000);
+
+    // ÖNEMLİ: Firebase bağlantısı kurulmadan veri çekilirse boş LocalStorage okunur
+    // ve "veri yok" görünür. Bu yüzden önce init()'i bekliyoruz.
+    await init();
+
     loadDashboardStats();
     loadCharts();
     loadTables();
-    loadNotificationsAndActivity(); // Bölüm 4/4
-    loadNakitAkisiTahmini();        // AI: Nakit Akışı Tahmini
+    loadNotificationsAndActivity();
+    loadNakitAkisiTahmini();
 });
 
 window.reloadDashboard = () => { 
@@ -1150,9 +1159,6 @@ async function loadNakitAkisiTahmini() {
                     </div>
                 </div>
             `).join('')}
-            <div class="nakit-tahmin-footer">
-                <i class="fas fa-info-circle"></i> Regresyon + Hareketli Ortalama tahminidir
-            </div>
         `;
 
         console.log('📈 Nakit akışı tahmini yüklendi!');
@@ -1243,8 +1249,23 @@ async function analyzeWithAI() {
     btn.classList.add('loading');
     btn.innerHTML = '<i class="fas fa-spinner"></i><span>Analiz Ediliyor...</span>';
     placeholder.style.display = 'none';
+    loading.classList.remove('is-hidden');  // .is-hidden display:none !important — class ile yönet
     loading.style.display = 'flex';
     results.classList.remove('active');
+
+    // Geçen süreyi sayan timer başlat
+    const _aiBaslangic = Date.now();
+    const _aiTimerVal = document.getElementById('aiTimerVal');
+    const _aiTimerHint = document.getElementById('aiTimerHint');
+    if (_aiTimerVal) _aiTimerVal.textContent = '0';
+    window._aiTimerInterval = setInterval(() => {
+        const sn = Math.floor((Date.now() - _aiBaslangic) / 1000);
+        if (_aiTimerVal) _aiTimerVal.textContent = sn;
+        if (_aiTimerHint) {
+            if (sn > 40) _aiTimerHint.textContent = 'Beklenenden uzun sürüyor, lütfen biraz daha bekleyin...';
+            else if (sn > 20) _aiTimerHint.textContent = 'Neredeyse tamam, yanıt hazırlanıyor...';
+        }
+    }, 1000);
 
     try {
         const [musteriler, urunler, satisFaturalari, alisFaturalari, iadeFaturalari] = await Promise.all([
@@ -1387,6 +1408,7 @@ ${dataSummary}`;
         const pmClass = parseFloat(profitMargin)>=0 ? 'pos' : 'neg';
         const netClass = netProfit>=0 ? 'pos' : 'neg';
 
+        loading.classList.add('is-hidden');
         loading.style.display = 'none';
         results.classList.add('active');
         results.innerHTML = `
@@ -1489,10 +1511,12 @@ ${dataSummary}`;
 </div>`;
     } catch (error) {
         console.error('AI analiz hatası:', error);
+        loading.classList.add('is-hidden');
         loading.style.display = 'none';
         results.innerHTML = `<div class="air-report"><div class="air-error"><i class="fas fa-exclamation-circle"></i><div><strong>Analiz tamamlanamadı</strong> — ${error.message}</div></div></div>`;
         results.classList.add('active');
     } finally {
+        if (window._aiTimerInterval) { clearInterval(window._aiTimerInterval); window._aiTimerInterval = null; }
         btn.disabled = false;
         btn.classList.remove('loading');
         btn.innerHTML = '<i class="fas fa-crown"></i><span>AI Analiz</span>';

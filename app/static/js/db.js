@@ -318,106 +318,245 @@ const LocalDB = {
 };
 
 function buildSeedDate(offsetDays) {
-    return new Date(Date.now() - offsetDays * 24 * 60 * 60 * 1000).toISOString();
+    return new Date(Date.now() - offsetDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+}
+
+function mkFatura(kalemler) {
+    const ara = kalemler.reduce((s, k) => s + k.miktar * k.birim_fiyat, 0);
+    const kdv = kalemler.reduce((s, k) => s + k.miktar * k.birim_fiyat * (k.kdv_orani / 100), 0);
+    return { ara_toplam: Math.round(ara), kdv_toplam: Math.round(kdv), genel_toplam: Math.round(ara + kdv) };
+}
+
+function mkKalem(urun, miktar) {
+    const tutar = urun.satis_fiyat * miktar;
+    const kdv_tutar = tutar * (urun.kdv_orani / 100);
+    return { urun_id: urun.id, urun_adi: urun.ad, aciklama: urun.ad, birim: urun.birim, miktar, birim_fiyat: urun.satis_fiyat, kdv_orani: urun.kdv_orani, tutar, kdv_tutar, genel_toplam: tutar + kdv_tutar };
+}
+
+function mkAlisKalem(urun, miktar) {
+    const tutar = urun.alis_fiyat * miktar;
+    const kdv_tutar = tutar * (urun.kdv_orani / 100);
+    return { urun_id: urun.id, urun_adi: urun.ad, aciklama: urun.ad, birim: urun.birim, miktar, birim_fiyat: urun.alis_fiyat, kdv_orani: urun.kdv_orani, tutar, kdv_tutar, genel_toplam: tutar + kdv_tutar };
 }
 
 function createSeedData() {
-    // Müşteriler ve tedarikçiler — form/list ile aynı alan adlarını kullanır:
-    // unvan, tip ∈ {musteri, tedarikci, her_ikisi}, vergi_no, telefon, email, adres, aktif
     const customers = {
-        customer_1:  { unvan: 'Atlas Endüstri A.Ş.',       tip: 'musteri',   vergi_no: '1112223334', telefon: '0212 555 01 01', email: 'info@atlas.com',  adres: 'İstanbul', aktif: true, olusturma_tarihi: buildSeedDate(42), guncelleme_tarihi: buildSeedDate(42) },
-        customer_2:  { unvan: 'Nova Teknoloji Ltd. Şti.',  tip: 'musteri',   vergi_no: '2223334445', telefon: '0312 555 01 02', email: 'info@nova.com',   adres: 'Ankara',   aktif: true, olusturma_tarihi: buildSeedDate(35), guncelleme_tarihi: buildSeedDate(35) },
-        customer_3:  { unvan: 'Mavi Sağlık Hizmetleri',    tip: 'musteri',   vergi_no: '3334445556', telefon: '0232 555 01 03', email: 'info@mavi.com',   adres: 'İzmir',    aktif: true, olusturma_tarihi: buildSeedDate(30), guncelleme_tarihi: buildSeedDate(30) },
-        customer_4:  { unvan: 'Kuzey Lojistik',            tip: 'musteri',   vergi_no: '4445556667', telefon: '0224 555 01 04', email: 'info@kuzey.com',  adres: 'Bursa',    aktif: true, olusturma_tarihi: buildSeedDate(28), guncelleme_tarihi: buildSeedDate(28) },
-        customer_5:  { unvan: 'Deniz Yapı Market',         tip: 'musteri',   vergi_no: '5556667778', telefon: '0242 555 01 05', email: 'info@deniz.com',  adres: 'Antalya',  aktif: true, olusturma_tarihi: buildSeedDate(24), guncelleme_tarihi: buildSeedDate(24) },
-        customer_6:  { unvan: 'Selin Yılmaz',              tip: 'musteri',   vergi_no: '12345678901',telefon: '0532 111 22 33', email: 'selin@example.com', adres: 'Eskişehir', aktif: true, olusturma_tarihi: buildSeedDate(20), guncelleme_tarihi: buildSeedDate(20) },
-        customer_7:  { unvan: 'Tekno Dağıtım',             tip: 'tedarikci', vergi_no: '6667778889', telefon: '0212 555 02 01', email: 'info@tekno.com',  adres: 'İstanbul', aktif: true, olusturma_tarihi: buildSeedDate(18), guncelleme_tarihi: buildSeedDate(18) },
-        customer_8:  { unvan: 'Marmara Bilişim',           tip: 'tedarikci', vergi_no: '7778889990', telefon: '0212 555 02 02', email: 'info@marmara.com',adres: 'İstanbul', aktif: true, olusturma_tarihi: buildSeedDate(16), guncelleme_tarihi: buildSeedDate(16) },
-        customer_9:  { unvan: 'Anadolu Tedarik',           tip: 'tedarikci', vergi_no: '8889990001', telefon: '0312 555 02 03', email: 'info@anadolu.com',adres: 'Ankara',   aktif: true, olusturma_tarihi: buildSeedDate(13), guncelleme_tarihi: buildSeedDate(13) },
-        customer_10: { unvan: 'Penta Çözüm',               tip: 'her_ikisi', vergi_no: '9990001112', telefon: '0262 555 02 04', email: 'info@penta.com',  adres: 'Kocaeli',  aktif: true, olusturma_tarihi: buildSeedDate(11), guncelleme_tarihi: buildSeedDate(11) }
+        customer_1:  { unvan: 'Atlas Endüstri A.Ş.',        tip: 'musteri',   vergi_no: '1112223334',  vergi_dairesi: 'Beyoğlu VD',  telefon: '0212 555 01 01', email: 'satin.alma@atlas.com.tr',   adres: 'Levent, Beşiktaş / İstanbul', aktif: true, olusturma_tarihi: buildSeedDate(90), guncelleme_tarihi: buildSeedDate(15) },
+        customer_2:  { unvan: 'Nova Teknoloji Ltd. Şti.',    tip: 'musteri',   vergi_no: '2223334445',  vergi_dairesi: 'Çankaya VD',  telefon: '0312 555 02 14', email: 'muhasebe@nova-tech.com.tr',  adres: 'Kızılay Mah. Atatürk Bul. No:42 / Ankara', aktif: true, olusturma_tarihi: buildSeedDate(82), guncelleme_tarihi: buildSeedDate(10) },
+        customer_3:  { unvan: 'Mavi Sağlık Hizmetleri A.Ş.',tip: 'musteri',   vergi_no: '3334445556',  vergi_dairesi: 'Alsancak VD', telefon: '0232 465 08 90', email: 'info@mavi-saglik.com.tr',    adres: 'Alsancak, Konak / İzmir',     aktif: true, olusturma_tarihi: buildSeedDate(75), guncelleme_tarihi: buildSeedDate(8)  },
+        customer_4:  { unvan: 'Kuzey Lojistik ve Taşımacılık',tip:'musteri',  vergi_no: '4445556667',  vergi_dairesi: 'Osmangazi VD',telefon: '0224 272 33 55', email: 'finans@kuzeylojistik.com.tr', adres: 'Organize San. Bölgesi / Bursa', aktif: true, olusturma_tarihi: buildSeedDate(68), guncelleme_tarihi: buildSeedDate(5)  },
+        customer_5:  { unvan: 'Deniz Yapı Market',           tip: 'musteri',   vergi_no: '5556667778',  vergi_dairesi: 'Muratpaşa VD',telefon: '0242 312 44 00', email: 'deniz.yapi@gmail.com',       adres: 'Fener Mah. 1234 Sk. No:7 / Antalya', aktif: true, olusturma_tarihi: buildSeedDate(60), guncelleme_tarihi: buildSeedDate(3)  },
+        customer_6:  { unvan: 'Yıldız Reklam Ajansı',        tip: 'musteri',   vergi_no: '6661112223',  vergi_dairesi: 'Kadıköy VD',  telefon: '0216 349 77 12', email: 'fatura@yildizreklam.com',    adres: 'Moda Cad. No:88 Kadıköy / İstanbul', aktif: true, olusturma_tarihi: buildSeedDate(55), guncelleme_tarihi: buildSeedDate(2)  },
+        customer_7:  { unvan: 'Tekno Dağıtım Tic. A.Ş.',     tip: 'tedarikci', vergi_no: '7778889990',  vergi_dairesi: 'Bağcılar VD', telefon: '0212 671 30 00', email: 'satis@tekno-dagitim.com',    adres: 'İkitelli OSB / İstanbul',     aktif: true, olusturma_tarihi: buildSeedDate(90), guncelleme_tarihi: buildSeedDate(12) },
+        customer_8:  { unvan: 'Marmara Bilişim Sistemleri',   tip: 'tedarikci', vergi_no: '8889990001',  vergi_dairesi: 'Şişli VD',    telefon: '0212 224 15 60', email: 'b2b@marmarabilis.com.tr',    adres: 'Bomonti, Şişli / İstanbul',   aktif: true, olusturma_tarihi: buildSeedDate(88), guncelleme_tarihi: buildSeedDate(9)  },
+        customer_9:  { unvan: 'Anadolu Tedarik Ltd.',         tip: 'tedarikci', vergi_no: '9990001112',  vergi_dairesi: 'Yenimahalle VD',telefon:'0312 397 44 80',email: 'satis@anadolutedarik.com',   adres: 'Ostim OSB, Yenimahalle / Ankara', aktif: true, olusturma_tarihi: buildSeedDate(85), guncelleme_tarihi: buildSeedDate(7)  },
+        customer_10: { unvan: 'Penta Çözüm Merkezi',          tip: 'her_ikisi', vergi_no: '1231231230',  vergi_dairesi: 'Gebze VD',    telefon: '0262 644 50 00', email: 'muhasebe@pentacozum.com.tr', adres: 'Gebze OSB / Kocaeli',         aktif: true, olusturma_tarihi: buildSeedDate(80), guncelleme_tarihi: buildSeedDate(6)  }
     };
 
-    // Ürünler — form/list ile aynı alan adlarını kullanır:
-    // kod, ad, birim, kdv_orani, stok_miktari, alis_fiyat, satis_fiyat, aktif
     const products = {
-        product_1:  { kod: 'ELK-001', ad: 'Dell Latitude 5540',         birim: 'Adet',  kdv_orani: 20, stok_miktari: 18,  alis_fiyat: 33500, satis_fiyat: 41900, aktif: true, olusturma_tarihi: buildSeedDate(50), guncelleme_tarihi: buildSeedDate(50) },
-        product_2:  { kod: 'ELK-002', ad: 'HP ProBook 450 G10',         birim: 'Adet',  kdv_orani: 20, stok_miktari: 14,  alis_fiyat: 28500, satis_fiyat: 35900, aktif: true, olusturma_tarihi: buildSeedDate(49), guncelleme_tarihi: buildSeedDate(49) },
-        product_3:  { kod: 'ELK-010', ad: 'Logitech MX Master 3S',      birim: 'Adet',  kdv_orani: 20, stok_miktari: 36,  alis_fiyat: 1450,  satis_fiyat: 2190,  aktif: true, olusturma_tarihi: buildSeedDate(48), guncelleme_tarihi: buildSeedDate(48) },
-        product_4:  { kod: 'ELK-011', ad: 'Samsung 1TB NVMe SSD',       birim: 'Adet',  kdv_orani: 20, stok_miktari: 42,  alis_fiyat: 1950,  satis_fiyat: 2790,  aktif: true, olusturma_tarihi: buildSeedDate(47), guncelleme_tarihi: buildSeedDate(47) },
-        product_5:  { kod: 'ELK-005', ad: 'Brother HL-L2375DW',         birim: 'Adet',  kdv_orani: 20, stok_miktari: 11,  alis_fiyat: 7250,  satis_fiyat: 8990,  aktif: true, olusturma_tarihi: buildSeedDate(46), guncelleme_tarihi: buildSeedDate(46) },
-        product_6:  { kod: 'ELK-006', ad: 'Cisco 24 Port Switch',       birim: 'Adet',  kdv_orani: 20, stok_miktari: 9,   alis_fiyat: 9800,  satis_fiyat: 12490, aktif: true, olusturma_tarihi: buildSeedDate(45), guncelleme_tarihi: buildSeedDate(45) },
-        product_7:  { kod: 'SFT-003', ad: 'A4 Fotokopi Kağıdı',         birim: 'Paket', kdv_orani: 20, stok_miktari: 240, alis_fiyat: 95,    satis_fiyat: 149,   aktif: true, olusturma_tarihi: buildSeedDate(44), guncelleme_tarihi: buildSeedDate(44) },
-        product_8:  { kod: 'TEK-001', ad: 'IP Kamera 4MP',              birim: 'Adet',  kdv_orani: 20, stok_miktari: 26,  alis_fiyat: 2100,  satis_fiyat: 2990,  aktif: true, olusturma_tarihi: buildSeedDate(43), guncelleme_tarihi: buildSeedDate(43) },
-        product_9:  { kod: 'OFS-001', ad: 'Ofis Koltuğu Ergonomik',     birim: 'Adet',  kdv_orani: 20, stok_miktari: 15,  alis_fiyat: 2650,  satis_fiyat: 3490,  aktif: true, olusturma_tarihi: buildSeedDate(42), guncelleme_tarihi: buildSeedDate(42) },
-        product_10: { kod: 'SFT-001', ad: 'İşletim Sistemi Lisans Paketi', birim: 'Adet', kdv_orani: 20, stok_miktari: 60, alis_fiyat: 1250, satis_fiyat: 1890, aktif: true, olusturma_tarihi: buildSeedDate(41), guncelleme_tarihi: buildSeedDate(41) }
+        product_1:  { kod: 'BLG-001', ad: 'Dell Latitude 5540 Laptop',      birim: 'Adet',  kdv_orani: 20, stok_miktari: 12, alis_fiyat: 33500, satis_fiyat: 42900, aktif: true, aciklama: 'Intel Core i7, 16GB RAM, 512GB SSD', olusturma_tarihi: buildSeedDate(90), guncelleme_tarihi: buildSeedDate(14) },
+        product_2:  { kod: 'BLG-002', ad: 'HP ProBook 450 G10 Laptop',      birim: 'Adet',  kdv_orani: 20, stok_miktari: 9,  alis_fiyat: 27900, satis_fiyat: 35900, aktif: true, aciklama: 'Intel Core i5, 8GB RAM, 256GB SSD',  olusturma_tarihi: buildSeedDate(89), guncelleme_tarihi: buildSeedDate(13) },
+        product_3:  { kod: 'BLG-010', ad: 'Logitech MX Master 3S Mouse',    birim: 'Adet',  kdv_orani: 20, stok_miktari: 45, alis_fiyat: 1350,  satis_fiyat: 2190,  aktif: true, aciklama: 'Kablosuz, 8000DPI, USB-C',           olusturma_tarihi: buildSeedDate(88), guncelleme_tarihi: buildSeedDate(11) },
+        product_4:  { kod: 'BLG-011', ad: 'Samsung 1TB NVMe SSD 980 Pro',   birim: 'Adet',  kdv_orani: 20, stok_miktari: 38, alis_fiyat: 1850,  satis_fiyat: 2690,  aktif: true, aciklama: 'M.2 PCIe Gen4, 7000MB/s',            olusturma_tarihi: buildSeedDate(87), guncelleme_tarihi: buildSeedDate(10) },
+        product_5:  { kod: 'YZC-001', ad: 'Brother HL-L2375DW Yazıcı',     birim: 'Adet',  kdv_orani: 20, stok_miktari: 8,  alis_fiyat: 7100,  satis_fiyat: 9250,  aktif: true, aciklama: 'Lazer, Dubleks, Wi-Fi',              olusturma_tarihi: buildSeedDate(86), guncelleme_tarihi: buildSeedDate(9)  },
+        product_6:  { kod: 'AGˊ-001', ad: 'Cisco CBS350-24T Switch',        birim: 'Adet',  kdv_orani: 20, stok_miktari: 7,  alis_fiyat: 10200, satis_fiyat: 13490, aktif: true, aciklama: '24 Port Gigabit Managed Switch',      olusturma_tarihi: buildSeedDate(85), guncelleme_tarihi: buildSeedDate(8)  },
+        product_7:  { kod: 'OFS-003', ad: 'A4 Fotokopi Kağıdı 80gr',        birim: 'Paket', kdv_orani: 20, stok_miktari: 310,alis_fiyat: 88,    satis_fiyat: 145,   aktif: true, aciklama: '500 yaprak/paket, 5 paket/koli',     olusturma_tarihi: buildSeedDate(84), guncelleme_tarihi: buildSeedDate(7)  },
+        product_8:  { kod: 'GVL-001', ad: 'Hikvision DS-2CD2143 Kamera',    birim: 'Adet',  kdv_orani: 20, stok_miktari: 22, alis_fiyat: 2250,  satis_fiyat: 3290,  aktif: true, aciklama: '4MP IP Dome, PoE, IR 30m',           olusturma_tarihi: buildSeedDate(83), guncelleme_tarihi: buildSeedDate(6)  },
+        product_9:  { kod: 'OFS-010', ad: 'Ergonomik Ofis Koltuğu',         birim: 'Adet',  kdv_orani: 20, stok_miktari: 18, alis_fiyat: 2750,  satis_fiyat: 3990,  aktif: true, aciklama: 'Mesh sırtlık, ayarlanabilir',         olusturma_tarihi: buildSeedDate(82), guncelleme_tarihi: buildSeedDate(5)  },
+        product_10: { kod: 'LSN-001', ad: 'Windows 11 Pro OEM Lisans',      birim: 'Adet',  kdv_orani: 20, stok_miktari: 75, alis_fiyat: 1150,  satis_fiyat: 1890,  aktif: true, aciklama: 'Dijital lisans, kalıcı aktivasyon',  olusturma_tarihi: buildSeedDate(81), guncelleme_tarihi: buildSeedDate(4)  },
+        product_11: { kod: 'LSN-002', ad: 'Microsoft Office 2024 Pro',      birim: 'Adet',  kdv_orani: 20, stok_miktari: 50, alis_fiyat: 2900,  satis_fiyat: 4290,  aktif: true, aciklama: 'Word, Excel, Outlook, Teams dahil',  olusturma_tarihi: buildSeedDate(80), guncelleme_tarihi: buildSeedDate(3)  },
+        product_12: { kod: 'GVL-002', ad: 'UPS 1500VA APC Smart',           birim: 'Adet',  kdv_orani: 20, stok_miktari: 14, alis_fiyat: 3200,  satis_fiyat: 4490,  aktif: true, aciklama: 'LCD ekran, USB yönetim, 8 çıkış',    olusturma_tarihi: buildSeedDate(79), guncelleme_tarihi: buildSeedDate(2)  }
     };
 
-    const customerList = Object.entries(customers).map(([id, data]) => ({ id, ...data }));
-    const productList = Object.entries(products).map(([id, data]) => ({ id, ...data }));
-    const tedarikciList = customerList.filter(c => c.tip === 'tedarikci' || c.tip === 'her_ikisi');
-    const aliciList = customerList.filter(c => c.tip === 'musteri' || c.tip === 'her_ikisi');
+    const cList = Object.entries(customers).map(([id, d]) => ({ id, ...d }));
+    const pList = Object.entries(products).map(([id, d]) => ({ id, ...d }));
+    const tedList = cList.filter(c => c.tip === 'tedarikci' || c.tip === 'her_ikisi');
+    const musListesi = cList.filter(c => c.tip === 'musteri' || c.tip === 'her_ikisi');
 
     const salesInvoices = {};
     const purchaseInvoices = {};
     const returnInvoices = {};
 
-    for (let i = 0; i < 10; i++) {
-        const customer = aliciList[i % aliciList.length];
-        const tedarikci = tedarikciList[i % tedarikciList.length];
-        const product = productList[i % productList.length];
-
-        const saleQty = 2 + (i % 4);
-        const saleTotal = product.satis_fiyat * saleQty;
-        const saleDate = buildSeedDate(9 - i);
-        salesInvoices[`sale_${i + 1}`] = {
-            fatura_no: `SF-2026-${String(i + 1).padStart(4, '0')}`,
-            musteri_id: customer.id,
-            musteri_adi: customer.unvan,
-            fatura_tarihi: saleDate,
-            genel_toplam: saleTotal,
-            ara_toplam: saleTotal,
-            kdv_toplam: 0,
-            durum: i % 3 === 0 ? 'beklemede' : 'odendi',
-            kalemler: [{ aciklama: product.ad, urun_adi: product.ad, miktar: saleQty, birim_fiyat: product.satis_fiyat, kdv_orani: 20, toplam: saleTotal, genel_toplam: saleTotal }],
-            olusturma_tarihi: saleDate,
-            guncelleme_tarihi: saleDate
-        };
-
-        const purchaseQty = 4 + (i % 5);
-        const purchaseTotal = product.alis_fiyat * purchaseQty;
-        const purchaseDate = buildSeedDate(18 - i);
-        purchaseInvoices[`purchase_${i + 1}`] = {
-            fatura_no: `AF-2026-${String(i + 1).padStart(4, '0')}`,
-            tedarikci_id: tedarikci.id,
-            tedarikci_adi: tedarikci.unvan,
-            fatura_tarihi: purchaseDate,
-            genel_toplam: purchaseTotal,
-            ara_toplam: purchaseTotal,
-            kdv_toplam: 0,
-            durum: i % 4 === 0 ? 'beklemede' : 'odendi',
-            kalemler: [{ aciklama: product.ad, urun_adi: product.ad, miktar: purchaseQty, birim_fiyat: product.alis_fiyat, kdv_orani: 20, toplam: purchaseTotal, genel_toplam: purchaseTotal }],
-            olusturma_tarihi: purchaseDate,
-            guncelleme_tarihi: purchaseDate
-        };
-
-        const returnDate = buildSeedDate(5 - i);
-        const returnTotal = Math.round(product.satis_fiyat * 0.5);
-        returnInvoices[`return_${i + 1}`] = {
-            fatura_no: `IF-2026-${String(i + 1).padStart(4, '0')}`,
-            iade_tipi: i % 2 === 0 ? 'satis_iade' : 'alis_iade',
-            cari_id: i % 2 === 0 ? customer.id : tedarikci.id,
-            cari_adi: i % 2 === 0 ? customer.unvan : tedarikci.unvan,
-            fatura_tarihi: returnDate,
-            genel_toplam: returnTotal,
-            ara_toplam: returnTotal,
-            kdv_toplam: 0,
-            durum: i % 3 === 0 ? 'beklemede' : 'tamamlandi',
-            sebep: ['Ürün uyumsuzluğu', 'Kutuda hasar', 'Yanlış model', 'Kurulum problemi'][i % 4],
-            kalemler: [{ aciklama: product.ad, urun_adi: product.ad, miktar: 1, birim_fiyat: returnTotal, kdv_orani: 20, toplam: returnTotal, genel_toplam: returnTotal }],
-            olusturma_tarihi: returnDate,
-            guncelleme_tarihi: returnDate
-        };
+    // --- 25 Satış Faturası (son 90 gün, 2-3 kalemli, gerçekçi) ---
+    const satisSenaryolari = [
+        { cIdx:0, kList:[{p:0,m:3},{p:3,m:5},{p:9,m:1}], gun:88, durum:'odendi' },
+        { cIdx:1, kList:[{p:1,m:2},{p:10,m:2}],           gun:85, durum:'odendi' },
+        { cIdx:2, kList:[{p:7,m:4},{p:5,m:1}],            gun:82, durum:'odendi' },
+        { cIdx:3, kList:[{p:5,m:1},{p:2,m:3},{p:8,m:2}],  gun:80, durum:'odendi' },
+        { cIdx:4, kList:[{p:6,m:1},{p:2,m:2}],            gun:77, durum:'beklemede' },
+        { cIdx:0, kList:[{p:0,m:2},{p:11,m:1}],           gun:74, durum:'odendi' },
+        { cIdx:1, kList:[{p:3,m:10},{p:9,m:3},{p:2,m:4}], gun:71, durum:'odendi' },
+        { cIdx:5, kList:[{p:9,m:2},{p:10,m:2}],           gun:69, durum:'odendi' },
+        { cIdx:2, kList:[{p:4,m:2},{p:6,m:3}],            gun:66, durum:'odendi' },
+        { cIdx:3, kList:[{p:7,m:8},{p:8,m:2}],            gun:63, durum:'beklemede' },
+        { cIdx:4, kList:[{p:1,m:3},{p:3,m:6}],            gun:60, durum:'odendi' },
+        { cIdx:5, kList:[{p:0,m:1},{p:11,m:1},{p:2,m:2}], gun:57, durum:'odendi' },
+        { cIdx:0, kList:[{p:7,m:15},{p:9,m:5}],           gun:54, durum:'odendi' },
+        { cIdx:1, kList:[{p:5,m:2},{p:4,m:1}],            gun:51, durum:'beklemede' },
+        { cIdx:2, kList:[{p:6,m:2},{p:10,m:3}],           gun:48, durum:'odendi' },
+        { cIdx:3, kList:[{p:3,m:12},{p:2,m:5}],           gun:45, durum:'odendi' },
+        { cIdx:4, kList:[{p:0,m:4},{p:1,m:2}],            gun:42, durum:'odendi' },
+        { cIdx:5, kList:[{p:8,m:6},{p:7,m:20}],           gun:39, durum:'odendi' },
+        { cIdx:0, kList:[{p:9,m:3},{p:10,m:2},{p:11,m:1}],gun:35, durum:'odendi' },
+        { cIdx:1, kList:[{p:4,m:3},{p:5,m:1}],            gun:30, durum:'beklemede' },
+        { cIdx:2, kList:[{p:0,m:2},{p:3,m:8}],            gun:26, durum:'odendi' },
+        { cIdx:3, kList:[{p:6,m:1},{p:7,m:30}],           gun:21, durum:'odendi' },
+        { cIdx:4, kList:[{p:1,m:4},{p:2,m:6},{p:10,m:2}], gun:15, durum:'beklemede' },
+        { cIdx:5, kList:[{p:11,m:2},{p:8,m:4}],           gun:10, durum:'odendi' },
+        { cIdx:0, kList:[{p:3,m:7},{p:9,m:4}],            gun:4,  durum:'odendi' },
+    ];
+    // Jeneratör: son 90 günde rastgele ama deterministik fatura üret
+    const DURUMLAR = ['odendi','odendi','odendi','beklemede','iptal'];
+    function genSatis(count, offset) {
+        for (let i = 0; i < count; i++) {
+            const idx = offset + i;
+            const cIdx = idx % musListesi.length;
+            const p1 = idx % pList.length;
+            const p2 = (idx + 3) % pList.length;
+            const p3 = (idx + 7) % pList.length;
+            const musteri = musListesi[cIdx];
+            const k = p1 === p2 ? [mkKalem(pList[p1], 1+(idx%4)), mkKalem(pList[p3], 1+(idx%3))]
+                                : [mkKalem(pList[p1], 1+(idx%4)), mkKalem(pList[p2], 1+(idx%2))];
+            const tot = mkFatura(k);
+            const gun = 1 + (idx * 7) % 89;
+            const dt = buildSeedDate(gun);
+            const vadeDt = new Date(new Date(dt).getTime() + 30*24*3600*1000).toISOString().split('T')[0];
+            salesInvoices[`sale_${idx+1}`] = { fatura_no: `SF-2026-${String(idx+1).padStart(4,'0')}`, musteri_id: musteri.id, musteri_adi: musteri.unvan, fatura_tarihi: dt, vade_tarihi: vadeDt, durum: DURUMLAR[idx%DURUMLAR.length], aciklama: '', kalemler: k, ...tot, olusturma_tarihi: dt, guncelleme_tarihi: dt };
+        }
     }
+    function genAlis(count, offset) {
+        for (let i = 0; i < count; i++) {
+            const idx = offset + i;
+            const tIdx = idx % tedList.length;
+            const p1 = (idx+1) % pList.length;
+            const p2 = (idx+5) % pList.length;
+            const ted = tedList[tIdx];
+            const k = [mkAlisKalem(pList[p1], 2+(idx%6)), mkAlisKalem(pList[p2], 1+(idx%4))];
+            const ara = k.reduce((s,x)=>s+x.miktar*x.birim_fiyat,0);
+            const kdv = k.reduce((s,x)=>s+x.miktar*x.birim_fiyat*(x.kdv_orani/100),0);
+            const tot = { ara_toplam: Math.round(ara), kdv_toplam: Math.round(kdv), genel_toplam: Math.round(ara+kdv) };
+            const gun = 1 + (idx * 11) % 89;
+            const dt = buildSeedDate(gun);
+            const vadeDt = new Date(new Date(dt).getTime() + 45*24*3600*1000).toISOString().split('T')[0];
+            purchaseInvoices[`purchase_${idx+1}`] = { fatura_no: `AF-2026-${String(idx+1).padStart(4,'0')}`, tedarikci_id: ted.id, tedarikci_adi: ted.unvan, fatura_tarihi: dt, vade_tarihi: vadeDt, durum: DURUMLAR[idx%DURUMLAR.length], aciklama: '', kalemler: k, ...tot, olusturma_tarihi: dt, guncelleme_tarihi: dt };
+        }
+    }
+    function genIade(count, offset) {
+        const IADE_DURUM = ['tamamlandi','tamamlandi','beklemede'];
+        const NEDENLER = ['Ürün hatalı çıktı','Yanlış model gönderildi','Ambalaj hasarlı','Teknik arıza','Müşteri vazgeçti','Eksik teslimat','Standart dışı ürün','Geç teslimat'];
+        for (let i = 0; i < count; i++) {
+            const idx = offset + i;
+            const tip = idx % 3 === 0 ? 'alis_iade' : 'satis_iade';
+            const taraf = tip === 'satis_iade' ? musListesi[idx % musListesi.length] : tedList[idx % tedList.length];
+            const pr = pList[idx % pList.length];
+            const m = 1 + (idx % 3);
+            const fiyat = tip === 'satis_iade' ? pr.satis_fiyat : pr.alis_fiyat;
+            const tutar = fiyat * m;
+            const kdv_tutar = tutar * (pr.kdv_orani / 100);
+            const gun = 1 + (idx * 13) % 89;
+            const dt = buildSeedDate(gun);
+            const kalemler = [{ urun_id: pr.id, urun_adi: pr.ad, aciklama: pr.ad, birim: pr.birim, miktar: m, birim_fiyat: fiyat, kdv_orani: pr.kdv_orani, tutar, kdv_tutar, genel_toplam: tutar + kdv_tutar }];
+            returnInvoices[`return_${idx+1}`] = { fatura_no: `IF-2026-${String(idx+1).padStart(4,'0')}`, iade_tipi: tip, cari_id: taraf.id, cari_adi: taraf.unvan, orijinal_fatura_no: (tip==='satis_iade'?'SF':'AF')+`-2026-${String(idx+1).padStart(4,'0')}`, fatura_tarihi: dt, durum: IADE_DURUM[idx%IADE_DURUM.length], iade_nedeni: NEDENLER[idx%NEDENLER.length], kalemler, ara_toplam: Math.round(tutar), kdv_toplam: Math.round(kdv_tutar), genel_toplam: Math.round(tutar+kdv_tutar), olusturma_tarihi: dt, guncelleme_tarihi: dt };
+        }
+    }
+
+    // Manuel senaryolar (25 satış) + jeneratör ile 75 ek = 100 satış
+    satisSenaryolari.forEach((s, i) => {
+        const musteri = musListesi[s.cIdx % musListesi.length];
+        const kalemler = s.kList.map(k => mkKalem(pList[k.p % pList.length], k.m));
+        const tot = mkFatura(kalemler);
+        const dt = buildSeedDate(s.gun);
+        const vadeDt = new Date(new Date(dt).getTime() + 30*24*3600*1000).toISOString().split('T')[0];
+        salesInvoices[`sale_${i+1}`] = { fatura_no: `SF-2026-${String(i+1).padStart(4,'0')}`, musteri_id: musteri.id, musteri_adi: musteri.unvan, fatura_tarihi: dt, vade_tarihi: vadeDt, durum: s.durum, aciklama: '', kalemler, ...tot, olusturma_tarihi: dt, guncelleme_tarihi: dt };
+    });
+    genSatis(675, 25); // 26–700 (toplam 700 satış)
+
+    // Manuel senaryolar (20 alış) + jeneratör ile 60 ek = 80 alış
+    const alisSenaryolari = [
+        { tIdx:0, kList:[{p:0,m:5},{p:1,m:3}],            gun:87, durum:'odendi' },
+        { tIdx:1, kList:[{p:3,m:20},{p:9,m:10}],          gun:84, durum:'odendi' },
+        { tIdx:2, kList:[{p:7,m:10}],                     gun:81, durum:'odendi' },
+        { tIdx:0, kList:[{p:5,m:3},{p:4,m:2}],            gun:78, durum:'odendi' },
+        { tIdx:1, kList:[{p:2,m:15},{p:10,m:8}],          gun:74, durum:'beklemede' },
+        { tIdx:2, kList:[{p:6,m:5}],                      gun:70, durum:'odendi' },
+        { tIdx:0, kList:[{p:8,m:10},{p:11,m:5}],          gun:65, durum:'odendi' },
+        { tIdx:1, kList:[{p:0,m:4},{p:1,m:4}],            gun:61, durum:'odendi' },
+        { tIdx:2, kList:[{p:3,m:30},{p:9,m:15}],          gun:58, durum:'beklemede' },
+        { tIdx:0, kList:[{p:7,m:8},{p:4,m:3}],            gun:53, durum:'odendi' },
+        { tIdx:1, kList:[{p:5,m:2},{p:6,m:3}],            gun:49, durum:'odendi' },
+        { tIdx:2, kList:[{p:2,m:20},{p:10,m:10}],         gun:44, durum:'odendi' },
+        { tIdx:0, kList:[{p:8,m:6},{p:11,m:4}],           gun:40, durum:'beklemede' },
+        { tIdx:1, kList:[{p:0,m:6},{p:1,m:5}],            gun:36, durum:'odendi' },
+        { tIdx:2, kList:[{p:3,m:40}],                     gun:31, durum:'odendi' },
+        { tIdx:0, kList:[{p:7,m:12},{p:9,m:8}],           gun:26, durum:'odendi' },
+        { tIdx:1, kList:[{p:4,m:5},{p:5,m:3}],            gun:21, durum:'beklemede' },
+        { tIdx:2, kList:[{p:6,m:2},{p:10,m:6},{p:11,m:3}],gun:16, durum:'odendi' },
+        { tIdx:0, kList:[{p:2,m:10},{p:8,m:5}],           gun:10, durum:'odendi' },
+        { tIdx:1, kList:[{p:0,m:3},{p:3,m:15}],           gun:5,  durum:'beklemede' },
+    ];
+    alisSenaryolari.forEach((s, i) => {
+        const ted = tedList[s.tIdx % tedList.length];
+        const kalemler = s.kList.map(k => mkAlisKalem(pList[k.p % pList.length], k.m));
+        const tot = (() => { const ara = kalemler.reduce((sum,k)=>sum+k.miktar*k.birim_fiyat,0); const kdv = kalemler.reduce((sum,k)=>sum+k.miktar*k.birim_fiyat*(k.kdv_orani/100),0); return { ara_toplam: Math.round(ara), kdv_toplam: Math.round(kdv), genel_toplam: Math.round(ara+kdv) }; })();
+        const dt = buildSeedDate(s.gun);
+        const vadeDt = new Date(new Date(dt).getTime() + 45*24*3600*1000).toISOString().split('T')[0];
+        purchaseInvoices[`purchase_${i+1}`] = { fatura_no: `AF-2026-${String(i+1).padStart(4,'0')}`, tedarikci_id: ted.id, tedarikci_adi: ted.unvan, fatura_tarihi: dt, vade_tarihi: vadeDt, durum: s.durum, aciklama: '', kalemler, ...tot, olusturma_tarihi: dt, guncelleme_tarihi: dt };
+    });
+    genAlis(680, 20); // 21–700 (toplam 700 alış)
+
+    // --- 8 İade Faturası ---
+    const iadeSenaryolari = [
+        { cIdx:0, pIdx:0, m:1, gun:80, tip:'satis_iade', neden:'Ürün hatalı çıktı' },
+        { cIdx:1, pIdx:3, m:3, gun:72, tip:'satis_iade', neden:'Yanlış model gönderildi' },
+        { cIdx:2, pIdx:7, m:2, gun:65, tip:'satis_iade', neden:'Ambalaj hasarlı' },
+        { cIdx:4, pIdx:1, m:1, gun:55, tip:'satis_iade', neden:'Teknik arıza tespit edildi' },
+        { cIdx:0, pIdx:5, m:1, gun:48, tip:'alis_iade',  neden:'Tedarikçi hatalı fatura' },
+        { cIdx:1, pIdx:9, m:5, gun:38, tip:'alis_iade',  neden:'Ürün standart dışı' },
+        { cIdx:2, pIdx:2, m:4, gun:22, tip:'satis_iade', neden:'Müşteri vazgeçti' },
+        { cIdx:3, pIdx:6, m:1, gun:10, tip:'alis_iade',  neden:'Eksik ürün teslimi' },
+    ];
+    iadeSenaryolari.forEach((s, i) => {
+        const taraf = s.tip === 'satis_iade' ? musListesi[s.cIdx % musListesi.length] : tedList[s.cIdx % tedList.length];
+        const pr = pList[s.pIdx % pList.length];
+        const fiyat = s.tip === 'satis_iade' ? pr.satis_fiyat : pr.alis_fiyat;
+        const tutar = fiyat * s.m;
+        const kdv_tutar = tutar * (pr.kdv_orani / 100);
+        const dt = buildSeedDate(s.gun);
+        const kalemler = [{ urun_id: pr.id, urun_adi: pr.ad, aciklama: pr.ad, birim: pr.birim, miktar: s.m, birim_fiyat: fiyat, kdv_orani: pr.kdv_orani, tutar, kdv_tutar, genel_toplam: tutar + kdv_tutar }];
+        returnInvoices[`return_${i+1}`] = { fatura_no: `IF-2026-${String(i+1).padStart(4,'0')}`, iade_tipi: s.tip, cari_id: taraf.id, cari_adi: taraf.unvan, orijinal_fatura_no: s.tip==='satis_iade'?`SF-2026-${String(i+1).padStart(4,'0')}`:`AF-2026-${String(i+1).padStart(4,'0')}`, fatura_tarihi: dt, durum: i%3===0?'beklemede':'tamamlandi', iade_nedeni: s.neden, kalemler, ara_toplam: Math.round(tutar), kdv_toplam: Math.round(kdv_tutar), genel_toplam: Math.round(tutar+kdv_tutar), olusturma_tarihi: dt, guncelleme_tarihi: dt };
+    });
+    genIade(192, 8); // 9–200 (toplam 200 iade)
+
+    // --- Anomali faturaları: AI anomali tespitini (z-score > 3.5) tetiklemek için
+    // ortalamanın çok üstünde, sıra dışı tutarlı birkaç fatura. Gerçekçi senaryo:
+    // beklenmedik büyük proje siparişi / toplu alım.
+    const anomaliSatis = [
+        { gun: 14, urun: 0,  miktar: 110, aciklama: 'Kurumsal toplu laptop alımı (büyük proje)' },
+        { gun: 33, urun: 5,  miktar: 380, aciklama: 'Yıllık network altyapı yenileme ihalesi' },
+        { gun: 52, urun: 1,  miktar: 140, aciklama: 'Şube açılışı ekipman tedariki' },
+    ];
+    anomaliSatis.forEach((a, i) => {
+        const idx = 700 + i;
+        const musteri = musListesi[i % musListesi.length];
+        const k = [mkKalem(pList[a.urun], a.miktar)];
+        const tot = mkFatura(k);
+        const dt = buildSeedDate(a.gun);
+        salesInvoices[`sale_${idx+1}`] = { fatura_no: `SF-2026-${String(idx+1).padStart(4,'0')}`, musteri_id: musteri.id, musteri_adi: musteri.unvan, fatura_tarihi: dt, vade_tarihi: dt, durum: 'beklemede', aciklama: a.aciklama, kalemler: k, ...tot, olusturma_tarihi: dt, guncelleme_tarihi: dt };
+    });
+
+    const anomaliAlis = [
+        { gun: 20, urun: 3,  miktar: 600, aciklama: 'Stok yenileme — yıllık toplu SSD alımı' },
+        { gun: 41, urun: 0,  miktar: 90,  aciklama: 'Bayi kampanyası toplu laptop tedariki' },
+    ];
+    anomaliAlis.forEach((a, i) => {
+        const idx = 700 + i;
+        const ted = tedList[i % tedList.length];
+        const k = [mkAlisKalem(pList[a.urun], a.miktar)];
+        const ara = k.reduce((s,x)=>s+x.miktar*x.birim_fiyat,0);
+        const kdv = k.reduce((s,x)=>s+x.miktar*x.birim_fiyat*(x.kdv_orani/100),0);
+        const dt = buildSeedDate(a.gun);
+        purchaseInvoices[`purchase_${idx+1}`] = { fatura_no: `AF-2026-${String(idx+1).padStart(4,'0')}`, tedarikci_id: ted.id, tedarikci_adi: ted.unvan, fatura_tarihi: dt, vade_tarihi: dt, durum: 'beklemede', aciklama: a.aciklama, kalemler: k, ara_toplam: Math.round(ara), kdv_toplam: Math.round(kdv), genel_toplam: Math.round(ara+kdv), olusturma_tarihi: dt, guncelleme_tarihi: dt };
+    });
 
     return {
         musteriler: customers,
@@ -979,79 +1118,54 @@ export const Sync = {
     }
 };
 
+// Demo veri: koleksiyon başına TEK set() çağrısıyla toplu yazma.
+// 1600 ayrı push yerine 5 yazma işlemi — saniyeler içinde biter, çoğalma riski yok.
 window.loadDemoData = async function() {
+    const btn = document.getElementById('demoDataBtn');
     try {
-        const btn = document.getElementById('demoDataBtn');
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yükleniyor...';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Yükleniyor...'; }
+        notify.info('Demo veriler hazırlanıyor, lütfen bekleyin...');
+
+        const seed = createSeedData();
+        // seed: { musteriler:{id:obj}, urunler:{...}, satis_faturalari:{...}, ... }
+
+        // Çakışmayı önlemek için tüm anahtarlara "demo_" öneki eklenir.
+        // Kalemlerdeki urun_id referansı da aynı önekle güncellenir ki ürünle eşleşsin.
+        const fixKalem = (k) => ({ ...k, urun_id: k.urun_id ? `demo_${k.urun_id}` : k.urun_id });
+        const prefixle = (col, obj) => {
+            const yeni = {};
+            for (const [k, v] of Object.entries(obj)) {
+                const kayit = (v.kalemler && Array.isArray(v.kalemler))
+                    ? { ...v, kalemler: v.kalemler.map(fixKalem) }
+                    : v;
+                yeni[`demo_${k}`] = kayit;
+            }
+            return yeni;
+        };
+
+        const collections = ['musteriler','urunler','satis_faturalari','alis_faturalari','iade_faturalari'];
+
+        if (firebaseConnected) {
+            const { ref, get, set } = await getFirebaseRefs();
+            for (const col of collections) {
+                const snap = await get(ref(firebaseDb, col));
+                const mevcut = snap.val() || {};
+                await set(ref(firebaseDb, col), { ...mevcut, ...prefixle(col, seed[col]) });
+            }
+        } else {
+            for (const col of collections) {
+                const mevcut = LocalDB.get(col);
+                LocalDB.set(col, { ...mevcut, ...prefixle(col, seed[col]) });
+            }
         }
-        
-        notify.info("Demo veriler ekleniyor, lütfen bekleyin...");
-        
-        const seedData = createSeedData();
-        const customerList = Object.values(seedData.musteriler);
-        const productList = Object.values(seedData.urunler);
-        
-        // Add 10 customers and products
-        for (const data of customerList) {
-            await Musteriler.ekle(data);
-        }
-        for (const data of productList) {
-            await Urunler.ekle(data);
-        }
-        
-        // Add 20 invoices each
-        for (let i = 0; i < 20; i++) {
-            const customer = customerList[i % customerList.length];
-            const product = productList[i % productList.length];
-            
-            const saleQty = 2 + (i % 4);
-            const saleTotal = product.satis_fiyat * saleQty;
-            const saleDate = buildSeedDate(20 - i);
-            await SatisFaturalari.ekle({
-                fatura_no: Yardimci.faturaNo('SF'),
-                musteri_adi: customer.ad,
-                fatura_tarihi: saleDate,
-                genel_toplam: saleTotal,
-                durum: i % 3 === 0 ? 'beklemede' : 'odendi',
-                kalemler: [{ urun_adi: product.ad, miktar: saleQty, birim_fiyat: product.satis_fiyat, toplam: saleTotal }]
-            });
-            
-            const purchaseQty = 4 + (i % 5);
-            const purchaseTotal = product.alis_fiyat * purchaseQty;
-            const purchaseDate = buildSeedDate(25 - i);
-            await AlisFaturalari.ekle({
-                fatura_no: Yardimci.faturaNo('AF'),
-                tedarikci_adi: ['Tekno Dağıtım', 'Marmara Bilişim', 'Anadolu Tedarik', 'Metro Elektronik', 'Penta Çözüm'][i % 5],
-                fatura_tarihi: purchaseDate,
-                genel_toplam: purchaseTotal,
-                durum: i % 4 === 0 ? 'beklemede' : 'odendi',
-                kalemler: [{ urun_adi: product.ad, miktar: purchaseQty, birim_fiyat: product.alis_fiyat, toplam: purchaseTotal }]
-            });
-            
-            const returnDate = buildSeedDate(15 - i);
-            await IadeFaturalari.ekle({
-                fatura_no: Yardimci.faturaNo('IF'),
-                musteri_adi: customer.ad,
-                fatura_tarihi: returnDate,
-                genel_toplam: Math.round(product.satis_fiyat * 0.5),
-                sebep: ['Ürün uyumsuzluğu', 'Kutuda hasar', 'Yanlış model', 'Kurulum problemi'][i % 4],
-                kalemler: [{ urun_adi: product.ad, miktar: 1, birim_fiyat: Math.round(product.satis_fiyat * 0.5), toplam: Math.round(product.satis_fiyat * 0.5) }]
-            });
-        }
-        
-        notify.success("20 adet demo veri başarıyla eklendi!");
+
+        notify.success('Demo veriler başarıyla eklendi! (700 satış, 700 alış, 200 iade)');
         setTimeout(() => window.location.reload(), 1500);
     } catch (e) {
         console.error(e);
-        notify.error("Demo veriler eklenirken hata oluştu.");
+        notify.error('Demo veriler eklenirken hata oluştu: ' + e.message);
     } finally {
-        const btn = document.getElementById('demoDataBtn');
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<span class="demo-data-icon"><i class="fas fa-database"></i></span><span class="demo-data-label">Demo Veri Ekle</span>';
-        }
+        if (btn) { btn.disabled = false; btn.innerHTML = '<span class="demo-data-icon"><i class="fas fa-database"></i></span><span class="demo-data-label">Demo Veri Ekle</span>'; }
     }
 };
 
@@ -1131,10 +1245,12 @@ export async function init() {
             // Canlı bildirimleri başlat
             baslatCanliBildirimler();
 
-            // Sayfa ilk açıldığında local_xxx kayıtları varsa bir kez Firebase'e yükle.
-            // Otomatik periyodik sync KALDIRILDI: her N dakikada tüm koleksiyonun
-            // okunup tekrar yazılması büyük veri setlerinde üstel büyümeye yol açıyordu.
-            setTimeout(() => Sync.uploadToFirebase(false), 2000);
+            // OTOMATİK SENKRONİZASYON TAMAMEN KALDIRILDI.
+            // Sebep: her sayfa açılışında LocalStorage'daki eski kayıtların Firebase'e
+            // geri yüklenmesi (ve download ile geri inmesi) verilerin üstel çoğalmasına
+            // yol açıyordu. Firebase modunda artık LocalStorage bir kopya olarak kullanılmaz;
+            // tüm okuma/yazma doğrudan Firebase üzerinden yapılır. Sync yalnızca manuel
+            // butonla (Sync.fullSync) tetiklenir.
         }
         
         const status = mode === 'firebase' ? '🔥 Firebase' : '💾 LocalStorage';

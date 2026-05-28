@@ -160,6 +160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     try {
+        await init();
         // Cari ve ürün bilgilerini yükle
         const [cariler, urunler] = await Promise.all([
             Musteriler.hepsiniGetir(),

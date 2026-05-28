@@ -57,9 +57,21 @@
       </button>
     </div>
 
+    <hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--glass-border)">
+
+    <div class="alert alert-danger u-mb-1">
+      <i class="fas fa-bomb"></i>
+      <strong>Tam Sıfırlama:</strong> Aşağıdaki buton <strong>TÜM verileri siler</strong> (eski bozuk/eksik kayıtlar dahil)
+      ve sıfırdan temiz demo veri yükler: <strong>10 müşteri, 12 ürün, 700 satış, 700 alış, 200 iade.</strong>
+      Müşteri ünvanları/e-postaları boş görünüyorsa bu butonu kullanın.
+    </div>
+    <button id="btnSifirla" class="btn btn-warning" onclick="sifirlaVeYukle()">
+      <i class="fas fa-rotate"></i> Her Şeyi Sıfırla + Taze Demo Yükle
+    </button>
+
     <p class="u-mt-1" style="font-size:12px;color:#64748b;">
-      <strong>Ne yapar?</strong> Her koleksiyonda aynı <code>fatura_no</code> değerine sahip kayıtları bulur,
-      en eskilerini siler, tek bir kopya bırakır. <code>fatura_no</code> yoksa <code>olusturma_tarihi</code>'ne göre birleştirir.
+      <strong>Yinelenenları Sil:</strong> Aynı <code>fatura_no</code> / tarih+cari+tutar olan kopyaları temizler, tek kopya bırakır.<br>
+      <strong>Her Şeyi Sıfırla:</strong> Veritabanını tamamen boşaltıp sıfırdan tutarlı demo veriyle doldurur.
     </p>
   </div>
 </div>
@@ -143,7 +155,16 @@ window.analiz = async function() {
             const grouped = {};
 
             for (const [id, val] of entries) {
-                const key = val[keyField] || val['olusturma_tarihi'] || id;
+                // Birincil anahtar: fatura_no / vergi_no / kod
+                // İkincil anahtar (faturalar için): tarih+cari+tutar — rastgele no ile üretilmiş yinelenenleri yakalar
+                let key = val[keyField];
+                if (!key && (col.includes('faturalari'))) {
+                    const tarih = (val.fatura_tarihi||'').slice(0,10);
+                    const cari  = val.musteri_adi || val.tedarikci_adi || val.cari_adi || '';
+                    const tutar = String(val.genel_toplam || '');
+                    key = `${tarih}_${cari}_${tutar}`;
+                }
+                key = key || val['olusturma_tarihi'] || id;
                 if (!grouped[key]) grouped[key] = [];
                 grouped[key].push({ id, val });
             }
@@ -238,6 +259,44 @@ window.localTemizle = function() {
         localStorage.removeItem(`emuhasebe_${k}`);
     });
     log('✅ LocalStorage temizlendi. Sayfa yenilenince Firebase\'den taze veri çekilecek.', '#4ade80');
+};
+
+window.sifirlaVeYukle = async function() {
+    if (!confirm('DİKKAT: Tüm müşteri, ürün ve fatura verileri silinecek ve sıfırdan demo veri yüklenecek. Devam edilsin mi?')) return;
+    const btn = document.getElementById('btnSifirla');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sıfırlanıyor...';
+    document.getElementById('logBox').innerHTML = '';
+
+    try {
+        await init();
+        const collections = ['musteriler','urunler','satis_faturalari','alis_faturalari','iade_faturalari'];
+
+        // 1) Firebase'de tüm koleksiyonları sil (null set)
+        const db = await getDb();
+        const { ref, set } = await getFirebaseFns();
+        for (const col of collections) {
+            log(`🗑️ ${col} siliniyor...`, '#f87171');
+            await set(ref(db, col), null);
+        }
+        log('✅ Tüm eski kayıtlar silindi.', '#4ade80');
+
+        // 2) LocalStorage temizle
+        collections.forEach(k => localStorage.removeItem(`emuhasebe_${k}`));
+
+        // 3) Taze demo veri yükle (db.js içindeki window.loadDemoData toplu set yapar)
+        log('⏳ Taze demo veri yükleniyor (10 müşteri, 12 ürün, 700 satış, 700 alış, 200 iade)...', '#60a5fa');
+        if (typeof window.loadDemoData === 'function') {
+            await window.loadDemoData(); // kendi içinde reload yapar
+        } else {
+            log('❌ loadDemoData bulunamadı. Sayfayı yenileyip tekrar deneyin.', '#f87171');
+        }
+    } catch (e) {
+        log('❌ Hata: ' + e.message, '#f87171');
+        console.error(e);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-rotate"></i> Her Şeyi Sıfırla + Taze Demo Yükle';
+    }
 };
 </script>
 {% endblock %}

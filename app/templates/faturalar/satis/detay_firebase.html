@@ -149,12 +149,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     try {
+        // Firebase bağlantısı kurulmadan getir() çalışırsa boş LocalStorage okunur → "bulunamadı"
+        await init();
+
         // Müşteri ve ürün bilgilerini yükle
         const [musteriler, urunler] = await Promise.all([
             Musteriler.hepsiniGetir(),
             Urunler.hepsiniGetir()
         ]);
-        
+
         const musteriMap = {};
         musteriler.forEach(m => musteriMap[m.id] = m.unvan);
         

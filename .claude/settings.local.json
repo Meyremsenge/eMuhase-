@@ -19,7 +19,8 @@
       "Bash(python -m flake8 app/ --max-line-length=120 --exclude=__pycache__ --count --statistics)",
       "Bash(python -m flake8 app/ --max-line-length=120 --exclude=__pycache__ --select=E402,E501,E711,F401,F541,F811)",
       "Bash(python -m flake8 config.py --max-line-length=120)",
-      "Bash(python -m flake8 app/ --max-line-length=120 --exclude=__pycache__ --count)"
+      "Bash(python -m flake8 app/ --max-line-length=120 --exclude=__pycache__ --count)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Meyrem\\\\Desktop\\\\,\\\\Debsis\\\\yazılım mühendisliği2\\\\eMuhasebe - okul için\" -Recurse -Name)"
     ]
   }
 }

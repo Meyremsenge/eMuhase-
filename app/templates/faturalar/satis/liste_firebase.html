@@ -1,11 +1,67 @@
 {% extends 'base.html' %}
-
 {% block title %}Satış Faturaları - eMuhasebe Pro{% endblock %}
-
 {% block page_title %}Satış Faturaları{% endblock %}
 {% block page_subtitle %}Müşterilere yapılan satış faturaları{% endblock %}
-
 {% block header_actions %}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Filtre çubuğu ── */
+.filter-row {
+    display: flex; flex-wrap: wrap; gap: .75rem; align-items: flex-end;
+    padding: 1rem 1.25rem; border-bottom: 1px solid var(--glass-border);
+    background: var(--bg-900);
+}
+.filter-row .fg { display: flex; flex-direction: column; gap: .3rem; }
+.filter-row .fg label { font-size: .75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; }
+.filter-row .fg input,
+.filter-row .fg select { min-width: 200px; }
+.filter-row .fg.grow { flex: 1; }
+.filter-actions { display: flex; gap: .5rem; align-self: flex-end; flex-wrap: wrap; }
+
+/* ── Tablo özet satırı ── */
+.tbl-summary {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: .5rem; padding: .6rem 1.25rem; border-top: 1px solid var(--glass-border);
+    background: var(--bg-900); font-size: .82rem; color: var(--text-muted);
+}
+.tbl-summary strong { color: var(--text-primary); }
+
+/* ── Pagination ── */
+.pg-bar {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+    gap: .75rem; padding: .75rem 1.25rem; background: var(--bg-900);
+    border-top: 1px solid var(--glass-border); border-radius: 0 0 12px 12px;
+}
+.pg-info { font-size: .8rem; color: var(--text-muted); white-space: nowrap; }
+.pg-nav { display: flex; align-items: center; gap: .25rem; flex-wrap: wrap; }
+.pg-btn {
+    min-width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--glass-border);
+    background: var(--bg-800); color: var(--text-primary); font-size: .82rem; cursor: pointer;
+    padding: 0 .6rem; transition: background .15s, color .15s, border-color .15s;
+    display: inline-flex; align-items: center; justify-content: center; font-weight: 500;
+}
+.pg-btn:hover:not(:disabled) { background: var(--primary-600); color: #fff; border-color: var(--primary-600); }
+.pg-btn.active { background: var(--primary-600); color: #fff; border-color: var(--primary-600); font-weight: 700; }
+.pg-btn:disabled { opacity: .4; cursor: not-allowed; }
+.pg-ellipsis { padding: 0 .3rem; color: var(--text-muted); font-size: .82rem; }
+.pg-size { display: flex; align-items: center; gap: .5rem; font-size: .8rem; color: var(--text-muted); }
+.pg-size select { padding: .25rem .5rem; border-radius: 6px; border: 1px solid var(--glass-border); background: var(--bg-800); color: var(--text-primary); font-size: .8rem; cursor: pointer; }
+
+/* ── Sıralama ok ── */
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { background: color-mix(in srgb, var(--primary-600) 6%, transparent); }
+th.sortable .sort-icon { margin-left: .3rem; opacity: .4; font-size: .7rem; }
+th.sortable.asc  .sort-icon::after { content: '▲'; opacity: 1; }
+th.sortable.desc .sort-icon::after { content: '▼'; opacity: 1; }
+th.sortable:not(.asc):not(.desc) .sort-icon::after { content: '⇅'; }
+
+/* ── Skeleton ── */
+.skeleton-row { display: flex; gap: 1rem; padding: .9rem 1.25rem; border-bottom: 1px solid var(--glass-border); }
+.sk { background: var(--bg-700); border-radius: 4px; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="page-header">
@@ -14,111 +70,105 @@
         <p class="page-subtitle">Müşterilere yapılan satış faturaları</p>
     </div>
     <div class="page-actions">
-        <a href="{{ url_for('satis.yeni') }}" class="btn btn-primary" aria-label="Yeni satış faturası oluştur">
-            <i class="fas fa-plus" aria-hidden="true"></i>
-            Yeni Fatura
+        <a href="{{ url_for('satis.yeni') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Yeni Fatura
         </a>
     </div>
 </div>
 
-<!-- Filtreler -->
-<div class="filter-bar" role="search" aria-label="Fatura filtreleme">
-    <div class="flex flex-wrap gap-1 w-full items-end">
-        <div class="form-group">
-            <label class="form-label" for="aramaInput">Arama</label>
-            <input type="text" id="aramaInput" class="form-control" placeholder="Fatura no veya müşteri..."
-                   aria-label="Fatura no veya müşteri ara">
-        </div>
-        <div class="form-group">
-            <label class="form-label" for="durumSelect">Durum</label>
-            <select id="durumSelect" class="form-control form-select" aria-label="Durum filtrele">
-                <option value="">Tümü</option>
-                <option value="beklemede">Beklemede</option>
-                <option value="odendi">Ödendi</option>
-                <option value="iptal">İptal</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <button type="button" onclick="filtrele()" class="btn btn-primary" aria-label="Filtrele">
-                <i class="fas fa-search" aria-hidden="true"></i>
-                Filtrele
-            </button>
-            <button type="button" onclick="temizle()" class="btn btn-secondary" aria-label="Filtreleri temizle">
-                <i class="fas fa-times" aria-hidden="true"></i>
-                Temizle
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Skeleton Loader (Sprint 3) -->
-<div id="yukleniyorDiv" class="card is-hidden" aria-label="Veriler yükleniyor" aria-live="polite" role="status">
+<!-- Skeleton -->
+<div id="skeletonCard" class="card">
     <div class="card-body p-0">
-        <div style="padding:1rem 1rem 0.5rem; border-bottom:1px solid var(--glass-border)">
-            <div class="skeleton-base skeleton-text skeleton-text-lg skeleton-w-1-4"></div>
-        </div>
-        {% for _ in range(5) %}
+        {% for _ in range(6) %}
         <div class="skeleton-row">
-            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:80px"></div>
-            <div class="skeleton-base skeleton-text skeleton-w-1-2" style="min-width:120px"></div>
-            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:80px"></div>
-            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:80px"></div>
-            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:80px"></div>
-            <div class="skeleton-base skeleton-text skeleton-w-1-4" style="min-width:60px"></div>
+            <div class="sk" style="width:130px;height:16px"></div>
+            <div class="sk" style="width:160px;height:16px"></div>
+            <div class="sk" style="width:90px;height:16px"></div>
+            <div class="sk" style="width:90px;height:16px"></div>
+            <div class="sk" style="width:100px;height:16px"></div>
+            <div class="sk" style="width:70px;height:16px"></div>
+            <div class="sk" style="width:90px;height:16px;margin-left:auto"></div>
         </div>
         {% endfor %}
     </div>
 </div>
 
 <!-- Liste -->
-<div class="card" id="listeCard">
-    <div class="card-body p-0">
-        <div class="table-container" id="tblContainer">
-            <table class="table" aria-label="Satış Faturası Listesi">
-                <thead>
-                    <tr>
-                        <th scope="col">Fatura No</th>
-                        <th scope="col">Müşteri</th>
-                        <th scope="col">Tarih</th>
-                        <th scope="col">Vade</th>
-                        <th scope="col">Tutar</th>
-                        <th scope="col">Durum</th>
-                        <th scope="col">İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody id="faturaListesi"></tbody>
-            </table>
+<div class="card is-hidden" id="listeCard">
+    <!-- Filtre çubuğu -->
+    <div class="filter-row">
+        <div class="fg grow">
+            <label for="aramaInput">Arama</label>
+            <input type="search" id="aramaInput" name="ara_q_x" class="form-control" placeholder="Fatura no veya müşteri..." autocomplete="off" autocorrect="off" spellcheck="false">
         </div>
-
-        <!-- Empty State: Hiç kayıt yok -->
-        <div id="bosState" class="empty-state is-hidden" role="status">
-            <div class="empty-state-icon">
-                <i class="fas fa-file-invoice" aria-hidden="true"></i>
-            </div>
-            <h3>Henüz fatura yok</h3>
-            <p>İlk satış faturanızı oluşturarak başlayın.</p>
-            <a href="{{ url_for('satis.yeni') }}" class="btn btn-primary">
-                <i class="fas fa-plus" aria-hidden="true"></i>
-                Yeni Fatura Oluştur
-            </a>
+        <div class="fg">
+            <label for="durumSelect">Durum</label>
+            <select id="durumSelect" class="form-control form-select">
+                <option value="">Tümü</option>
+                <option value="beklemede">Beklemede</option>
+                <option value="odendi">Ödendi</option>
+                <option value="iptal">İptal</option>
+            </select>
         </div>
-
-        <!-- Empty State: Filtre sonucu boş (Sprint 3) -->
-        <div id="filterBosState" class="empty-state-filter is-hidden" role="status">
-            <div class="empty-state-filter-icon">
-                <i class="fas fa-filter" aria-hidden="true"></i>
-            </div>
-            <h4>Filtreyle eşleşen fatura bulunamadı</h4>
-            <p>Arama veya filtre kriterlerinize uygun fatura yok.</p>
-            <button type="button" class="btn btn--ghost" onclick="temizle()" aria-label="Filtreleri temizle">
-                <i class="fas fa-times" aria-hidden="true"></i> Filtreleri Temizle
+        <div class="filter-actions">
+            <button type="button" class="btn btn-secondary btn--sm" onclick="filtrele()" title="Filtreleri sıfırla">
+                <i class="fas fa-times"></i> Temizle
             </button>
         </div>
     </div>
-</div>
 
-<div id="paginationBar" class="pagination-bar"></div>
-<div id="sonucSayisi" class="mt-1 text-center text-muted" aria-live="polite" aria-atomic="true"></div>
+    <div class="table-container" id="tblWrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th class="sortable" data-col="fatura_no" onclick="sirala(this)">Fatura No <span class="sort-icon"></span></th>
+                    <th class="sortable" data-col="musteri" onclick="sirala(this)">Müşteri <span class="sort-icon"></span></th>
+                    <th class="sortable" data-col="fatura_tarihi" onclick="sirala(this)">Tarih <span class="sort-icon"></span></th>
+                    <th>Vade</th>
+                    <th class="sortable" data-col="genel_toplam" onclick="sirala(this)">Tutar <span class="sort-icon"></span></th>
+                    <th class="sortable" data-col="durum" onclick="sirala(this)">Durum <span class="sort-icon"></span></th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="faturaListesi"></tbody>
+        </table>
+    </div>
+
+    <!-- Boş durumlar -->
+    <div id="bosState" class="empty-state is-hidden">
+        <div class="empty-state-icon"><i class="fas fa-file-invoice"></i></div>
+        <h3>Henüz fatura yok</h3>
+        <p>İlk satış faturanızı oluşturarak başlayın.</p>
+        <a href="{{ url_for('satis.yeni') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Yeni Fatura</a>
+    </div>
+    <div id="filterBosState" class="is-hidden" style="padding:2rem;text-align:center;color:var(--text-muted)">
+        <i class="fas fa-search" style="font-size:2rem;margin-bottom:.75rem;display:block;opacity:.4"></i>
+        <strong>Eşleşen fatura bulunamadı</strong>
+        <p style="margin:.25rem 0 .75rem;font-size:.85rem">Farklı bir arama kriteri deneyin.</p>
+        <button class="btn btn-secondary btn--sm" onclick="temizle()"><i class="fas fa-times"></i> Filtreleri Temizle</button>
+    </div>
+
+    <!-- Özet + Pagination -->
+    <div id="tblFooter" class="is-hidden">
+        <div class="tbl-summary">
+            <span id="sonucSayisi"></span>
+            <span id="toplamTutar" style="font-weight:600;color:var(--primary-600)"></span>
+        </div>
+        <div class="pg-bar">
+            <div class="pg-info" id="pgInfo"></div>
+            <div class="pg-nav" id="pgNav"></div>
+            <div class="pg-size">
+                <span>Sayfa başına:</span>
+                <select id="pgSizeSelect" onchange="sayfaBoyutuDegistir(+this.value)">
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100" selected>100</option>
+                    <option value="200">200</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -126,245 +176,217 @@
 import { init, SatisFaturalari, Musteriler } from '{{ url_for("static", filename="js/db.js") }}';
 
 let tumFaturalar = [];
-let musteriler = {};
-let currentFaturalar = [];
-let currentFiltreUygulanmis = false;
+let filtreli    = [];
+let musteriMap  = {};
 let currentPage = 1;
-let pageSize = 100;
+let pageSize    = 100;
+let sortCol     = 'fatura_tarihi';
+let sortDir     = 'desc';
 
+// ── Formatlar ──
+const paraFmt = v => new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2 }).format(v || 0);
+const tarihFmt = v => v ? new Date(v).toLocaleDateString('tr-TR') : '-';
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function durumBadge(d) {
+    return d === 'odendi' ? '<span class="badge badge-success">Ödendi</span>'
+         : d === 'iptal'  ? '<span class="badge badge-danger">İptal</span>'
+         : '<span class="badge badge-warning">Beklemede</span>';
+}
+
+// ── Yükleme ──
 document.addEventListener('DOMContentLoaded', async () => {
-    const yukleniyorDiv = document.getElementById('yukleniyorDiv');
-    const listeCard     = document.getElementById('listeCard');
-    yukleniyorDiv.classList.remove('is-hidden');
-    listeCard.style.display = 'none';
+    // Arama kutusunu temizle (browser autofill'i engelle) — bir kez DOMContentLoaded'da,
+    // bir kez de autofill'in geç tetiklenmesine karşı requestAnimationFrame içinde
+    const _ai = document.getElementById('aramaInput');
+    _ai.value = '';
+    requestAnimationFrame(() => { _ai.value = ''; });
 
     await init();
-    const musteriListesi = await Musteriler.hepsiniGetir();
-    musteriListesi.forEach(m => { musteriler[m.id] = m.unvan; });
 
-    SatisFaturalari.dinle((faturalar) => {
-        tumFaturalar = faturalar.sort((a, b) => new Date(b.fatura_tarihi) - new Date(a.fatura_tarihi));
-        yukleniyorDiv.classList.add('is-hidden');
-        listeCard.style.display = 'block';
-        listeyiGuncelle(tumFaturalar, false);
-    });
+    const [mList] = await Promise.all([Musteriler.hepsiniGetir()]);
+    mList.forEach(m => { musteriMap[m.id] = m.unvan; });
 
-    // Arama: 250ms debounce
-    const aramaInput = document.getElementById('aramaInput');
-    const durumSelect = document.getElementById('durumSelect');
-    let _debounceTimer = null;
-    if (aramaInput) aramaInput.addEventListener('input', () => {
-        clearTimeout(_debounceTimer);
-        _debounceTimer = setTimeout(() => window.filtrele(), 250);
+    tumFaturalar = (await SatisFaturalari.hepsiniGetir())
+        .sort((a, b) => new Date(b.fatura_tarihi) - new Date(a.fatura_tarihi));
+
+    document.getElementById('skeletonCard').classList.add('is-hidden');
+    document.getElementById('listeCard').classList.remove('is-hidden');
+
+    filtreli = tumFaturalar;
+    renderSayfa();
+
+    // Anlık arama
+    let timer;
+    document.getElementById('aramaInput').addEventListener('input', () => {
+        clearTimeout(timer);
+        timer = setTimeout(uygula, 180);
     });
-    if (durumSelect) durumSelect.addEventListener('change', () => window.filtrele());
+    document.getElementById('durumSelect').addEventListener('change', uygula);
 });
 
-function paraFormat(tutar) {
-    return new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(tutar || 0);
-}
-
-function tarihFormat(tarih) {
-    if (!tarih) return '-';
-    return new Date(tarih).toLocaleDateString('tr-TR');
-}
-
-function durumBadge(durum) {
-    switch (durum) {
-        case 'odendi': return '<span class="badge badge-success">Ödendi</span>';
-        case 'iptal':  return '<span class="badge badge-danger">İptal</span>';
-        default:       return '<span class="badge badge-warning">Beklemede</span>';
-    }
-}
-
-function renderPageNums(cur, total) {
-    if (total <= 1) return '';
-    const mkBtn = (p, label, active) =>
-        `<button class="pg-num${active ? ' is-active' : ''}" onclick="sayfaGit(${p})">${label}</button>`;
-    let nums = '';
-    if (total <= 7) {
-        for (let i = 1; i <= total; i++) nums += mkBtn(i, i, i === cur);
-    } else {
-        nums += mkBtn(1, 1, cur === 1);
-        if (cur > 3) nums += '<span class="pg-ellipsis">…</span>';
-        for (let i = Math.max(2, cur - 1); i <= Math.min(total - 1, cur + 1); i++)
-            nums += mkBtn(i, i, i === cur);
-        if (cur < total - 2) nums += '<span class="pg-ellipsis">…</span>';
-        nums += mkBtn(total, total, cur === total);
-    }
-    return nums;
-}
-
-function renderSayfa() {
-    const faturalar        = currentFaturalar;
-    const filtreUygulanmis = currentFiltreUygulanmis;
-    const tbody          = document.getElementById('faturaListesi');
-    const bosState       = document.getElementById('bosState');
-    const filterBosState = document.getElementById('filterBosState');
-    const sonucSayisi    = document.getElementById('sonucSayisi');
-    const tblContainer   = document.getElementById('tblContainer');
-    const paginationBar  = document.getElementById('paginationBar');
-
-    bosState.classList.add('is-hidden');
-    filterBosState.classList.add('is-hidden');
-
-    if (faturalar.length === 0) {
-        tbody.innerHTML = '';
-        tblContainer.style.display = 'none';
-        if (paginationBar) paginationBar.innerHTML = '';
-        if (filtreUygulanmis) {
-            filterBosState.classList.remove('is-hidden');
-        } else {
-            bosState.classList.remove('is-hidden');
-        }
-        sonucSayisi.textContent = '';
-        return;
-    }
-
-    tblContainer.style.display = '';
-    const totalPages = Math.max(1, Math.ceil(faturalar.length / pageSize));
-    if (currentPage > totalPages) currentPage = totalPages;
-    if (currentPage < 1) currentPage = 1;
-    const start = (currentPage - 1) * pageSize;
-    const end = Math.min(start + pageSize, faturalar.length);
-    const sayfadakiler = faturalar.slice(start, end);
-
-    const toplam = faturalar.reduce((t, f) => t + (parseFloat(f.genel_toplam) || 0), 0);
-    sonucSayisi.textContent = `${start + 1}–${end} / ${faturalar.length} fatura — ₺${paraFormat(toplam)}`;
-
-    const esc = (s) => String(s == null ? '' : s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-    tbody.innerHTML = sayfadakiler.map(fatura => {
-        const safeId = encodeURIComponent(fatura.id || '');
-        return `
-        <tr>
-            <td><strong>${esc(fatura.fatura_no || '-')}</strong></td>
-            <td>${esc(musteriler[fatura.musteri_id] || fatura.musteri_adi || '-')}</td>
-            <td>${esc(tarihFormat(fatura.fatura_tarihi))}</td>
-            <td>${esc(tarihFormat(fatura.vade_tarihi))}</td>
-            <td class="font-semibold">₺${paraFormat(fatura.genel_toplam)}</td>
-            <td>${durumBadge(fatura.durum)}</td>
-            <td>
-                <div class="table-actions">
-                    <a href="/satis/detay/${safeId}"
-                       class="btn btn-sm btn-primary" title="Detay" aria-label="Fatura detayına git">
-                        <i class="fas fa-eye" aria-hidden="true"></i>
-                    </a>
-                    <a href="/satis/duzenle/${safeId}"
-                       class="btn btn-sm btn-secondary" title="Düzenle" aria-label="Faturayı düzenle">
-                        <i class="fas fa-edit" aria-hidden="true"></i>
-                    </a>
-                    <button type="button"
-                            data-id="${esc(fatura.id || '')}"
-                            data-no="${esc(fatura.fatura_no || '')}"
-                            onclick="faturaSil(this.dataset.id, this.dataset.no)"
-                            class="btn btn-sm btn-danger" title="Sil" aria-label="Faturayı sil">
-                        <i class="fas fa-trash" aria-hidden="true"></i>
-                    </button>
-                </div>
-            </td>
-        </tr>`;
-    }).join('');
-
-    if (paginationBar) {
-        paginationBar.innerHTML = `
-            <div class="pg-info">${currentPage} / ${totalPages} sayfa</div>
-            <div class="pg-nav">
-                <button class="pg-num" onclick="sayfaDegistir(-1)" ${currentPage <= 1 ? 'disabled' : ''}>‹ Önceki</button>
-                ${renderPageNums(currentPage, totalPages)}
-                <button class="pg-num" onclick="sayfaDegistir(1)" ${currentPage >= totalPages ? 'disabled' : ''}>Sonraki ›</button>
-            </div>
-            <div class="pg-size">
-                <label>Sayfa başına:</label>
-                <select onchange="sayfaBoyutuDegistir(+this.value)">
-                    <option value="100" ${pageSize === 100 ? 'selected' : ''}>100</option>
-                    <option value="200" ${pageSize === 200 ? 'selected' : ''}>200</option>
-                    <option value="300" ${pageSize === 300 ? 'selected' : ''}>300</option>
-                </select>
-            </div>`;
-    }
-}
-
-function listeyiGuncelle(faturalar, filtreUygulanmis) {
-    currentFaturalar = faturalar;
-    currentFiltreUygulanmis = filtreUygulanmis;
+// ── Filtreleme ──
+function uygula() {
+    const q = document.getElementById('aramaInput').value.toLowerCase().trim();
+    const d = document.getElementById('durumSelect').value;
+    filtreli = tumFaturalar.filter(f => {
+        const musteri = musteriMap[f.musteri_id] || f.musteri_adi || '';
+        const matchQ = !q || (f.fatura_no||'').toLowerCase().includes(q) || musteri.toLowerCase().includes(q);
+        const matchD = !d || f.durum === d;
+        return matchQ && matchD;
+    });
     currentPage = 1;
     renderSayfa();
 }
 
-window.sayfaDegistir = function(delta) { currentPage += delta; renderSayfa(); };
-window.sayfaGit = function(p) { currentPage = p; renderSayfa(); };
+window.filtrele = uygula;
+window.temizle = function() {
+    document.getElementById('aramaInput').value = '';
+    document.getElementById('durumSelect').value = '';
+    filtreli = tumFaturalar;
+    currentPage = 1;
+    renderSayfa();
+};
+
+// ── Sıralama ──
+window.sirala = function(th) {
+    const col = th.dataset.col;
+    if (sortCol === col) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortCol = col;
+        sortDir = 'desc';
+    }
+    // Başlık stillerini güncelle
+    document.querySelectorAll('th.sortable').forEach(t => t.classList.remove('asc','desc'));
+    th.classList.add(sortDir);
+
+    filtreli = [...filtreli].sort((a, b) => {
+        let va, vb;
+        if (col === 'fatura_tarihi') { va = a.fatura_tarihi||''; vb = b.fatura_tarihi||''; }
+        else if (col === 'genel_toplam') { va = parseFloat(a.genel_toplam)||0; vb = parseFloat(b.genel_toplam)||0; return sortDir==='asc'?va-vb:vb-va; }
+        else if (col === 'musteri') { va = musteriMap[a.musteri_id]||a.musteri_adi||''; vb = musteriMap[b.musteri_id]||b.musteri_adi||''; }
+        else { va = a[col]||''; vb = b[col]||''; }
+        return sortDir === 'asc' ? va.localeCompare(vb,'tr') : vb.localeCompare(va,'tr');
+    });
+    currentPage = 1;
+    renderSayfa();
+};
+
+// ── Render ──
+function renderSayfa() {
+    const tbody = document.getElementById('faturaListesi');
+    const bosState = document.getElementById('bosState');
+    const filterBosState = document.getElementById('filterBosState');
+    const tblWrap = document.getElementById('tblWrap');
+    const tblFooter = document.getElementById('tblFooter');
+
+    bosState.classList.add('is-hidden');
+    filterBosState.classList.add('is-hidden');
+    tblWrap.classList.add('is-hidden');
+    tblFooter.classList.add('is-hidden');
+
+    if (filtreli.length === 0) {
+        tbody.innerHTML = '';
+        const hasFilter = !!(document.getElementById('aramaInput').value || document.getElementById('durumSelect').value);
+        if (hasFilter) filterBosState.classList.remove('is-hidden');
+        else bosState.classList.remove('is-hidden');
+        return;
+    }
+
+    tblWrap.classList.remove('is-hidden');
+    tblFooter.classList.remove('is-hidden');
+
+    const total = Math.max(1, Math.ceil(filtreli.length / pageSize));
+    currentPage = Math.min(Math.max(1, currentPage), total);
+    const start = (currentPage - 1) * pageSize;
+    const sayfa = filtreli.slice(start, start + pageSize);
+
+    const toplam = filtreli.reduce((s, f) => s + (parseFloat(f.genel_toplam) || 0), 0);
+    document.getElementById('sonucSayisi').textContent = `${start+1}–${Math.min(start+pageSize, filtreli.length)} / ${filtreli.length} fatura`;
+    document.getElementById('toplamTutar').textContent = `₺${paraFmt(toplam)}`;
+
+    tbody.innerHTML = sayfa.map(f => {
+        const sid = encodeURIComponent(f.id || '');
+        return `<tr>
+            <td><strong>${esc(f.fatura_no||'-')}</strong></td>
+            <td>${esc(musteriMap[f.musteri_id]||f.musteri_adi||'-')}</td>
+            <td>${esc(tarihFmt(f.fatura_tarihi))}</td>
+            <td>${esc(tarihFmt(f.vade_tarihi))}</td>
+            <td class="u-font-semibold">₺${paraFmt(f.genel_toplam)}</td>
+            <td>${durumBadge(f.durum)}</td>
+            <td><div class="table-actions">
+                <a href="/satis/detay/${sid}" class="btn btn-sm btn-primary" title="Detay"><i class="fas fa-eye"></i></a>
+                <a href="/satis/duzenle/${sid}" class="btn btn-sm btn-secondary" title="Düzenle"><i class="fas fa-edit"></i></a>
+                <button data-id="${esc(f.id||'')}" data-no="${esc(f.fatura_no||'')}"
+                        onclick="faturaSil(this.dataset.id,this.dataset.no)"
+                        class="btn btn-sm btn-danger" title="Sil"><i class="fas fa-trash"></i></button>
+            </div></td>
+        </tr>`;
+    }).join('');
+
+    renderPagination(currentPage, total);
+}
+
+function renderPagination(cur, total) {
+    document.getElementById('pgInfo').textContent = `${cur} / ${total} sayfa`;
+    const nav = document.getElementById('pgNav');
+    if (total <= 1) { nav.innerHTML = ''; return; }
+
+    const mk = (p, label, active, disabled) =>
+        `<button class="pg-btn${active?' active':''}" onclick="sayfaGit(${p})" ${disabled?'disabled':''}>${label}</button>`;
+
+    let html = mk(cur - 1, '‹', false, cur <= 1);
+    if (total <= 7) {
+        for (let i = 1; i <= total; i++) html += mk(i, i, i === cur, false);
+    } else {
+        html += mk(1, 1, cur === 1, false);
+        if (cur > 3) html += '<span class="pg-ellipsis">…</span>';
+        const lo = Math.max(2, cur - 1), hi = Math.min(total - 1, cur + 1);
+        for (let i = lo; i <= hi; i++) html += mk(i, i, i === cur, false);
+        if (cur < total - 2) html += '<span class="pg-ellipsis">…</span>';
+        html += mk(total, total, cur === total, false);
+    }
+    html += mk(cur + 1, '›', false, cur >= total);
+    nav.innerHTML = html;
+}
+
+window.sayfaGit = function(p) { currentPage = p; renderSayfa(); window.scrollTo({top:0,behavior:'smooth'}); };
 window.sayfaBoyutuDegistir = function(n) { pageSize = n; currentPage = 1; renderSayfa(); };
 
-window.filtrele = function() {
-    const arama  = document.getElementById('aramaInput').value.toLowerCase().trim();
-    const durum  = document.getElementById('durumSelect').value;
-    const filtreUygulanmis = !!(arama || durum);
-
-    let filtrelenmis = tumFaturalar;
-
-    if (arama) {
-        filtrelenmis = filtrelenmis.filter(f =>
-            (f.fatura_no && f.fatura_no.toLowerCase().includes(arama)) ||
-            (musteriler[f.musteri_id] && musteriler[f.musteri_id].toLowerCase().includes(arama)) ||
-            (f.musteri_adi && f.musteri_adi.toLowerCase().includes(arama))
-        );
-    }
-
-    if (durum) {
-        filtrelenmis = filtrelenmis.filter(f => f.durum === durum);
-    }
-
-    listeyiGuncelle(filtrelenmis, filtreUygulanmis);
-};
-
-window.temizle = function() {
-    document.getElementById('aramaInput').value  = '';
-    document.getElementById('durumSelect').value = '';
-    listeyiGuncelle(tumFaturalar, false);
-};
-
+// ── Sil ──
 window.faturaSil = async function(id, faturaNo) {
-    const confirmed = await window.showConfirm({
-        title:    'Faturayı silmek istediğinize emin misiniz?',
-        message:  'Bu işlem 5 saniye içinde geri alınabilir.',
-        itemName: faturaNo || id,
-        okLabel:  'Faturayı Sil',
-        type:     'danger',
-        icon:     'file-invoice'
-    });
+    const confirmed = await window.showConfirm?.({
+        title: 'Fatura silinsin mi?', message: '5 saniye içinde geri alınabilir.',
+        itemName: faturaNo || id, okLabel: 'Sil', type: 'danger', icon: 'file-invoice'
+    }) ?? confirm(`"${faturaNo}" silinsin mi?`);
     if (!confirmed) return;
 
     let snapshot = null;
-    try { snapshot = await SatisFaturalari.getir(id); } catch (e) { snapshot = null; }
-
+    try { snapshot = await SatisFaturalari.getir(id); } catch(e) {}
     try {
         await SatisFaturalari.sil(id);
-    } catch (error) {
-        if (window.notify) notify.error('Silme işlemi başarısız: ' + error.message, 6000);
+        tumFaturalar = tumFaturalar.filter(f => f.id !== id);
+        uygula();
+    } catch (err) {
+        window.notify?.error('Silme başarısız: ' + err.message);
         return;
     }
 
     if (window.showUndoToast && snapshot) {
-        const undoClicked = await window.showUndoToast({
-            message: `"${faturaNo || 'Fatura'}" silindi.`,
-            duration: 5000
-        });
-        if (undoClicked) {
+        const undo = await window.showUndoToast({ message: `"${faturaNo}" silindi.`, duration: 5000 });
+        if (undo) {
             try {
-                const { id: _omitId, olusturma_tarihi, guncelleme_tarihi, ...veri } = snapshot;
-                await SatisFaturalari.ekle(veri);
-                if (window.notify) notify.success('Fatura geri alındı.', 3000);
-            } catch (e) {
-                if (window.notify) notify.error('Geri alma başarısız: ' + e.message, 5000);
-            }
-        } else {
-            if (window.notify) notify.success('Fatura silindi.', 3000);
+                const { id: _, olusturma_tarihi, guncelleme_tarihi, ...veri } = snapshot;
+                const newId = await SatisFaturalari.ekle(veri);
+                tumFaturalar = [...tumFaturalar, { id: newId, ...veri }]
+                    .sort((a,b) => new Date(b.fatura_tarihi) - new Date(a.fatura_tarihi));
+                uygula();
+                window.notify?.success('Fatura geri alındı.');
+            } catch(e) { window.notify?.error('Geri alma başarısız.'); }
         }
     } else {
-        if (window.notify) notify.success('Fatura başarıyla silindi.', 4000);
+        window.notify?.success('Fatura silindi.');
     }
 };
 </script>

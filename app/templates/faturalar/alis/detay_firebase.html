@@ -144,6 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     try {
+        await init();
         // Tedarikçi ve ürün bilgilerini yükle
         const [tedarikciler, urunler] = await Promise.all([
             Musteriler.hepsiniGetir(),
