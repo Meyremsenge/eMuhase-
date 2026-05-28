@@ -299,7 +299,7 @@ def ai_analyze():
             method='POST',
         )
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=90) as resp:
                 payload = json.loads(resp.read().decode('utf-8'))
                 text_out = payload['candidates'][0]['content']['parts'][0]['text']
                 return jsonify({'text': text_out, 'model': gemini_model})
@@ -316,7 +316,7 @@ def ai_analyze():
     body = json.dumps({
         'model': model,
         'messages': [{'role': 'user', 'content': prompt}],
-        'max_tokens': 1000,
+        'max_tokens': 2500,
     }).encode('utf-8')
 
     req = urllib.request.Request(
@@ -330,7 +330,7 @@ def ai_analyze():
         method='POST',
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=90) as resp:
             payload = json.loads(resp.read().decode('utf-8'))
             text_out = (payload.get('choices') or [{}])[0].get('message', {}).get('content', '')
             return jsonify({'text': text_out, 'model': model})

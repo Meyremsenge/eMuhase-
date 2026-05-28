@@ -1121,13 +1121,13 @@ export async function init() {
         if (mode === 'firebase') {
             // Canlı bildirimleri başlat
             baslatCanliBildirimler();
-            
-            // Firebase modunda otomatik senkronizasyon yap
+
+            // Sessiz arka plan sync (toast yok — sadece manuel sync'te göster)
             setTimeout(async () => {
-                await Sync.fullSync(true);
-                // Otomatik sync başlat (her 2 dakikada bir)
-                Sync.startAutoSync(120000);
-            }, 1000);
+                await Sync.fullSync(false);
+                // Her 5 dakikada bir sessiz otomatik sync
+                Sync.startAutoSync(300000);
+            }, 2000);
         }
         
         const status = mode === 'firebase' ? '🔥 Firebase' : '💾 LocalStorage';

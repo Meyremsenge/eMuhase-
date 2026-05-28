@@ -769,8 +769,8 @@ async function loadNotificationsAndActivity() {
         // ---- AI: Anomali Tespiti ----
         // Tipini her bir öğeye gömüyoruz — daha sonra includes() yerine güvenli
         // şekilde okuyabilmek için (anomaliTespiti yeni nesneler döndürüyor).
-        const satisAnomali = anomaliTespiti(satisFaturalari, 2.5).map(a => ({ ...a, _tip: 'satis' }));
-        const alisAnomali  = anomaliTespiti(alisFaturalari, 2.5).map(a => ({ ...a, _tip: 'alis' }));
+        const satisAnomali = anomaliTespiti(satisFaturalari, 3.5).map(a => ({ ...a, _tip: 'satis' }));
+        const alisAnomali  = anomaliTespiti(alisFaturalari, 3.5).map(a => ({ ...a, _tip: 'alis' }));
         const tumAnomali   = [...satisAnomali, ...alisAnomali];
 
         if (tumAnomali.length > 0) {
@@ -1291,8 +1291,8 @@ async function analyzeWithAI() {
         const odenenAlisSayisi = alisFaturalari.filter(f=>f.durum==='odendi').length;
         const ortSatisTutar = satisFaturalari.length ? Math.round(totalIncome/satisFaturalari.length) : 0;
         const ortAlisTutar = alisFaturalari.length ? Math.round(totalExpense/alisFaturalari.length) : 0;
-        const satisAnomaliSayisi = anomaliTespiti(satisFaturalari, 2.5).length;
-        const alisAnomaliSayisi = anomaliTespiti(alisFaturalari, 2.5).length;
+        const satisAnomaliSayisi = anomaliTespiti(satisFaturalari, 3.5).length;
+        const alisAnomaliSayisi = anomaliTespiti(alisFaturalari, 3.5).length;
         const toplamAnomali = satisAnomaliSayisi + alisAnomaliSayisi;
         const bekleyenAlacak = satisFaturalari.filter(f=>f.durum!=='odendi').reduce((s,f)=>s+(parseFloat(f.genel_toplam)||0),0);
         const bekleyenBorc = alisFaturalari.filter(f=>f.durum!=='odendi').reduce((s,f)=>s+(parseFloat(f.genel_toplam)||0),0);
