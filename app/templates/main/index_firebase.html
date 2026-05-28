@@ -1264,34 +1264,36 @@ async function analyzeWithAI() {
 • Tahsil Edilmemiş Alacak: ${bekleyenAlacak.toLocaleString('tr-TR')} TL (${bekleyenSatis} fatura)
 • Ödenmemiş Borç: ${bekleyenBorc.toLocaleString('tr-TR')} TL (${bekleyenAlis} fatura)`;
 
-        const prompt = `Sen 20 yıllık deneyimli bir Türk CPA (Sertifikalı Kamu Muhasebecisi) ve finansal analistsın. Aşağıdaki işletme finansal verilerini derinlemesine analiz et. Muğlak ifadeler kullanma, rakama dayalı somut tespitler yap.
+        const prompt = `Sen 20 yıllık deneyimli bir Türk CPA (Sertifikalı Kamu Muhasebecisi) ve finansal analistsın.
+UYARI: Aşağıdaki verilerdeki GERÇEK sayıları kullan. Kendi başına sayı üretme, verilen rakamların dışına çıkma.
 
 YALNIZCA bu formatta Türkçe yanıt ver (başka hiçbir şey ekleme):
 
 ###GENEL###
-[İşletmenin gerçek durumunu net ortaya koyan, rakamlar içeren 2-3 cümle]
+[İşletmenin gerçek durumunu net ortaya koyan, VERİDEKİ GERÇEK RAKAMLARI kullanan 2-3 cümle]
 
 ###GUCLU###
-• [Somut veriye dayalı güçlü yön — mutlaka rakam içersin]
+• [Veriden alınan gerçek rakamla güçlü yön]
 • [Güçlü yön 2]
 • [Güçlü yön 3]
 • [Güçlü yön 4]
 • [Güçlü yön 5]
 
 ###DIKKAT###
-• [En kritik risk — neden kritik olduğunu rakamla açıkla]
+• [Veriden alınan gerçek rakamla en kritik risk]
 • [Risk 2]
 • [Risk 3]
 • [Risk 4]
-• [Anomali varsa belirt, yoksa başka bir risk yaz]
+• [Anomali varsa belirt, yoksa başka bir risk]
 
 ###ONERI###
-• [Spesifik, uygulanabilir öneri — ne yapılmalı, hangi sürede]
+• [Spesifik, uygulanabilir öneri — süre ve hedef içersin]
 • [Öneri 2]
 • [Öneri 3]
 • [Öneri 4]
 • [Öneri 5]
 
+=== GERÇEK VERİ (Bu sayıları değiştirme, olduğu gibi kullan) ===
 ${dataSummary}`;
 
         const aiHeaders = { 'Content-Type': 'application/json' };
