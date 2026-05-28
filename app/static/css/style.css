@@ -414,7 +414,7 @@ a:hover { color: var(--violet-500); text-decoration: none; }
 .u-font-semibold { font-weight: 600; }
 
 /* ========== LAYOUT ========== */
-.app-container { display: flex; min-height: 100vh; }
+.app-container { min-height: 100vh; }
 
 /* ════════════════ SIDEBAR ════════════════ */
 .sidebar {
@@ -584,7 +584,6 @@ a:hover { color: var(--violet-500); text-decoration: none; }
 
 /* ════════════════ MAIN CONTENT ════════════════ */
 .main-content {
-    flex: 1;
     margin-left: 264px;
     min-height: 100vh;
     display: flex;

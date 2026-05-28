@@ -6,7 +6,7 @@
     --dash-grad-gold: linear-gradient(135deg, var(--amber-400), var(--amber-500));
 }
 
-.dashboard-container { max-width: 1600px; margin: 0 auto; }
+.dashboard-container { width: 100%; margin: 0 auto; }
 
 .is-hidden { display: none; }
 .text-danger { color: var(--rose-500); }
@@ -447,6 +447,7 @@
     padding: 1.5rem;
     box-shadow: 0 1px 3px rgba(15,23,42,0.10);
     border: 1px solid var(--bg-600);
+    overflow-x: auto;
 }
 
 .table-header {

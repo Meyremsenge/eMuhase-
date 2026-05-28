@@ -1,0 +1,191 @@
+/* ==========================================================================
+   eMuhasebe Pro — Yazdırma / PDF CSS
+   Bu dosya sadece "Yazdır" (window.print()) komutu çalıştırıldığında veya 
+   tarayıcıdan "PDF Olarak Kaydet" denildiğinde aktif olur.
+   ========================================================================== */
+
+@media print {
+    /* Genel Ayarlar */
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 11pt !important;
+        line-height: 1.4 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* Gizlenecek Elemanlar */
+    .sidebar, 
+    .main-header, 
+    .btn, 
+    .skip-link, 
+    .undo-toast, 
+    .confirm-modal-overlay,
+    .firebase-setup-overlay,
+    .ai-setup-overlay,
+    nav, 
+    footer {
+        display: none !important;
+    }
+
+    /* Ana İçerik Alanı Düzeni */
+    .app-container {
+        display: block !important;
+        height: auto !important;
+        min-height: auto !important;
+    }
+
+    .main-content {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        display: block !important;
+    }
+
+    .content-area {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Kart Stilini Yazdırmaya Uygun Hale Getir (Gölgeleri vb. Kaldır) */
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .card-header {
+        border-bottom: 2px solid #334155 !important;
+        padding: 0 0 1rem 0 !important;
+        margin-bottom: 2rem !important;
+    }
+
+    .card-title {
+        font-size: 18pt !important;
+        color: #0f172a !important;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Kurumsal Logo / Başlık (Sadece Yazdırmada Görünecek CSS Hilesi) */
+    .card-header::before {
+        content: "eMuhasebe Pro Kurumsal Fatura";
+        display: block;
+        font-size: 10pt;
+        font-weight: bold;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Grid Yapıları */
+    .details-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 1rem !important;
+        margin-bottom: 2rem !important;
+    }
+
+    .form-group {
+        break-inside: avoid;
+        margin-bottom: 0.5rem !important;
+    }
+
+    .form-label {
+        font-size: 9pt !important;
+        color: #475569 !important;
+        margin-bottom: 0.2rem !important;
+    }
+
+    .form-group p {
+        font-size: 11pt !important;
+        font-weight: bold !important;
+        margin: 0 !important;
+        color: #000 !important;
+    }
+
+    /* Tablo Düzeni */
+    .table-container {
+        border: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+    }
+
+    .table th, .table td {
+        border: 1px solid #cbd5e1 !important;
+        padding: 8px 12px !important;
+        font-size: 10pt !important;
+        color: #000 !important;
+    }
+
+    .table th {
+        background-color: #f8fafc !important;
+        color: #334155 !important;
+        font-weight: bold !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .details-title {
+        font-size: 14pt !important;
+        margin-bottom: 1rem !important;
+        color: #334155 !important;
+        border-bottom: 1px solid #cbd5e1 !important;
+        padding-bottom: 0.5rem !important;
+    }
+
+    /* Rozetleri (Badges) Basit Metne Çevir veya Düzgün Göster */
+    .badge {
+        border: 1px solid #94a3b8 !important;
+        color: #000 !important;
+        background: transparent !important;
+        padding: 2px 6px !important;
+    }
+
+    /* Link Renklerini ve Alt Çizgileri Kaldır */
+    a {
+        text-decoration: none !important;
+        color: #000 !important;
+    }
+
+    /* Kesilmeleri (Sayfa Sonu) Engelle */
+    tr, td, th {
+        page-break-inside: avoid !important;
+    }
+    
+    tfoot tr {
+        page-break-inside: avoid !important;
+    }
+
+    /* Sadece Masaüstünde Gösterilen Tfoot Yapısını Düzenle */
+    .table-summary-row td {
+        border: none !important;
+        padding: 4px 12px !important;
+    }
+    
+    .table-summary-label {
+        font-weight: normal !important;
+    }
+    
+    .table-summary-value {
+        font-weight: bold !important;
+    }
+    
+    .table-summary-total {
+        font-size: 12pt !important;
+        font-weight: bold !important;
+        border-top: 2px solid #334155 !important;
+        padding-top: 8px !important;
+    }
+}

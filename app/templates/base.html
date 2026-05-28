@@ -15,6 +15,7 @@
     
     <!-- Ana CSS — sürüm bilgisiyle cache-bust (deploy başına bir kez değişir) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ config.get('APP_VERSION', '1.0.0') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
 
     <!-- PWA -->
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
