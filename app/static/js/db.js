@@ -1046,6 +1046,43 @@ window.loadDemoData = async function() {
     }
 };
 
+// ==================== CANLI BİLDİRİMLER (REAL-TIME NOTIFICATIONS) ====================
+let isCanliBildirimStarted = false;
+async function baslatCanliBildirimler() {
+    if (!firebaseConnected || isCanliBildirimStarted) return;
+    
+    try {
+        const { ref, onChildAdded } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js');
+        const baslangicZamani = new Date().getTime();
+
+        const dinleVeBildir = (koleksiyon, baslikTuru, ikon) => {
+            const koleksiyonRef = ref(firebaseDb, koleksiyon);
+            onChildAdded(koleksiyonRef, (snapshot) => {
+                const data = snapshot.val();
+                if (!data || !data.olusturma_tarihi) return;
+                
+                const kayitZamani = new Date(data.olusturma_tarihi).getTime();
+                
+                // Sadece uygulama açıldıktan SONRA eklenen yeni kayıtları bildir
+                if (kayitZamani > baslangicZamani) {
+                    const tutar = data.genel_toplam ? Yardimci.paraFormat(data.genel_toplam) + ' ₺' : '';
+                    const mesaj = `Yeni ${baslikTuru} Kesildi: ${data.fatura_no || ''} ${tutar}`;
+                    notify(mesaj, 'success', { icon: ikon, duration: 6000 });
+                }
+            });
+        };
+
+        dinleVeBildir('satis_faturalari', 'Satış Faturası', 'file-invoice-dollar');
+        dinleVeBildir('alis_faturalari', 'Alış Faturası', 'file-invoice');
+        dinleVeBildir('iade_faturalari', 'İade Faturası', 'receipt');
+        
+        isCanliBildirimStarted = true;
+        console.log('📡 Canlı fatura bildirimleri aktif!');
+    } catch (e) {
+        console.error('Canlı bildirimler başlatılamadı:', e);
+    }
+}
+
 // ==================== BAŞLATMA ====================
 // NOT: initialized flag kaldırıldı - her sayfa yüklenmesinde mod kontrolü yapılır
 let initPromise = null;
@@ -1082,6 +1119,9 @@ export async function init() {
         const forceLocal = getForceLocalMode();
 
         if (mode === 'firebase') {
+            // Canlı bildirimleri başlat
+            baslatCanliBildirimler();
+            
             // Firebase modunda otomatik senkronizasyon yap
             setTimeout(async () => {
                 await Sync.fullSync(true);
