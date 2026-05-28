@@ -306,6 +306,10 @@
                         <i class="fas fa-bell"></i>
                         <span>Bildirimler</span>
                     </a>
+                    <a href="{{ url_for('main.hizli_islemler') }}" class="nav-item {% if request.endpoint == 'main.hizli_islemler' %}active{% endif %}">
+                        <i class="fas fa-bolt"></i>
+                        <span>Hızlı İşlemler</span>
+                    </a>
                 </div>
                 
                 <!-- Faturalar -->

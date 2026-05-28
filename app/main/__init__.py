@@ -1,4 +1,4 @@
-﻿"""
+"""
 eMuhasebe Pro - Ana Modül
 Dashboard ve genel sayfalar
 Firebase Realtime Database ile çalışır
@@ -24,6 +24,12 @@ def veri_sifirla():
 def bildirimler():
     """Tum bildirimler sayfasi"""
     return render_template('main/bildirimler.html')
+
+
+@main_bp.route('/hizli-islemler')
+def hizli_islemler():
+    """Hızlı İşlemler sayfası"""
+    return render_template('main/hizli_islemler.html')
 
 
 @main_bp.route('/giris')
