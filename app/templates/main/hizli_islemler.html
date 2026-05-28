@@ -1,63 +1,259 @@
 {% extends 'base.html' %}
 
 {% block title %}Hızlı İşlemler - eMuhasebe Pro{% endblock %}
-{% block page_title %}Hızlı İşlemler{% endblock %}
-{% block page_subtitle %}Sık kullanılan işlemlere hızlıca erişin{% endblock %}
+
+{% block extra_css %}
+<style>
+.quick-actions-hero {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-radius: 1.5rem;
+    padding: 3rem 2rem;
+    color: white;
+    margin-bottom: 2.5rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 25px -5px rgba(var(--primary-rgb), 0.4);
+}
+
+.quick-actions-hero::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%);
+    border-radius: 50%;
+}
+
+.quick-actions-hero::before {
+    content: '';
+    position: absolute;
+    bottom: -20%;
+    left: 5%;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+    border-radius: 50%;
+}
+
+.hero-title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.hero-subtitle {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    max-width: 600px;
+    position: relative;
+    z-index: 1;
+    line-height: 1.5;
+}
+
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.action-card {
+    background: var(--surface-card);
+    border-radius: 1.25rem;
+    padding: 2rem 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    text-decoration: none;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.action-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.action-card:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border-color: transparent;
+}
+
+html[data-theme="dark"] .action-card:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    background: var(--surface-hover);
+}
+
+.action-card:hover::before {
+    opacity: 1;
+}
+
+.action-icon-wrapper {
+    width: 60px;
+    height: 60px;
+    border-radius: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+    flex-shrink: 0;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.action-card:hover .action-icon-wrapper {
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.action-content {
+    flex: 1;
+}
+
+.action-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.action-title i.fa-arrow-right {
+    font-size: 0.9rem;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 0.3s ease;
+}
+
+.action-card:hover .action-title i.fa-arrow-right {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.action-desc {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Gradients for icons */
+.grad-green { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.grad-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+.grad-purple { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
+.grad-orange { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+.grad-red { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+.grad-teal { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); }
+
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Hızlı İşlemler</h1>
-        <p class="page-subtitle">Sık kullanılan formlara ve işlemlere hızlıca erişin</p>
+<div class="fade-in">
+    
+    <div class="quick-actions-hero">
+        <h1 class="hero-title">Ne yapmak istersiniz?</h1>
+        <p class="hero-subtitle">İşletmenizi yönetmek için en sık kullanılan araçlara buradan saniyeler içinde ulaşabilir, vakit kaybetmeden işlemlerinizi tamamlayabilirsiniz.</p>
     </div>
-</div>
 
-<div class="quick-actions-page-container fade-in">
-    <div class="quick-actions-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
+    <div class="action-grid">
         
-        <a href="{{ url_for('satis.yeni') }}" class="quick-action-btn" style="padding: 2.5rem 1.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; border-radius: 1rem; background: var(--surface-card); box-shadow: 0 4px 6px -1px var(--shadow-color); border: 1px solid var(--border-color); text-decoration: none; transition: all 0.3s ease;">
-            <div class="icon-wrapper bg-success text-white" style="width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 0.5rem;">
+        <!-- Satış Faturası -->
+        <a href="{{ url_for('satis.yeni') }}" class="action-card">
+            <div class="action-icon-wrapper grad-green">
                 <i class="fas fa-file-invoice-dollar"></i>
             </div>
-            <span style="font-weight: 600; font-size: 1.1rem; color: var(--text-primary);">Yeni Satış Faturası</span>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin: 0;">Müşteriye keseceğiniz yeni bir satış faturası oluşturun.</p>
+            <div class="action-content">
+                <div class="action-title">
+                    <span>Satış Faturası Kes</span>
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <p class="action-desc">Müşterilerinize ürün veya hizmet sattığınızda yeni bir satış faturası oluşturun.</p>
+            </div>
         </a>
 
-        <a href="{{ url_for('alis.yeni') }}" class="quick-action-btn" style="padding: 2.5rem 1.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; border-radius: 1rem; background: var(--surface-card); box-shadow: 0 4px 6px -1px var(--shadow-color); border: 1px solid var(--border-color); text-decoration: none; transition: all 0.3s ease;">
-            <div class="icon-wrapper bg-primary text-white" style="width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 0.5rem;">
+        <!-- Alış Faturası -->
+        <a href="{{ url_for('alis.yeni') }}" class="action-card">
+            <div class="action-icon-wrapper grad-blue">
                 <i class="fas fa-file-import"></i>
             </div>
-            <span style="font-weight: 600; font-size: 1.1rem; color: var(--text-primary);">Yeni Alış Faturası</span>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin: 0;">Tedarikçiden gelen yeni bir alış faturası kaydedin.</p>
+            <div class="action-content">
+                <div class="action-title">
+                    <span>Alış Faturası İşle</span>
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <p class="action-desc">Tedarikçilerinizden aldığınız ürün ve hizmetlerin faturalarını sisteme kaydedin.</p>
+            </div>
         </a>
 
-        <a href="{{ url_for('musteriler.yeni') }}" class="quick-action-btn" style="padding: 2.5rem 1.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; border-radius: 1rem; background: var(--surface-card); box-shadow: 0 4px 6px -1px var(--shadow-color); border: 1px solid var(--border-color); text-decoration: none; transition: all 0.3s ease;">
-            <div class="icon-wrapper bg-purple text-white" style="width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 0.5rem;">
+        <!-- Yeni Müşteri -->
+        <a href="{{ url_for('musteriler.yeni') }}" class="action-card">
+            <div class="action-icon-wrapper grad-purple">
                 <i class="fas fa-user-plus"></i>
             </div>
-            <span style="font-weight: 600; font-size: 1.1rem; color: var(--text-primary);">Yeni Müşteri / Tedarikçi</span>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin: 0;">Sisteme yeni bir cari kayıt (Müşteri veya Tedarikçi) ekleyin.</p>
+            <div class="action-content">
+                <div class="action-title">
+                    <span>Yeni Cari (Müşteri/Tedarikçi)</span>
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <p class="action-desc">Çalıştığınız yeni firmaları veya şahısları cari listenize ekleyerek takibe başlayın.</p>
+            </div>
         </a>
 
-        <a href="{{ url_for('urunler.yeni') }}" class="quick-action-btn" style="padding: 2.5rem 1.5rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; border-radius: 1rem; background: var(--surface-card); box-shadow: 0 4px 6px -1px var(--shadow-color); border: 1px solid var(--border-color); text-decoration: none; transition: all 0.3s ease;">
-            <div class="icon-wrapper bg-orange text-white" style="width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.75rem; margin-bottom: 0.5rem;">
-                <i class="fas fa-box"></i>
+        <!-- Yeni Ürün -->
+        <a href="{{ url_for('urunler.yeni') }}" class="action-card">
+            <div class="action-icon-wrapper grad-orange">
+                <i class="fas fa-box-open"></i>
             </div>
-            <span style="font-weight: 600; font-size: 1.1rem; color: var(--text-primary);">Yeni Ürün / Hizmet</span>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin: 0;">Stok takibi yapmak veya faturalarda kullanmak için ürün ekleyin.</p>
+            <div class="action-content">
+                <div class="action-title">
+                    <span>Stok Kartı / Hizmet Ekle</span>
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <p class="action-desc">Faturalarda kullanmak ve stoklarını takip etmek üzere yeni ürün tanımlayın.</p>
+            </div>
+        </a>
+
+        <!-- İade Faturası (YENİ ÖNERİ) -->
+        <a href="{{ url_for('iade.yeni') }}" class="action-card">
+            <div class="action-icon-wrapper grad-red">
+                <i class="fas fa-undo-alt"></i>
+            </div>
+            <div class="action-content">
+                <div class="action-title">
+                    <span>İade Faturası Oluştur</span>
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <p class="action-desc">Müşteriden dönen veya tedarikçiye geri gönderilen hatalı/fazla ürünleri işleyin.</p>
+            </div>
+        </a>
+
+        <!-- Genel Rapor (YENİ ÖNERİ) -->
+        <a href="{{ url_for('main.index') }}" class="action-card">
+            <div class="action-icon-wrapper grad-teal">
+                <i class="fas fa-chart-pie"></i>
+            </div>
+            <div class="action-content">
+                <div class="action-title">
+                    <span>Finansal Özete Git</span>
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                <p class="action-desc">Kâr/zarar durumunuzu, gelir-gider grafiklerini ve genel istatistikleri görüntüleyin.</p>
+            </div>
         </a>
 
     </div>
 </div>
-
-<style>
-.quick-action-btn:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
-    border-color: var(--primary) !important;
-}
-.icon-wrapper {
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-}
-</style>
 {% endblock %}
