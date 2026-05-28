@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}{{ 'Düzenle' if fatura_id else 'Yeni' }} İade Faturası - eMuhasebe Pro{% endblock %}
 
@@ -272,11 +272,16 @@ window.kaydet = async function(e) {
     
     const kalemler = [];
     let araToplam = 0, kdvToplam = 0;
+    let gecersizKalemVar = false;
     
     document.querySelectorAll('.invoice-item-row').forEach(row => {
         const miktar = parseFloat(row.querySelector('.kalem-miktar').value) || 0;
         const birim_fiyat = parseFloat(row.querySelector('.kalem-fiyat').value) || 0;
         const kdv_orani = parseInt(row.querySelector('.kalem-kdv').value) || 0;
+        
+        if (miktar < 0 || birim_fiyat < 0) {
+            gecersizKalemVar = true;
+        }
         
         const tutar = miktar * birim_fiyat;
         const kdv_tutar = tutar * kdv_orani / 100;
@@ -290,6 +295,14 @@ window.kaydet = async function(e) {
         araToplam += tutar;
         kdvToplam += kdv_tutar;
     });
+
+    if (gecersizKalemVar) {
+        if (window.Toast) Toast.error("Fatura kalemlerinde eksi (-) miktar veya fiyat olamaz!");
+        else alert("Fatura kalemlerinde eksi (-) miktar veya fiyat olamaz!");
+        btn.disabled = false;
+        btnText.textContent = 'Faturayı Kaydet';
+        return;
+    }
     
     const fatura = {
         fatura_no: document.getElementById('fatura_no').value,

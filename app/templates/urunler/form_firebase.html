@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block title %}{{ 'Düzenle' if urun_id else 'Yeni' }} Ürün/Hizmet - eMuhasebe Pro{% endblock %}
 
@@ -156,11 +156,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 window.kaydet = async function(e) {
     e.preventDefault();
     
-    const btn = document.getElementById('kaydetBtn');
-    const btnText = document.getElementById('kaydetBtnText');
-    btn.disabled = true;
-    btnText.textContent = 'Kaydediliyor...';
-    
     const veri = {
         kod: document.getElementById('kod').value,
         ad: document.getElementById('ad').value,
@@ -172,6 +167,23 @@ window.kaydet = async function(e) {
         satis_fiyat: parseFloat(document.getElementById('satis_fiyat').value) || 0,
         aktif: document.getElementById('aktif').checked
     };
+
+    // Sıkı Güvenlik Kontrolleri
+    if (veri.alis_fiyat < 0 || veri.satis_fiyat < 0) {
+        if (window.notify) notify.error("Fiyatlar eksi (-) değer alamaz!");
+        else alert("Fiyatlar eksi (-) değer alamaz!");
+        return;
+    }
+    if (veri.stok_miktari < 0) {
+        if (window.notify) notify.error("Stok miktarı eksi (-) olamaz!");
+        else alert("Stok miktarı eksi (-) olamaz!");
+        return;
+    }
+    
+    const btn = document.getElementById('kaydetBtn');
+    const btnText = document.getElementById('kaydetBtnText');
+    btn.disabled = true;
+    btnText.textContent = 'Kaydediliyor...';
     
     try {
         if (urunId) {
