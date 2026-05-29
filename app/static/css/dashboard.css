@@ -2674,3 +2674,28 @@
 [data-theme="light"] .air-trend.is-down .air-trend-val { color: #dc2626; }
 [data-theme="light"] .air-overdue-amt { color: #dc2626; }
 [data-theme="light"] .air-overdue-row { border-bottom-color: rgba(0,0,0,0.06); }
+
+/* Mobil uyumluluk: Bildirim Dropdown taşmasını düzeltme */
+@media (max-width: 500px) {
+    .notif-dropdown-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.8rem;
+    }
+    .notif-dropdown-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+/* Mobil uyumluluk: Bildirim Dropdown tasmasini duzeltme */
+@media (max-width: 500px) {
+    .notif-dropdown-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.8rem;
+    }
+    .notif-dropdown-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
