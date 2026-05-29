@@ -5,54 +5,42 @@
 {% block extra_css %}
 <style>
 .quick-actions-hero {
-    background: linear-gradient(135deg, var(--glass-05) 0%, var(--glass-12) 100%);
-    border-radius: 1.5rem;
-    padding: 3rem 2rem;
+    background: var(--surface-card);
+    border-radius: 1rem;
+    padding: 1.75rem 2rem;
     color: var(--text-primary);
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem;
     position: relative;
-    overflow: hidden;
     border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-card);
+    border-left: 4px solid var(--primary-600);
+    box-shadow: 0 1px 3px rgba(15,23,42,0.08);
 }
 
-.quick-actions-hero::after {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -10%;
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 70%);
-    border-radius: 50%;
-}
-
-.quick-actions-hero::before {
-    content: '';
-    position: absolute;
-    bottom: -20%;
-    left: 5%;
-    width: 200px;
-    height: 200px;
-    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
-    border-radius: 50%;
+.hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--primary-600);
+    margin-bottom: 0.65rem;
 }
 
 .hero-title {
-    font-size: 2.25rem;
+    font-size: 1.6rem;
     font-weight: 700;
-    margin-bottom: 0.5rem;
-    position: relative;
-    z-index: 1;
+    margin-bottom: 0.35rem;
+    line-height: 1.2;
 }
 
 .hero-subtitle {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     color: var(--text-secondary);
-    max-width: 600px;
-    position: relative;
-    z-index: 1;
-    line-height: 1.5;
+    max-width: 640px;
+    line-height: 1.55;
+    margin: 0;
 }
 
 .action-grid {
@@ -63,15 +51,15 @@
 
 .action-card {
     background: var(--surface-card);
-    border-radius: 1.25rem;
-    padding: 2rem 1.5rem;
+    border-radius: 1rem;
+    padding: 1.5rem;
     display: flex;
     align-items: flex-start;
-    gap: 1.25rem;
+    gap: 1.1rem;
     text-decoration: none;
     color: var(--text-primary) !important;
     border: 1px solid var(--border-color);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
 }
@@ -86,9 +74,9 @@
 }
 
 .action-card:hover {
-    transform: translateY(-5px) scale(1.02);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    border-color: transparent;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.10);
+    border-color: color-mix(in srgb, var(--primary-600) 35%, transparent);
     color: var(--text-primary) !important;
 }
 
@@ -117,48 +105,17 @@ html[data-theme="dark"] .action-card:hover {
     background: transparent;
 }
 
-/* Soft UI / Tinted Backgrounds for Icons */
-.soft-green { 
-    background-color: rgba(16, 185, 129, 0.12); 
-    color: #10b981 !important; 
-    box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.1), 0 8px 16px -4px rgba(16, 185, 129, 0.15);
-}
-.soft-blue { 
-    background-color: rgba(59, 130, 246, 0.12); 
-    color: #3b82f6 !important; 
-    box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.1), 0 8px 16px -4px rgba(59, 130, 246, 0.15);
-}
-.soft-purple { 
-    background-color: rgba(139, 92, 246, 0.12); 
-    color: #8b5cf6 !important; 
-    box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.1), 0 8px 16px -4px rgba(139, 92, 246, 0.15);
-}
-.soft-orange { 
-    background-color: rgba(245, 158, 11, 0.12); 
-    color: #f59e0b !important; 
-    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.1), 0 8px 16px -4px rgba(245, 158, 11, 0.15);
-}
-.soft-red { 
-    background-color: rgba(239, 68, 68, 0.12); 
-    color: #ef4444 !important; 
-    box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.1), 0 8px 16px -4px rgba(239, 68, 68, 0.15);
-}
-.soft-teal { 
-    background-color: rgba(20, 184, 166, 0.12); 
-    color: #14b8a6 !important; 
-    box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.1), 0 8px 16px -4px rgba(20, 184, 166, 0.15);
-}
+/* Düz tint ikon arka planları (parıltısız, ciddi) */
+.soft-green  { background-color: rgba(16, 185, 129, 0.12); color: #059669 !important; }
+.soft-blue   { background-color: rgba(37, 99, 235, 0.12);  color: #2563eb !important; }
+.soft-purple { background-color: rgba(71, 85, 105, 0.12);  color: #475569 !important; }
+.soft-orange { background-color: rgba(245, 158, 11, 0.12); color: #d97706 !important; }
+.soft-red    { background-color: rgba(239, 68, 68, 0.12);  color: #dc2626 !important; }
+.soft-teal   { background-color: rgba(13, 148, 136, 0.12); color: #0d9488 !important; }
 
 .action-card:hover .action-icon-wrapper {
-    transform: scale(1.1) translateY(-2px);
+    transform: scale(1.05);
 }
-
-.action-card:hover .soft-green { box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.2), 0 12px 24px -4px rgba(16, 185, 129, 0.3); }
-.action-card:hover .soft-blue { box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.2), 0 12px 24px -4px rgba(59, 130, 246, 0.3); }
-.action-card:hover .soft-purple { box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.2), 0 12px 24px -4px rgba(139, 92, 246, 0.3); }
-.action-card:hover .soft-orange { box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.2), 0 12px 24px -4px rgba(245, 158, 11, 0.3); }
-.action-card:hover .soft-red { box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.2), 0 12px 24px -4px rgba(239, 68, 68, 0.3); }
-.action-card:hover .soft-teal { box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.2), 0 12px 24px -4px rgba(20, 184, 166, 0.3); }
 
 .action-content {
     flex: 1;
@@ -201,6 +158,7 @@ html[data-theme="dark"] .action-card:hover {
 <div class="fade-in">
     
     <div class="quick-actions-hero">
+        <span class="hero-eyebrow"><i class="fas fa-bolt"></i> Hızlı İşlemler</span>
         <h1 class="hero-title">Ne yapmak istersiniz?</h1>
         <p class="hero-subtitle">İşletmenizi yönetmek için en sık kullanılan araçlara buradan saniyeler içinde ulaşabilir, vakit kaybetmeden işlemlerinizi tamamlayabilirsiniz.</p>
     </div>

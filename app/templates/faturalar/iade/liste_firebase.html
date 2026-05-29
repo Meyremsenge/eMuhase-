@@ -132,7 +132,7 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after { content:'⇅'; }
 
 {% block extra_js %}
 <script type="module">
-import { init, IadeFaturalari, Musteriler } from '{{ url_for("static", filename="js/db.js") }}';
+import { init, IadeFaturalari, Musteriler, isOnline } from '{{ url_for("static", filename="js/db.js") }}';
 
 let tumFaturalar = [], filtreli = [], cariMap = {};
 let currentPage = 1, pageSize = 100, sortCol = 'fatura_tarihi', sortDir = 'desc';
@@ -145,31 +145,74 @@ const durumBadge = d => d==='tamamlandi'?'<span class="badge badge-success">Tama
 
 document.addEventListener('DOMContentLoaded', async () => {
     const ai = document.getElementById('aramaInput');
+    // Tarayıcı autofill'ini kesin engelle: yüklemede readonly, ilk etkileşimde aç.
+    ai.setAttribute('readonly', 'readonly');
+    const _acAra = () => ai.removeAttribute('readonly');
+    ai.addEventListener('focus', _acAra);
+    ai.addEventListener('pointerdown', _acAra);
     ai.value = ''; requestAnimationFrame(() => { ai.value = ''; });
+    // Tarayıcı reload/geri-ileri (bfcache) sonrası eski arama metnini geri
+    // yükleyebiliyor; her gösterimde temizle.
+    window.addEventListener('pageshow', (e) => {
+        ai.value = '';
+        if (e.persisted) uygula();
+    });
 
+    const ILK_LIMIT = 50;
+    const sirala = arr => arr.sort((a,b)=>new Date(b.fatura_tarihi)-new Date(a.fatura_tarihi));
+    const gosterListe = () => {
+        document.getElementById('skeletonCard').classList.add('is-hidden');
+        document.getElementById('listeCard').classList.remove('is-hidden');
+    };
+
+    // 0) Önbellekten anında boya (init/ağ beklemeden)
+    const cMus = Musteriler.onbellek();
+    if (cMus) cMus.forEach(m => { cariMap[m.id] = m.unvan; });
+    const cIade = IadeFaturalari.onbellek();
+    const onbellekVar = !!(cIade && cIade.length);
+    if (onbellekVar) {
+        tumFaturalar = sirala(cIade);
+        filtreli = tumFaturalar;
+        gosterListe();
+        renderSayfa();
+    }
+
+    // 1) Bağlantıyı kur + cari haritasını tazele
     await init();
     const mList = await Musteriler.hepsiniGetir();
+    cariMap = {};
     mList.forEach(m => { cariMap[m.id] = m.unvan; });
-    tumFaturalar = (await IadeFaturalari.hepsiniGetir()).sort((a,b)=>new Date(b.fatura_tarihi)-new Date(a.fatura_tarihi));
 
-    document.getElementById('skeletonCard').classList.add('is-hidden');
-    document.getElementById('listeCard').classList.remove('is-hidden');
-    filtreli = tumFaturalar;
-    renderSayfa();
+    // 2) Önbellek yoksa: hızlı ilk 50 fatura ile boya
+    if (!onbellekVar) {
+        tumFaturalar = sirala(await IadeFaturalari.sinirliGetir(ILK_LIMIT, 'fatura_tarihi', 'son'));
+        gosterListe();
+        filtreli = tumFaturalar;
+        renderSayfa();
+    }
+
+    // 3) Tam listeyi arka planda getir (önbelleği günceller); mevcut filtre/sayfa korunur.
+    const tamGerekli = isOnline() ? (onbellekVar || tumFaturalar.length >= ILK_LIMIT) : onbellekVar;
+    if (tamGerekli) {
+        IadeFaturalari.hepsiniGetir()
+            .then(tumu => { tumFaturalar = sirala(tumu); uygula(false); })
+            .catch(() => {});
+    }
 
     let timer;
     ai.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(uygula, 180); });
     document.getElementById('tipSelect').addEventListener('change', uygula);
 });
 
-function uygula() {
+function uygula(resetPage = true) {
     const q = document.getElementById('aramaInput').value.toLowerCase().trim();
     const t = document.getElementById('tipSelect').value;
     filtreli = tumFaturalar.filter(f => {
         const cari = cariMap[f.cari_id] || f.cari_adi || '';
         return (!q || (f.fatura_no||'').toLowerCase().includes(q) || cari.toLowerCase().includes(q)) && (!t || f.iade_tipi===t);
     });
-    currentPage = 1; renderSayfa();
+    if (resetPage) currentPage = 1;
+    renderSayfa();
 }
 window.filtrele = uygula;
 window.temizle = function() {

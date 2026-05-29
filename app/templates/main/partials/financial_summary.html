@@ -1,0 +1,76 @@
+<!-- Finansal Özet: Alacak/Borç + KDV -->
+<div class="finance-summary-section">
+    <!-- Alacak / Borç -->
+    <div class="finance-card">
+        <div class="finance-card-header">
+            <div class="finance-card-title">
+                <i class="fas fa-scale-balanced"></i>
+                <span>Alacak / Borç Özeti</span>
+            </div>
+        </div>
+        <div class="finance-rows">
+            <div class="finance-row">
+                <div class="finance-row-label">
+                    <span class="finance-dot is-receivable"></span>
+                    <div>
+                        <div>Tahsil Edilecek (Alacak)</div>
+                        <div class="finance-row-meta" id="finReceivableCount">0 fatura</div>
+                    </div>
+                </div>
+                <div class="finance-row-value" id="finReceivable">₺0,00</div>
+            </div>
+            <div class="finance-row">
+                <div class="finance-row-label">
+                    <span class="finance-dot is-payable"></span>
+                    <div>
+                        <div>Ödenecek (Borç)</div>
+                        <div class="finance-row-meta" id="finPayableCount">0 fatura</div>
+                    </div>
+                </div>
+                <div class="finance-row-value" id="finPayable">₺0,00</div>
+            </div>
+            <div class="finance-row finance-row--net">
+                <div class="finance-row-label">Net Pozisyon</div>
+                <div class="finance-row-value" id="finNet">₺0,00</div>
+            </div>
+        </div>
+        <div class="finance-footer" id="finDueSoon">Yaklaşan vade yok</div>
+    </div>
+
+    <!-- KDV Özeti -->
+    <div class="finance-card">
+        <div class="finance-card-header">
+            <div class="finance-card-title">
+                <i class="fas fa-receipt"></i>
+                <span>KDV Özeti</span>
+            </div>
+        </div>
+        <div class="finance-rows">
+            <div class="finance-row">
+                <div class="finance-row-label">
+                    <span class="finance-dot is-receivable"></span>
+                    <div>
+                        <div>Hesaplanan KDV (Satış)</div>
+                        <div class="finance-row-meta">Satış faturalarından</div>
+                    </div>
+                </div>
+                <div class="finance-row-value" id="finVatCollected">₺0,00</div>
+            </div>
+            <div class="finance-row">
+                <div class="finance-row-label">
+                    <span class="finance-dot is-payable"></span>
+                    <div>
+                        <div>İndirilecek KDV (Alış)</div>
+                        <div class="finance-row-meta">Alış faturalarından</div>
+                    </div>
+                </div>
+                <div class="finance-row-value" id="finVatPaid">₺0,00</div>
+            </div>
+            <div class="finance-row finance-row--net">
+                <div class="finance-row-label" id="finVatNetLabel">Ödenecek KDV</div>
+                <div class="finance-row-value" id="finVatNet">₺0,00</div>
+            </div>
+        </div>
+        <div class="finance-footer">Tüm faturalar üzerinden hesaplanmıştır</div>
+    </div>
+</div>

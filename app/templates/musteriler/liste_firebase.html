@@ -140,29 +140,54 @@ const tipBadge = t => t==='musteri'?'<span class="badge badge-primary">Müşteri
 
 document.addEventListener('DOMContentLoaded', async () => {
     const ai = document.getElementById('aramaInput');
+    // Tarayıcı autofill'ini kesin engelle: yüklemede readonly, ilk etkileşimde aç.
+    ai.setAttribute('readonly', 'readonly');
+    const _acAra = () => ai.removeAttribute('readonly');
+    ai.addEventListener('focus', _acAra);
+    ai.addEventListener('pointerdown', _acAra);
     ai.value = ''; requestAnimationFrame(() => { ai.value = ''; });
+    // Tarayıcı reload/geri-ileri (bfcache) sonrası eski arama metnini geri
+    // yükleyebiliyor; her gösterimde temizle.
+    window.addEventListener('pageshow', (e) => {
+        ai.value = '';
+        if (e.persisted) uygula();
+    });
 
+    const sirala = arr => arr.sort((a,b)=>(a.unvan||'').localeCompare(b.unvan||'','tr'));
+    const gosterListe = () => {
+        document.getElementById('skeletonCard').classList.add('is-hidden');
+        document.getElementById('listeCard').classList.remove('is-hidden');
+    };
+
+    // 0) Önbellekten anında boya (init/ağ beklemeden)
+    const cMus = Musteriler.onbellek();
+    if (cMus && cMus.length) {
+        tumKayitlar = sirala(cMus);
+        filtreli = tumKayitlar;
+        gosterListe();
+        renderSayfa();
+    }
+
+    // 1) Bağlantıyı kur + tazesini getir
     await init();
-    tumKayitlar = (await Musteriler.hepsiniGetir()).sort((a,b)=>(a.unvan||'').localeCompare(b.unvan||'','tr'));
-
-    document.getElementById('skeletonCard').classList.add('is-hidden');
-    document.getElementById('listeCard').classList.remove('is-hidden');
-    filtreli = tumKayitlar;
-    renderSayfa();
+    tumKayitlar = sirala(await Musteriler.hepsiniGetir());
+    gosterListe();
+    uygula(false); // mevcut arama/sayfa korunur
 
     let timer;
     ai.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(uygula, 180); });
     document.getElementById('tipSelect').addEventListener('change', uygula);
 });
 
-function uygula() {
+function uygula(resetPage = true) {
     const q = document.getElementById('aramaInput').value.toLowerCase().trim();
     const t = document.getElementById('tipSelect').value;
     filtreli = tumKayitlar.filter(m => {
         const matchQ = !q || (m.unvan||'').toLowerCase().includes(q) || (m.vergi_no||'').toLowerCase().includes(q) || (m.telefon||'').includes(q) || (m.email||'').toLowerCase().includes(q);
         return matchQ && (!t || m.tip===t);
     });
-    currentPage = 1; renderSayfa();
+    if (resetPage) currentPage = 1;
+    renderSayfa();
 }
 window.filtrele = uygula;
 window.temizle = function() {

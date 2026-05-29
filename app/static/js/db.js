@@ -589,9 +589,9 @@ let firebaseRefs = null;
 
 async function getFirebaseRefs() {
     if (!firebaseRefs) {
-        const { ref, push, set, get, update, remove, onValue } = 
+        const { ref, push, set, get, update, remove, onValue, query, orderByChild, limitToLast, limitToFirst } =
             await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js');
-        firebaseRefs = { ref, push, set, get, update, remove, onValue };
+        firebaseRefs = { ref, push, set, get, update, remove, onValue, query, orderByChild, limitToLast, limitToFirst };
     }
     return firebaseRefs;
 }
@@ -599,6 +599,42 @@ async function getFirebaseRefs() {
 // ==================== GENERIC CRUD OPERASYONLARI ====================
 // Aktif local listener'ları takip et — leak'i engelle
 const _activeLocalListeners = new Map();
+
+// Eşzamanlı "hepsiniGetir" isteklerini birleştir (in-flight dedup).
+// Dashboard açılışta aynı koleksiyonu birden çok yükleyiciyle aynı anda
+// çekiyor; aynı koleksiyon için devam eden bir Firebase okuması varsa yeni
+// istek aynı promise'i paylaşır → tek ağ turu yapılır. İstek çözülünce kayıt
+// silinir, böylece sonraki okumalar yine güncel veriyi getirir.
+const _inflightGetAll = new Map();
+
+// ==================== OKUMA ÖNBELLEĞİ (stale-while-revalidate) ====================
+// Firebase modunda her sayfa geçişinde tüm koleksiyon yeniden indiğinden veriler
+// geç görünüyordu. Bu önbellek, son başarılı Firebase okumasını localStorage'a
+// yazar; sayfalar açılışta init/ağ beklemeden anında bununla boyar, ardından
+// tazesi gelince günceller.
+// ÖNEMLİ: 'emuhasebe_cache_' öneki LocalDB ('emuhasebe_') ve Sync yükleme
+// yolundan AYRIDIR — önbellek asla Firebase'e geri yüklenmez, dolayısıyla eski
+// "üstel çoğalma" hatası (bkz. init içindeki açıklama) tetiklenmez.
+const _CACHE_PREFIX = 'emuhasebe_cache_';
+
+function onbellekKaydet(collectionName, items) {
+    try {
+        localStorage.setItem(_CACHE_PREFIX + collectionName, JSON.stringify(items));
+    } catch (e) {
+        // Kota dolabilir — sessizce geç; ağ yolu yine çalışır.
+    }
+}
+
+// Önbellekten anında (senkron) oku — init/ağ beklemez. Yoksa null döner.
+export function onbellekOku(collectionName) {
+    try {
+        const raw = localStorage.getItem(_CACHE_PREFIX + collectionName);
+        const parsed = raw ? JSON.parse(raw) : null;
+        return Array.isArray(parsed) ? parsed : null;
+    } catch (e) {
+        return null;
+    }
+}
 
 function createCRUD(collectionName) {
     return {
@@ -637,8 +673,44 @@ function createCRUD(collectionName) {
         // Hepsini getir
         hepsiniGetir: async () => {
             if (firebaseConnected) {
-                const { ref, get } = await getFirebaseRefs();
-                const snapshot = await get(ref(firebaseDb, collectionName));
+                // Devam eden aynı koleksiyon okuması varsa onu paylaş
+                const pending = _inflightGetAll.get(collectionName);
+                if (pending) return pending;
+
+                const promise = (async () => {
+                    const { ref, get } = await getFirebaseRefs();
+                    const snapshot = await get(ref(firebaseDb, collectionName));
+                    const data = snapshot.val();
+                    const items = data ? Object.entries(data).map(([id, val]) => ({ id, ...val })) : [];
+                    onbellekKaydet(collectionName, items); // sonraki açılışlar için sakla
+                    return items;
+                })().finally(() => _inflightGetAll.delete(collectionName));
+
+                _inflightGetAll.set(collectionName, promise);
+                return promise;
+            } else {
+                const data = LocalDB.get(collectionName);
+                return Object.entries(data).map(([id, val]) => ({ id, ...val }));
+            }
+        },
+
+        // Bu koleksiyonun önbelleğini anında (senkron) oku — init/ağ beklemez.
+        onbellek: () => onbellekOku(collectionName),
+
+        // Sınırlı getir — ilk açılışta tüm koleksiyonu indirmeden yalnızca
+        // ilk `limit` kaydı çeker. Liste sayfaları önce bunu çağırıp hızlı
+        // boyar, ardından arka planda hepsiniGetir() ile tamamını tamamlar.
+        //   alan: sıralanacak çocuk alan (Firebase'de bu alan için .indexOn şart).
+        //   yon : 'son' → en büyük/yeni `limit` kayıt (limitToLast),
+        //         'ilk' → en küçük/baştaki `limit` kayıt (limitToFirst).
+        // Local modda anlık olduğundan tümü döner (page arka plan adımını atlar).
+        sinirliGetir: async (limit, alan = null, yon = 'son') => {
+            if (firebaseConnected) {
+                const { ref, get, query, orderByChild, limitToLast, limitToFirst } = await getFirebaseRefs();
+                const sinir = yon === 'ilk' ? limitToFirst(limit) : limitToLast(limit);
+                const base = ref(firebaseDb, collectionName);
+                const q = alan ? query(base, orderByChild(alan), sinir) : query(base, sinir);
+                const snapshot = await get(q);
                 const data = snapshot.val();
                 return data ? Object.entries(data).map(([id, val]) => ({ id, ...val })) : [];
             } else {

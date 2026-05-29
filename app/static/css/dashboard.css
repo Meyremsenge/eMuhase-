@@ -265,7 +265,12 @@
     padding: 1.5rem;
     box-shadow: 0 1px 3px rgba(15,23,42,0.10);
     border: 1px solid var(--bg-600);
+    min-width: 0; /* grid item'ın daralabilmesi için — yoksa geniş canvas yan kartı taşırır */
 }
+
+/* Tüm dashboard grid bölümleri taşmayı engellesin */
+.charts-section, .tables-section, .finance-summary-section { min-width: 0; }
+.charts-section > *, .tables-section > *, .finance-summary-section > * { min-width: 0; }
 
 .chart-header {
     display: flex;
@@ -353,7 +358,7 @@
     padding: 0.5rem 0;
 }
 
-.chart-container canvas { max-height: 100%; }
+.chart-container canvas { max-height: 100%; max-width: 100%; }
 
 /* Mini Stats Row */
 .mini-stats-row {
@@ -537,6 +542,37 @@
 
 .premium-table tbody tr:last-child td { border-bottom: none; }
 
+/* Son aktivite — belgeye git oku (sağ taraf) */
+.activity-go-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    color: var(--text-muted);
+    background: var(--bg-900);
+    border: 1px solid var(--bg-600);
+    text-decoration: none;
+    transition: all 0.18s ease;
+}
+
+.activity-go-btn:hover {
+    color: #fff;
+    background: var(--primary-600);
+    border-color: transparent;
+    transform: translateX(2px);
+}
+
+.premium-table tbody tr:hover .activity-go-btn {
+    color: var(--primary-600);
+    border-color: color-mix(in srgb, var(--primary-600) 35%, transparent);
+}
+
+.premium-table tbody tr:hover .activity-go-btn:hover {
+    color: #fff;
+}
+
 /* Table Badge */
 .table-badge {
     display: inline-flex;
@@ -599,10 +635,10 @@
     margin-right: 1rem;
 }
 
-.product-rank.gold { background: linear-gradient(135deg, var(--amber-400), var(--amber-500)); color: white; }
-.product-rank.silver { background: linear-gradient(135deg, var(--gray-400), var(--gray-600)); color: white; }
-.product-rank.bronze { background: linear-gradient(135deg, var(--warning-500), var(--warning-600)); color: white; }
-.product-rank.normal { background: var(--glass-05); color: var(--text-secondary); }
+.product-rank.gold { background: #d97706; color: #fff; }
+.product-rank.silver { background: #64748b; color: #fff; }
+.product-rank.bronze { background: #92400e; color: #fff; }
+.product-rank.normal { background: var(--bg-900); color: var(--text-secondary); border: 1px solid var(--bg-600); }
 
 .product-info { flex: 1; }
 .product-name { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.2rem; }
@@ -1049,6 +1085,108 @@
 .footer-stat-value.red { color: var(--rose-400); }
 .footer-stat-value.blue { color: var(--primary-600); }
 .footer-stat-value.yellow { color: var(--amber-400); }
+
+/* ==================== FINANSAL ÖZET (Alacak/Borç + KDV) ==================== */
+.finance-summary-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+@media (max-width: 900px) { .finance-summary-section { grid-template-columns: 1fr; } }
+
+.finance-card {
+    background: var(--bg-800);
+    border: 1px solid var(--bg-600);
+    border-radius: 20px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.10);
+}
+
+.finance-card-header {
+    margin-bottom: 1.1rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--bg-600);
+}
+
+.finance-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.finance-card-title i {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    background: color-mix(in srgb, var(--primary-600) 14%, transparent);
+    color: var(--primary-600);
+}
+
+.finance-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.7rem 0;
+    min-height: 3.5rem; /* iki kartın satırları hizalı kalsın (tek/çift satırlı etiketler eşitlensin) */
+    border-bottom: 1px solid var(--bg-600);
+}
+
+.finance-row:last-child { border-bottom: none; }
+
+.finance-row-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.finance-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.finance-dot.is-receivable { background: var(--emerald-500); }
+.finance-dot.is-payable { background: var(--rose-500); }
+
+.finance-row-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.finance-row-meta {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-top: 0.1rem;
+}
+
+.finance-row--net {
+    margin-top: 0.25rem;
+    padding-top: 0.9rem;
+    border-top: 2px solid var(--bg-600);
+    border-bottom: none;
+}
+
+.finance-row--net .finance-row-label { font-weight: 700; color: var(--text-primary); }
+.finance-row--net .finance-row-value { font-size: 1.2rem; }
+
+.finance-footer {
+    margin-top: 1rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-align: center;
+}
 
 /* ==================== AI ANALYSIS SECTION ==================== */
 .ai-section {
@@ -2419,3 +2557,66 @@
 [data-theme="light"] .air-section--customer .air-section-title { color: #475569; }
 [data-theme="light"] .air-section--cashflow  .air-section-title { color: #1d4ed8; }
 [data-theme="light"] .air-section--anomali   .air-section-title { color: #b91c1c; }
+
+/* ── AI Report: alt-skor kartları ── */
+.air-scores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.7rem; }
+@media (max-width: 640px) { .air-scores { grid-template-columns: repeat(2, 1fr); } }
+.air-score-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); border-radius: 12px; padding: 0.8rem 0.85rem; }
+.air-sc-top { display: flex; align-items: center; gap: 0.45rem; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.65; }
+.air-sc-top i { font-size: 0.72rem; }
+.air-sc-val { font-size: 1.5rem; font-weight: 800; margin: 0.3rem 0 0.5rem; line-height: 1; }
+.air-sc-val small { font-size: 0.7rem; font-weight: 600; opacity: 0.4; }
+.air-sc-bar { height: 5px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
+.air-sc-fill { height: 100%; border-radius: 99px; transition: width 1s cubic-bezier(.2,.8,.4,1); }
+.air-score-card.is-good .air-sc-fill { background: #16a34a; }
+.air-score-card.is-good .air-sc-val { color: #34d399; }
+.air-score-card.is-mid  .air-sc-fill { background: #d97706; }
+.air-score-card.is-mid  .air-sc-val { color: #fbbf24; }
+.air-score-card.is-bad  .air-sc-fill { background: #b91c1c; }
+.air-score-card.is-bad  .air-sc-val { color: #f87171; }
+
+/* ── AI Report: trend rozetleri ── */
+.air-trends { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.air-trend { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.7rem; border-radius: 8px; font-size: 0.78rem; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); }
+.air-trend-lbl { opacity: 0.6; font-weight: 600; }
+.air-trend-val { font-weight: 700; }
+.air-trend-val i { font-size: 0.65rem; }
+.air-trend.is-up   .air-trend-val { color: #34d399; }
+.air-trend.is-down .air-trend-val { color: #f87171; }
+.air-trend.is-neutral .air-trend-val { opacity: 0.45; font-weight: 600; }
+.air-trend-note { font-size: 0.68rem; opacity: 0.35; margin-left: auto; }
+
+/* ── AI Report: vade yaşlandırma ── */
+.air-aging { padding-top: 0.85rem; border-top: 1px solid rgba(255,255,255,0.07); }
+.air-aging-head { display: flex; align-items: center; gap: 0.5rem; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; opacity: 0.6; margin-bottom: 0.7rem; }
+.air-aging-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
+@media (max-width: 640px) { .air-aging-grid { grid-template-columns: repeat(2, 1fr); } }
+.air-age-cell { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.6rem 0.7rem; border-radius: 10px; background: rgba(255,255,255,0.04); border-left: 3px solid #475569; }
+.air-age-cell.is-warn   { border-left-color: #d97706; }
+.air-age-cell.is-warn2  { border-left-color: #ea580c; }
+.air-age-cell.is-danger { border-left-color: #b91c1c; }
+.air-age-lbl { font-size: 0.68rem; opacity: 0.55; }
+.air-age-val { font-size: 0.95rem; font-weight: 700; }
+.air-overdue { margin-top: 0.8rem; }
+.air-overdue-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.45; margin-bottom: 0.45rem; }
+.air-overdue-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.82rem; }
+.air-overdue-row:last-child { border-bottom: none; }
+.air-overdue-name { opacity: 0.85; }
+.air-overdue-amt { font-weight: 700; color: #f87171; white-space: nowrap; }
+
+/* ── AI Report: rapor künyesi ── */
+.air-meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.72rem; opacity: 0.45; padding-top: 0.6rem; }
+
+/* Light tema uyarlamaları */
+[data-theme="light"] .air-score-card,
+[data-theme="light"] .air-trend,
+[data-theme="light"] .air-age-cell { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.07); }
+[data-theme="light"] .air-sc-bar { background: rgba(0,0,0,0.08); }
+[data-theme="light"] .air-aging { border-top-color: rgba(0,0,0,0.07); }
+[data-theme="light"] .air-score-card.is-good .air-sc-val { color: #16a34a; }
+[data-theme="light"] .air-score-card.is-mid  .air-sc-val { color: #b45309; }
+[data-theme="light"] .air-score-card.is-bad  .air-sc-val { color: #dc2626; }
+[data-theme="light"] .air-trend.is-up   .air-trend-val { color: #16a34a; }
+[data-theme="light"] .air-trend.is-down .air-trend-val { color: #dc2626; }
+[data-theme="light"] .air-overdue-amt { color: #dc2626; }
+[data-theme="light"] .air-overdue-row { border-bottom-color: rgba(0,0,0,0.06); }

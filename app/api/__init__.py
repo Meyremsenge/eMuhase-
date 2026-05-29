@@ -275,75 +275,109 @@ def ai_analyze():
     if not prompt:
         return jsonify({'error': 'prompt zorunludur'}), 400
 
+    # Varsayılan: gemini-2.0-flash — ücretsiz katmanda en cömert kota
+    # (~1500 istek/gün, 15 istek/dk). 2.5-flash çok daha düşük limitli
+    # (~250/gün) olduğu için az kullanımda bile çabuk doluyordu.
     model = (data.get('model')
              or request.headers.get('X-OpenRouter-Model')
              or os.environ.get('OPENROUTER_MODEL')
-             or 'google/gemini-2.5-flash:free')
+             or 'google/gemini-2.0-flash-exp:free')
 
     # 1) Google Gemini NATIVE API Çağrısı
     if api_key.startswith('AIzaSy'):
-        gemini_model = 'gemini-1.5-flash'
-        if 'gemini-2.5-flash' in model.lower():
+        gemini_model = 'gemini-2.0-flash'  # varsayılan
+        ml = model.lower()
+        if 'gemini-2.5' in ml:
             gemini_model = 'gemini-2.5-flash'
-        elif 'gemini-2.0' in model.lower():
-            gemini_model = 'gemini-2.0-flash-exp'
+        elif 'gemini-1.5' in ml:
+            gemini_model = 'gemini-1.5-flash'
+        elif 'gemini-2.0' in ml:
+            gemini_model = 'gemini-2.0-flash'
 
-        url = f'https://generativelanguage.googleapis.com/v1beta/models/{gemini_model}:generateContent?key={api_key}'
-        body = json.dumps({
-            'contents': [{'parts': [{'text': prompt}]}]
-        }).encode('utf-8')
+        # Kota sıfır/aşılmış (RESOURCE_EXHAUSTED) durumunda sırayla denenecek
+        # alternatifler — bazı bölgelerde belirli modellerin ücretsiz kotası 0.
+        adaylar = [gemini_model]
+        for alt in ('gemini-2.5-flash-lite', 'gemini-2.0-flash-lite',
+                    'gemini-1.5-flash-8b', 'gemini-1.5-flash'):
+            if alt not in adaylar:
+                adaylar.append(alt)
 
-        req = urllib.request.Request(
-            url,
-            data=body,
-            headers={'Content-Type': 'application/json'},
-            method='POST',
-        )
-        # 503 (aşırı yük) ve 500 geçici hatalarında kısa beklemeyle 3 kez dene
-        last_err = None
-        for deneme in range(3):
-            try:
-                with urllib.request.urlopen(req, timeout=90) as resp:
-                    payload = json.loads(resp.read().decode('utf-8'))
-                    text_out = payload['candidates'][0]['content']['parts'][0]['text']
-                    return jsonify({'text': text_out, 'model': gemini_model})
-            except urllib.error.HTTPError as e:
+        body = json.dumps({'contents': [{'parts': [{'text': prompt}]}]}).encode('utf-8')
+
+        def _gemini_call(m):
+            """Tek model çağrısı. (text, None) ya da (None, (code, status, msg)) döner.
+               500/503 geçici hatalarda kısa beklemeyle 3 kez dener."""
+            url = f'https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}'
+            for deneme in range(3):
+                req = urllib.request.Request(
+                    url, data=body,
+                    headers={'Content-Type': 'application/json'}, method='POST')
                 try:
-                    err_body = e.read().decode('utf-8')
-                except Exception:
-                    err_body = ''
-                if e.code == 429:
-                    return jsonify({'error': (
-                        'Gemini ücretsiz kotanız doldu. Birkaç dakika (veya günlük '
-                        'limit içinse 24 saat) bekleyin ya da AI Kurulum ekranından '
-                        'farklı bir API anahtarı girin.'
-                    )}), 429
-                if e.code in (401, 403):
-                    return jsonify({'error': (
-                        'Gemini API anahtarı geçersiz veya yetkisiz. '
-                        'AI Kurulum ekranından anahtarı kontrol edin.'
-                    )}), 401
-                if e.code in (500, 503) and deneme < 2:
-                    last_err = err_body
-                    time.sleep(2 * (deneme + 1))  # 2sn, 4sn artan bekleme
-                    continue
-                if e.code == 503:
-                    return jsonify({'error': (
-                        'Gemini modeli şu an çok yoğun (geçici). '
-                        'Lütfen birkaç dakika sonra tekrar deneyin.'
-                    )}), 503
-                return jsonify({'error': f'Gemini API hatası: {e.code}',
-                                'detail': err_body[:300]}), 502
-            except Exception as e:
-                last_err = str(e)
-                if deneme < 2:
-                    time.sleep(2 * (deneme + 1))
-                    continue
-                return jsonify({'error': f'Gemini API\'ye ulaşılamadı: {str(e)}'}), 502
+                    with urllib.request.urlopen(req, timeout=90) as resp:
+                        payload = json.loads(resp.read().decode('utf-8'))
+                        return payload['candidates'][0]['content']['parts'][0]['text'], None
+                except urllib.error.HTTPError as e:
+                    try:
+                        eb = e.read().decode('utf-8')
+                    except Exception:
+                        eb = ''
+                    st, msg = '', ''
+                    try:
+                        ge = (json.loads(eb) or {}).get('error', {})
+                        st, msg = ge.get('status', ''), ge.get('message', '')
+                    except Exception:
+                        pass
+                    if e.code in (500, 503) and deneme < 2:
+                        time.sleep(2 * (deneme + 1))
+                        continue
+                    return None, (e.code, st, msg)
+                except Exception as e:
+                    if deneme < 2:
+                        time.sleep(2 * (deneme + 1))
+                        continue
+                    return None, (0, '', str(e))
+            return None, (503, '', 'Yanıt alınamadı')
+
+        son = None
+        for m in adaylar:
+            text_out, err = _gemini_call(m)
+            if text_out is not None:
+                return jsonify({'text': text_out, 'model': m})
+            code, st, msg = err
+            son = (m, code, st, msg)
+            detail = f'{m} | {st} {msg}'.strip()[:400]
+            # Kota / model-yok dışındaki hatalarda hemen dur (gerçek sebep bu)
+            if code == 429 and st == 'RESOURCE_EXHAUSTED':
+                continue          # sıradaki modeli dene
+            if code == 404:
+                continue          # model yoksa sıradakini dene
+            if code in (401, 403):
+                return jsonify({'error': (
+                    'Gemini API anahtarı geçersiz, yetkisiz veya bu model/bölge için '
+                    'erişim yok. AI Kurulum ekranından anahtarı kontrol edin.'
+                ), 'detail': detail}), 401
+            if code == 400:
+                return jsonify({'error': f'Gemini isteği reddedildi: {msg or st or "400"}',
+                                'detail': detail}), 400
+            if code == 429:       # 429 ama RESOURCE_EXHAUSTED değil
+                return jsonify({'error': f'Gemini 429: {msg or st}', 'detail': detail}), 429
+            if code == 503:
+                return jsonify({'error': (
+                    'Gemini modeli şu an çok yoğun (geçici). Birkaç dakika sonra deneyin.'
+                ), 'detail': detail}), 503
+            if code == 0:
+                return jsonify({'error': f'Gemini API\'ye ulaşılamadı: {msg}'}), 502
+            return jsonify({'error': f'Gemini API hatası: {code}', 'detail': detail}), 502
+
+        # Tüm modeller kota dışı → ücretsiz katman bu anahtar/bölge için kapalı (limit: 0)
+        m, code, st, msg = son or ('', 0, '', '')
+        detail = f'{m} | {st} {msg}'.strip()[:400]
         return jsonify({'error': (
-            'Gemini modeli yoğunluk nedeniyle yanıt vermedi. '
-            'Birkaç dakika sonra tekrar deneyin.'
-        ), 'detail': (last_err or '')[:300]}), 503
+            'Bu Gemini anahtarının ücretsiz kotası 0 (free tier bu bölge/hesap için '
+            'kapalı). Çözüm: ya Google AI Studio\'da faturalandırma açın, ya da ÜCRETSİZ '
+            'alternatif için openrouter.ai\'den bir anahtar alıp AI Kurulum ekranına girin '
+            '— uygulama OpenRouter ücretsiz modellerini otomatik kullanır.'
+        ), 'detail': detail}), 429
 
     # 2) OpenRouter API Çağrısı
     body = json.dumps({

@@ -142,22 +142,46 @@ const num = u => ({ alis: u.alis_fiyat ?? u.birim_fiyat ?? 0, satis: u.satis_fiy
 
 document.addEventListener('DOMContentLoaded', async () => {
     const ai = document.getElementById('aramaInput');
+    // Tarayıcı autofill'ini kesin engelle: yüklemede readonly, ilk etkileşimde aç.
+    ai.setAttribute('readonly', 'readonly');
+    const _acAra = () => ai.removeAttribute('readonly');
+    ai.addEventListener('focus', _acAra);
+    ai.addEventListener('pointerdown', _acAra);
     ai.value = ''; requestAnimationFrame(() => { ai.value = ''; });
+    // Tarayıcı reload/geri-ileri (bfcache) sonrası eski arama metnini geri
+    // yükleyebiliyor; her gösterimde temizle.
+    window.addEventListener('pageshow', (e) => {
+        ai.value = '';
+        if (e.persisted) uygula();
+    });
 
+    const sirala = arr => arr.sort((a,b)=>(a.ad||'').localeCompare(b.ad||'','tr'));
+    const gosterListe = () => {
+        document.getElementById('skeletonCard').classList.add('is-hidden');
+        document.getElementById('listeCard').classList.remove('is-hidden');
+    };
+
+    // 0) Önbellekten anında boya (init/ağ beklemeden)
+    const cUrun = Urunler.onbellek();
+    if (cUrun && cUrun.length) {
+        tumUrunler = sirala(cUrun);
+        filtreli = tumUrunler;
+        gosterListe();
+        renderSayfa();
+    }
+
+    // 1) Bağlantıyı kur + tazesini getir
     await init();
-    tumUrunler = (await Urunler.hepsiniGetir()).sort((a,b)=>(a.ad||'').localeCompare(b.ad||'','tr'));
-
-    document.getElementById('skeletonCard').classList.add('is-hidden');
-    document.getElementById('listeCard').classList.remove('is-hidden');
-    filtreli = tumUrunler;
-    renderSayfa();
+    tumUrunler = sirala(await Urunler.hepsiniGetir());
+    gosterListe();
+    uygula(false); // mevcut arama/sayfa korunur
 
     let timer;
     ai.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(uygula, 180); });
     document.getElementById('stokSelect').addEventListener('change', uygula);
 });
 
-function uygula() {
+function uygula(resetPage = true) {
     const q = document.getElementById('aramaInput').value.toLowerCase().trim();
     const s = document.getElementById('stokSelect').value;
     filtreli = tumUrunler.filter(u => {
@@ -166,7 +190,8 @@ function uygula() {
         const matchS = !s || (s==='kritik' && stok<=5) || (s==='tukendi' && stok<=0);
         return matchQ && matchS;
     });
-    currentPage = 1; renderSayfa();
+    if (resetPage) currentPage = 1;
+    renderSayfa();
 }
 window.filtrele = uygula;
 window.temizle = function() {

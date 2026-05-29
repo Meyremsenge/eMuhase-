@@ -43,6 +43,7 @@
     {% include 'main/partials/ai_section.html' %}
     {% include 'main/partials/nakit_tahmin.html' %}
     {% include 'main/partials/mini_stats.html' %}
+    {% include 'main/partials/financial_summary.html' %}
     {% include 'main/partials/charts_section.html' %}
     {% include 'main/partials/critical_stock.html' %}
     {% include 'main/partials/tables_section.html' %}
@@ -103,17 +104,10 @@ function filterThisMonth(items, dateField = 'fatura_tarihi') {
     });
 }
 
-async function loadDashboardStats() {
+function loadDashboardStats(data) {
     try {
-        await init();
-        
-        const [musteriler, urunler, satisFaturalari, alisFaturalari, iadeFaturalari] = await Promise.all([
-            Musteriler.hepsiniGetir(), Urunler.hepsiniGetir(),
-            SatisFaturalari.hepsiniGetir(), AlisFaturalari.hepsiniGetir(), IadeFaturalari.hepsiniGetir()
-        ]);
-        
-        console.log('📦 Veriler:', { musteriler: musteriler.length, urunler: urunler.length, satis: satisFaturalari.length, alis: alisFaturalari.length, iade: iadeFaturalari.length });
-        
+        const { musteriler, urunler, satis: satisFaturalari, alis: alisFaturalari, iade: iadeFaturalari } = data;
+
         const thisMonthCustomers = filterThisMonth(musteriler, 'olusturma_tarihi');
         const thisMonthSales = filterThisMonth(satisFaturalari);
         const thisMonthPurchases = filterThisMonth(alisFaturalari);
@@ -126,14 +120,19 @@ async function loadDashboardStats() {
         const netProfit = totalIncome - totalExpense - totalReturns;
         const profitMargin = totalIncome > 0 ? ((netProfit / totalIncome) * 100).toFixed(1) : 0;
         
-        // Müşteri
+        // Müşteri — değişim etiketini her render'da tümüyle yeniden kur
+        // (idempotent: #newCustomersCount span'ına bağımlı değil, çünkü o span
+        //  "yeni müşteri yok" durumunda siliniyordu ve ikinci render'da null kalıyordu).
         const customerEl = document.getElementById('totalCustomers');
         customerEl.innerHTML = '';
         animateValue(customerEl, 0, musteriler.length, 800);
-        document.getElementById('newCustomersCount').textContent = thisMonthCustomers.length;
-        if (thisMonthCustomers.length === 0) {
-            document.getElementById('customerChange').classList.add('neutral');
-            document.getElementById('customerChange').innerHTML = '<i class="fas fa-minus"></i><span>Bu ay yeni müşteri yok</span>';
+        const customerChangeEl = document.getElementById('customerChange');
+        if (thisMonthCustomers.length > 0) {
+            customerChangeEl.classList.remove('neutral');
+            customerChangeEl.innerHTML = '<i class="fas fa-arrow-up"></i><span>Bu ay +' + thisMonthCustomers.length + '</span>';
+        } else {
+            customerChangeEl.classList.add('neutral');
+            customerChangeEl.innerHTML = '<i class="fas fa-minus"></i><span>Bu ay yeni müşteri yok</span>';
         }
         
         // Ürün
@@ -230,14 +229,10 @@ function setChartState(chartId, emptyId, hasData) {
     emptyEl.classList.toggle('is-hidden', hasData);
 }
 
-async function loadCharts() {
+function loadCharts(data) {
     try {
-        const [satisFaturalari, alisFaturalari, iadeFaturalari] = await Promise.all([
-            SatisFaturalari.hepsiniGetir(),
-            AlisFaturalari.hepsiniGetir(),
-            IadeFaturalari.hepsiniGetir()
-        ]);
-        
+        const { satis: satisFaturalari, alis: alisFaturalari, iade: iadeFaturalari } = data;
+
         // Mini stats güncelle
         const totalInvoices = satisFaturalari.length + alisFaturalari.length + iadeFaturalari.length;
         const paidInvoices = [...satisFaturalari, ...alisFaturalari].filter(f => f.durum === 'odendi').length;
@@ -350,8 +345,8 @@ function createRevenueChart(data) {
                     label: 'Kar/Zarar',
                     data: data.karData,
                     type: 'line',
-                    borderColor: 'rgb(99, 102, 241)',
-                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    borderColor: 'rgb(37, 99, 235)',
+                    backgroundColor: 'rgba(37, 99, 235, 0.10)',
                     borderWidth: 3,
                     fill: true,
                     tension: 0.4,
@@ -417,7 +412,7 @@ function createPieChart(satisCount, alisCount, iadeCount) {
     
     if (pieChartInstance) pieChartInstance.destroy();
     
-    const colors = ['#22c55e', '#64748b', '#f59e0b'];
+    const colors = ['#22c55e', '#ef4444', '#f59e0b'];
     const data = [satisCount, alisCount, iadeCount];
     const labels = ['Satış Faturaları', 'Alış Faturaları', 'İade Faturaları'];
     
@@ -469,16 +464,10 @@ function createPieChart(satisCount, alisCount, iadeCount) {
 
 // ==================== TABLES (BÖLÜM 3/4) ====================
 
-async function loadTables() {
+function loadTables(data) {
     try {
-        const [satisFaturalari, alisFaturalari, iadeFaturalari, urunler, musteriler] = await Promise.all([
-            SatisFaturalari.hepsiniGetir(),
-            AlisFaturalari.hepsiniGetir(),
-            IadeFaturalari.hepsiniGetir(),
-            Urunler.hepsiniGetir(),
-            Musteriler.hepsiniGetir()
-        ]);
-        
+        const { satis: satisFaturalari, alis: alisFaturalari, iade: iadeFaturalari, urunler, musteriler } = data;
+
         // Son aktiviteler
         renderRecentActivities(satisFaturalari, alisFaturalari, iadeFaturalari, urunler, musteriler);
         
@@ -566,17 +555,17 @@ function renderRecentActivities(satisFaturalari, alisFaturalari, iadeFaturalari,
             <tbody>
                 ${recentActivities.map(a => `
                     <tr class="table-row-link" onclick="window.location.href='${esc(a.url)}'">
-                        <td style="width: 50px;">
-                            <div class="invoice-type-icon bg-${esc(a.renk)} text-white u-round-full u-flex u-align-center u-justify-center" style="width: 36px; height: 36px; display: inline-flex;">
-                                <i class="fas fa-${esc(a.icon)}"></i>
-                            </div>
-                        </td>
                         <td>
                             <strong style="color: var(--text-primary); font-size: 0.95rem;">${esc(a.baslik)}</strong><br>
                             <span style="color: var(--text-secondary); font-size: 0.85rem;">${esc(a.detay)}</span>
                         </td>
                         <td class="u-text-right">
                             <small class="table-date">${a.tarih.toLocaleString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit' })}</small>
+                        </td>
+                        <td class="u-text-right" style="width: 44px;">
+                            <a href="${esc(a.url)}" class="activity-go-btn" aria-label="Belgeye git" title="Belgeye git" onclick="event.stopPropagation()">
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
                         </td>
                     </tr>
                 `).join('')}
@@ -679,15 +668,9 @@ function renderTopProducts(satisFaturalari, urunler) {
 
 // ==================== NOTIFICATIONS & ACTIVITY (BÖLÜM 4/4) ====================
 
-async function loadNotificationsAndActivity() {
+function loadNotificationsAndActivity(data) {
     try {
-        const [satisFaturalari, alisFaturalari, iadeFaturalari, musteriler, urunler] = await Promise.all([
-            SatisFaturalari.hepsiniGetir(),
-            AlisFaturalari.hepsiniGetir(),
-            IadeFaturalari.hepsiniGetir(),
-            Musteriler.hepsiniGetir(),
-            Urunler.hepsiniGetir()
-        ]);
+        const { satis: satisFaturalari, alis: alisFaturalari, iade: iadeFaturalari, musteriler, urunler } = data;
 
         const formatMoneySafe = (value) => {
             const parsed = parseFloat(value);
@@ -915,7 +898,7 @@ async function loadNotificationsAndActivity() {
                 notifContainer.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-check-circle"></i>
-                        <p>Tum islemler yolunda!</p>
+                        <p>Tüm işlemler yolunda!</p>
                     </div>
                 `;
             }
@@ -1027,39 +1010,133 @@ function initNotificationDropdown() {
     });
 }
 
+// Tüm dashboard bölümlerini tek bir veri kümesiyle render et.
+function renderDashboard(data) {
+    loadDashboardStats(data);
+    loadFinancialSummary(data);
+    loadCharts(data);
+    loadTables(data);
+    loadNotificationsAndActivity(data);
+    loadNakitAkisiTahmini(data);
+}
+
+// Alacak/Borç + KDV özeti
+function loadFinancialSummary(data) {
+    try {
+        const { satis, alis } = data;
+        const num = v => parseFloat(v) || 0;
+        const aktif = f => f.durum !== 'iptal';
+        const bekleyen = f => f.durum !== 'odendi' && f.durum !== 'iptal';
+
+        const bekleyenSatis = satis.filter(bekleyen);
+        const bekleyenAlis = alis.filter(bekleyen);
+        const alacak = bekleyenSatis.reduce((s, f) => s + num(f.genel_toplam), 0);
+        const borc = bekleyenAlis.reduce((s, f) => s + num(f.genel_toplam), 0);
+        const net = alacak - borc;
+
+        // 7 gün içinde vadesi dolacak bekleyen faturalar
+        const now = new Date();
+        const limit = new Date();
+        limit.setDate(now.getDate() + 7);
+        const vadeYaklasan = [...bekleyenSatis, ...bekleyenAlis].filter(f => {
+            if (!f.vade_tarihi) return false;
+            const v = new Date(f.vade_tarihi);
+            return v >= now && v <= limit;
+        }).length;
+
+        const kdvTahsil = satis.filter(aktif).reduce((s, f) => s + num(f.kdv_toplam), 0);
+        const kdvIndirilecek = alis.filter(aktif).reduce((s, f) => s + num(f.kdv_toplam), 0);
+        const kdvNet = kdvTahsil - kdvIndirilecek;
+
+        const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        setText('finReceivable', formatCurrencyFull(alacak));
+        setText('finReceivableCount', bekleyenSatis.length + ' fatura');
+        setText('finPayable', formatCurrencyFull(borc));
+        setText('finPayableCount', bekleyenAlis.length + ' fatura');
+        setText('finNet', (net < 0 ? '-' : '') + formatCurrencyFull(Math.abs(net)));
+        const netEl = document.getElementById('finNet');
+        if (netEl) {
+            netEl.classList.toggle('profit-positive', net >= 0);
+            netEl.classList.toggle('profit-negative', net < 0);
+        }
+        setText('finDueSoon', vadeYaklasan > 0
+            ? `${vadeYaklasan} fatura 7 gün içinde vadesi doluyor`
+            : 'Yaklaşan vade yok');
+
+        setText('finVatCollected', formatCurrencyFull(kdvTahsil));
+        setText('finVatPaid', formatCurrencyFull(kdvIndirilecek));
+        setText('finVatNet', formatCurrencyFull(Math.abs(kdvNet)));
+        setText('finVatNetLabel', kdvNet >= 0 ? 'Ödenecek KDV' : 'Devreden KDV');
+    } catch (e) {
+        console.error('❌ Finansal özet hatası:', e);
+    }
+}
+
+// 5 koleksiyonu bir kez çek (in-flight dedup sayesinde tek ağ turu olur).
+async function fetchDashboardData() {
+    const [musteriler, urunler, satis, alis, iade] = await Promise.all([
+        Musteriler.hepsiniGetir(), Urunler.hepsiniGetir(),
+        SatisFaturalari.hepsiniGetir(), AlisFaturalari.hepsiniGetir(), IadeFaturalari.hepsiniGetir()
+    ]);
+    return { musteriler, urunler, satis, alis, iade };
+}
+
+// Önbellekteki son veriyi anında (init/ağ beklemeden) oku.
+function readDashboardCache() {
+    return {
+        musteriler: Musteriler.onbellek() || [],
+        urunler:    Urunler.onbellek() || [],
+        satis:      SatisFaturalari.onbellek() || [],
+        alis:       AlisFaturalari.onbellek() || [],
+        iade:       IadeFaturalari.onbellek() || []
+    };
+}
+
+// Veri imzası — önbellek ile taze veri aynıysa ikinci render'ı (ve tekrar
+// animasyonu) atlamak için. Sayılar + toplam tutar + ödenen sayısı değişimi yakalar.
+function dashImza(d) {
+    const topla = arr => arr.reduce((s,f)=>s+(parseFloat(f.genel_toplam)||0),0);
+    const odenen = arr => arr.filter(f=>f.durum==='odendi').length;
+    return [
+        d.musteriler.length, d.urunler.length, d.satis.length, d.alis.length, d.iade.length,
+        Math.round(topla(d.satis)+topla(d.alis)+topla(d.iade)),
+        odenen(d.satis)+odenen(d.alis)
+    ].join('|');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     initNotificationDropdown();
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
-    // ÖNEMLİ: Firebase bağlantısı kurulmadan veri çekilirse boş LocalStorage okunur
-    // ve "veri yok" görünür. Bu yüzden önce init()'i bekliyoruz.
-    await init();
+    // 1) Önbellek varsa anında boya — init/ağ beklemeden hızlı ilk görünüm.
+    const cache = readDashboardCache();
+    const onbellekVar = Object.values(cache).some(arr => arr.length > 0);
+    let cacheImza = '';
+    if (onbellekVar) { renderDashboard(cache); cacheImza = dashImza(cache); }
 
-    loadDashboardStats();
-    loadCharts();
-    loadTables();
-    loadNotificationsAndActivity();
-    loadNakitAkisiTahmini();
+    // 2) Bağlantıyı kur, tazesini getir. Veri önbellekle aynıysa tekrar boyama
+    //    (çift animasyonu önler); yalnızca değiştiyse yeniden render et.
+    await init();
+    try {
+        const fresh = await fetchDashboardData();
+        if (dashImza(fresh) !== cacheImza) renderDashboard(fresh);
+    } catch (e) {
+        console.error('❌ Dashboard veri hatası:', e);
+    }
 });
 
-window.reloadDashboard = () => { 
-    loadDashboardStats(); 
-    loadCharts(); 
-    loadTables(); 
-    loadNotificationsAndActivity();
-    loadNakitAkisiTahmini();
+window.reloadDashboard = async () => {
+    try { renderDashboard(await fetchDashboardData()); }
+    catch (e) { console.error('❌ Dashboard yenileme hatası:', e); }
 };
 
 // ==================== AI: NAKİT AKIŞI TAHMİNİ ====================
 let nakitChartInstance = null;
 
-async function loadNakitAkisiTahmini() {
+function loadNakitAkisiTahmini(data) {
     try {
-        const [satisFaturalari, alisFaturalari] = await Promise.all([
-            SatisFaturalari.hepsiniGetir(),
-            AlisFaturalari.hepsiniGetir()
-        ]);
+        const { satis: satisFaturalari, alis: alisFaturalari } = data;
 
         const { gecmis, tahminler } = nakitAkisiTahmini(satisFaturalari, alisFaturalari, 3);
 
@@ -1293,18 +1370,88 @@ async function analyzeWithAI() {
             IadeFaturalari.hepsiniGetir()
         ]);
 
-        const totalIncome  = satisFaturalari.reduce((s,f) => s+(parseFloat(f.genel_toplam)||0), 0);
-        const totalExpense = alisFaturalari.reduce((s,f) => s+(parseFloat(f.genel_toplam)||0), 0);
-        const totalReturns = iadeFaturalari.reduce((s,f) => s+(parseFloat(f.genel_toplam)||0), 0);
+        const num = v => parseFloat(v) || 0;
+        const iptalDegil = f => f.durum !== 'iptal';
+        // Bekleyen = ödenmemiş VE iptal değil (dashboard ile tutarlı; iptal fatura alacak/borç sayılmaz)
+        const bekleyenMi = f => f.durum !== 'odendi' && f.durum !== 'iptal';
+
+        const totalIncome  = satisFaturalari.reduce((s,f) => s+num(f.genel_toplam), 0);
+        const totalExpense = alisFaturalari.reduce((s,f) => s+num(f.genel_toplam), 0);
+        const totalReturns = iadeFaturalari.reduce((s,f) => s+num(f.genel_toplam), 0);
         const netProfit    = totalIncome - totalExpense - totalReturns;
         const profitMargin = totalIncome > 0 ? ((netProfit/totalIncome)*100).toFixed(1) : '0.0';
-        const bekleyenSatis = satisFaturalari.filter(f=>f.durum!=='odendi').length;
-        const bekleyenAlis  = alisFaturalari.filter(f=>f.durum!=='odendi').length;
 
-        const karlilikSkoru = Math.min(100,Math.max(0, 50+(netProfit/(totalIncome||1))*100));
-        const likiditeSkoru = Math.min(100,Math.max(0, 100-bekleyenSatis*2.5));
-        const buyumeSkoru   = Math.min(100,Math.max(0, Math.min(satisFaturalari.length*2.5,100)));
-        const riskSkoru     = Math.min(100,Math.max(0, 100-bekleyenAlis*2.5-iadeFaturalari.length*1.5));
+        // Bekleyen alacak / borç (iptal hariç)
+        const bekleyenSatisList = satisFaturalari.filter(bekleyenMi);
+        const bekleyenAlisList  = alisFaturalari.filter(bekleyenMi);
+        const bekleyenSatis  = bekleyenSatisList.length;
+        const bekleyenAlis   = bekleyenAlisList.length;
+        const bekleyenAlacak = bekleyenSatisList.reduce((s,f)=>s+num(f.genel_toplam),0);
+        const bekleyenBorc   = bekleyenAlisList.reduce((s,f)=>s+num(f.genel_toplam),0);
+
+        // KDV özeti (iptal hariç)
+        const kdvTahsil      = satisFaturalari.filter(iptalDegil).reduce((s,f)=>s+num(f.kdv_toplam),0);
+        const kdvIndirilecek = alisFaturalari.filter(iptalDegil).reduce((s,f)=>s+num(f.kdv_toplam),0);
+        const kdvNet         = kdvTahsil - kdvIndirilecek;
+
+        // Tahsilat oranı (tutar bazlı, iptal hariç)
+        const aktifSatisTutar   = satisFaturalari.filter(iptalDegil).reduce((s,f)=>s+num(f.genel_toplam),0);
+        const tahsilEdilenTutar = satisFaturalari.filter(f=>f.durum==='odendi').reduce((s,f)=>s+num(f.genel_toplam),0);
+        const tahsilatOrani     = aktifSatisTutar>0 ? tahsilEdilenTutar/aktifSatisTutar : 0;
+
+        // Aylık ortalama ciro — veri kümesindeki farklı (yıl-ay) sayısına bölünür.
+        // Büyüme trendinin aksine her veri setinde anlamlıdır.
+        const aktifAylar = new Set(
+            satisFaturalari.filter(iptalDegil)
+                .map(f => (f.fatura_tarihi || f.olusturma_tarihi || '').slice(0, 7))
+                .filter(Boolean)
+        );
+        const aySayisi = Math.max(1, aktifAylar.size);
+        const aylikOrtCiro = aktifSatisTutar / aySayisi;
+
+        // Müşteri geliri & konsantrasyon (ilk 3 müşterinin payı)
+        const musteriGelir = {};
+        satisFaturalari.forEach(f => {
+            const m = f.musteri_adi || 'Bilinmiyor';
+            musteriGelir[m] = (musteriGelir[m] || 0) + num(f.genel_toplam);
+        });
+        const gelirSirali = Object.entries(musteriGelir).sort(([,a],[,b]) => b-a);
+        const ilk3Gelir = gelirSirali.slice(0,3).reduce((s,[,v]) => s+v, 0);
+        const konsantrasyon = totalIncome>0 ? ilk3Gelir/totalIncome : 0;
+        const topMusteriler = gelirSirali.slice(0,3).map(([ad,g]) => `${ad}: ${formatShort(g)} TL`).join(' | ') || 'Veri yok';
+
+        const iadeOrani = totalIncome > 0 ? ((totalReturns/totalIncome)*100).toFixed(1) : '0.0';
+        const odenenSatisSayisi = satisFaturalari.filter(f=>f.durum==='odendi').length;
+        const odenenAlisSayisi = alisFaturalari.filter(f=>f.durum==='odendi').length;
+        const ortSatisTutar = satisFaturalari.length ? Math.round(totalIncome/satisFaturalari.length) : 0;
+        const ortAlisTutar = alisFaturalari.length ? Math.round(totalExpense/alisFaturalari.length) : 0;
+        const satisAnomaliSayisi = anomaliTespiti(satisFaturalari, 3.5).length;
+        const alisAnomaliSayisi = anomaliTespiti(alisFaturalari, 3.5).length;
+        const toplamAnomali = satisAnomaliSayisi + alisAnomaliSayisi;
+        const anomaliOrani = (satisFaturalari.length+alisFaturalari.length)>0
+            ? toplamAnomali/(satisFaturalari.length+alisFaturalari.length) : 0;
+
+        // Büyüme: son 90 gün vs önceki 90 gün satış cirosu
+        const _gun = 86400000, _now = Date.now();
+        const ciroAraligi = (basGun, bitGun) => satisFaturalari.filter(f => {
+            const fark = _now - new Date(f.fatura_tarihi).getTime();
+            return fark > basGun*_gun && fark <= bitGun*_gun;
+        }).reduce((s,f)=>s+num(f.genel_toplam),0);
+        const son90 = ciroAraligi(-1, 90);
+        const onceki90 = ciroAraligi(90, 180);
+        // Anlamlı önceki dönem yoksa (ör. tüm veri son 90 günde) büyüme kıyaslanamaz;
+        // bu durumda %13841 gibi saçma oranlar yerine "kıyas yok" kabul edilir.
+        const buyumeKiyasVar = onceki90 > 0 && onceki90 >= son90 * 0.05;
+        const buyumeOrani = buyumeKiyasVar ? (son90 - onceki90) / onceki90 : 0;
+
+        // ── Oran tabanlı sağlık skorları (0-100) — sayı tabanlı eski formüller
+        //    yüzlerce faturada hep 0/100'e çakılıyordu; bunlar ölçeklenir. ──
+        const clampSkor = v => Math.round(Math.min(100, Math.max(0, v)));
+        const karlilikSkoru = clampSkor(50 + (netProfit/(totalIncome||1))*100);
+        const likiditeSkoru = clampSkor(tahsilatOrani*100);
+        // Kıyas yoksa nötr 50; varsa büyüme oranı ±100% ile sınırlanıp ölçeklenir.
+        const buyumeSkoru   = clampSkor(buyumeKiyasVar ? 50 + Math.max(-1, Math.min(1, buyumeOrani)) * 40 : 50);
+        const riskSkoru     = clampSkor(100 - parseFloat(iadeOrani) - anomaliOrani*100 - Math.max(0, (konsantrasyon-0.3))*100);
         const ortalamaSkor  = (karlilikSkoru+likiditeSkoru+buyumeSkoru+riskSkoru)/4;
 
         let durumClass='critical', durumText='Kritik', durumIcon='exclamation-triangle';
@@ -1317,25 +1464,41 @@ async function analyzeWithAI() {
         const expPct = (totalExpense/maxVal*100).toFixed(1);
         const retPct = ((totalReturns||0)/maxVal*100).toFixed(1);
 
-        // Detaylı analiz için ek hesaplamalar
-        const musteriGelir = {};
-        satisFaturalari.forEach(f => {
-            const m = f.musteri_adi || 'Bilinmiyor';
-            musteriGelir[m] = (musteriGelir[m] || 0) + (parseFloat(f.genel_toplam) || 0);
+        // ── Ek analiz: trendler, vade yaşlandırma, künye ──
+        const giderAraligi = (basGun, bitGun) => alisFaturalari.filter(f => {
+            const fark = _now - new Date(f.fatura_tarihi).getTime();
+            return fark > basGun*_gun && fark <= bitGun*_gun;
+        }).reduce((s,f)=>s+num(f.genel_toplam),0);
+        const giderSon90 = giderAraligi(-1, 90), giderOnceki90 = giderAraligi(90, 180);
+        // Önceki dönem anlamlı değilse null döner ("—" gösterilir) — saçma % engellenir.
+        const trendYuzde = (yeni, eski) => (eski > 0 && eski >= yeni * 0.05) ? ((yeni - eski) / eski * 100) : null;
+        const gelirTrend = trendYuzde(son90, onceki90);
+        const giderTrend = trendYuzde(giderSon90, giderOnceki90);
+        const karTrend   = trendYuzde(son90 - giderSon90, onceki90 - giderOnceki90);
+
+        // Vade yaşlandırma (bekleyen alacaklar) + vadesi geçmiş en büyük cariler
+        const bugun = new Date(); bugun.setHours(0,0,0,0);
+        const aging = { gelmemis:0, g0_30:0, g31_60:0, g60:0 };
+        const gecikmeCari = {};
+        bekleyenSatisList.forEach(f => {
+            const tutar = num(f.genel_toplam);
+            const vade = f.vade_tarihi ? new Date(f.vade_tarihi) : null;
+            const gun = vade ? Math.floor((bugun - vade) / _gun) : -1;
+            if (gun < 0) aging.gelmemis += tutar;
+            else if (gun <= 30) aging.g0_30 += tutar;
+            else if (gun <= 60) aging.g31_60 += tutar;
+            else aging.g60 += tutar;
+            if (gun >= 0) {
+                const ad = f.musteri_adi || 'Bilinmiyor';
+                if (!gecikmeCari[ad]) gecikmeCari[ad] = { tutar:0, gun:0 };
+                gecikmeCari[ad].tutar += tutar;
+                gecikmeCari[ad].gun = Math.max(gecikmeCari[ad].gun, gun);
+            }
         });
-        const topMusteriler = Object.entries(musteriGelir)
-            .sort(([,a],[,b]) => b-a).slice(0,3)
-            .map(([ad,g]) => `${ad}: ${formatShort(g)} TL`).join(' | ') || 'Veri yok';
-        const iadeOrani = totalIncome > 0 ? ((totalReturns/totalIncome)*100).toFixed(1) : '0.0';
-        const odenenSatisSayisi = satisFaturalari.filter(f=>f.durum==='odendi').length;
-        const odenenAlisSayisi = alisFaturalari.filter(f=>f.durum==='odendi').length;
-        const ortSatisTutar = satisFaturalari.length ? Math.round(totalIncome/satisFaturalari.length) : 0;
-        const ortAlisTutar = alisFaturalari.length ? Math.round(totalExpense/alisFaturalari.length) : 0;
-        const satisAnomaliSayisi = anomaliTespiti(satisFaturalari, 3.5).length;
-        const alisAnomaliSayisi = anomaliTespiti(alisFaturalari, 3.5).length;
-        const toplamAnomali = satisAnomaliSayisi + alisAnomaliSayisi;
-        const bekleyenAlacak = satisFaturalari.filter(f=>f.durum!=='odendi').reduce((s,f)=>s+(parseFloat(f.genel_toplam)||0),0);
-        const bekleyenBorc = alisFaturalari.filter(f=>f.durum!=='odendi').reduce((s,f)=>s+(parseFloat(f.genel_toplam)||0),0);
+        const topGecikme = Object.entries(gecikmeCari).sort(([,a],[,b]) => b.tutar-a.tutar).slice(0,3);
+        const toplamFaturaSayisi = satisFaturalari.length + alisFaturalari.length + iadeFaturalari.length;
+        const raporTarihi = new Date().toLocaleDateString('tr-TR', { day:'2-digit', month:'long', year:'numeric' });
+        const escHtml = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
         const dataSummary = `İşletme Kapsamlı Finansal Analiz Raporu:
 ── Genel Tablo ──
@@ -1349,8 +1512,15 @@ async function analyzeWithAI() {
 • Toplam İade: ${totalReturns.toLocaleString('tr-TR')} TL (İade/Gelir Oranı: %${iadeOrani})
 • Net Kar/Zarar: ${netProfit.toLocaleString('tr-TR')} TL | Kar Marjı: %${profitMargin}
 • Ort. Satış Fatura: ${ortSatisTutar.toLocaleString('tr-TR')} TL | Ort. Alış Fatura: ${ortAlisTutar.toLocaleString('tr-TR')} TL
+• Aylık Ortalama Ciro: ${Math.round(aylikOrtCiro).toLocaleString('tr-TR')} TL (${aySayisi} aylık veri üzerinden)
+• Tahsilat Oranı (tutar): %${(tahsilatOrani*100).toFixed(1)}
+── KDV ──
+• Hesaplanan KDV (Satış): ${Math.round(kdvTahsil).toLocaleString('tr-TR')} TL
+• İndirilecek KDV (Alış): ${Math.round(kdvIndirilecek).toLocaleString('tr-TR')} TL
+• ${kdvNet >= 0 ? 'Ödenecek' : 'Devreden'} KDV: ${Math.round(Math.abs(kdvNet)).toLocaleString('tr-TR')} TL
 ── Müşteri Analizi ──
 • En Yüksek Cirolu Müşteriler: ${topMusteriler}
+• İlk 3 Müşteri Konsantrasyonu: %${(konsantrasyon*100).toFixed(1)} (gelirin bu kadarı ilk 3 müşteriden)
 ── Risk & Anomali ──
 • Anomali Tespit: ${toplamAnomali} şüpheli fatura (Satış: ${satisAnomaliSayisi}, Alış: ${alisAnomaliSayisi})
 • Tahsil Edilmemiş Alacak: ${bekleyenAlacak.toLocaleString('tr-TR')} TL (${bekleyenSatis} fatura)
@@ -1393,8 +1563,9 @@ YALNIZCA bu formatta Türkçe yanıt ver (başka hiçbir şey ekleme):
 
 ###NAKIT###
 • [Nakit akışı ve likidite durumu — rakam içersin]
-• [Alacak tahsilat hızı ve riski]
+• [Alacak tahsilat hızı ve riski — tahsilat oranını yorumla]
 • [Borç ödeme kapasitesi]
+• [KDV pozisyonu: ödenecek/devreden KDV yorumu]
 • [Kısa vadeli likidite öneri]
 
 ###ANOMALI###
@@ -1462,6 +1633,11 @@ ${dataSummary}`;
             </div>
             <div class="air-sep"></div>
             <div class="air-metric">
+                <span class="air-metric-val">${formatShort(aylikOrtCiro)} TL</span>
+                <span class="air-metric-key">Aylık Ort. Ciro</span>
+            </div>
+            <div class="air-sep"></div>
+            <div class="air-metric">
                 <span class="air-metric-val neg">${formatShort(totalExpense)} TL</span>
                 <span class="air-metric-key">Gider</span>
             </div>
@@ -1474,6 +1650,32 @@ ${dataSummary}`;
             ${toplamAnomali > 0 ? `<div class="air-sep"></div><div class="air-metric"><span class="air-metric-val neg">${toplamAnomali}</span><span class="air-metric-key">Anomali</span></div>` : ''}
         </div>
     </div>
+    <div class="air-scores">
+        ${[['Kârlılık',karlilikSkoru,'fa-chart-line'],['Likidite',likiditeSkoru,'fa-droplet'],['Büyüme',buyumeSkoru,'fa-arrow-trend-up'],['Risk',riskSkoru,'fa-shield-halved']].map(([ad,skor,ikon]) => {
+            const cls = skor >= 70 ? 'is-good' : skor >= 40 ? 'is-mid' : 'is-bad';
+            return `<div class="air-score-card ${cls}">
+                <div class="air-sc-top"><i class="fas ${ikon}"></i><span>${ad}</span></div>
+                <div class="air-sc-val">${skor}<small>/100</small></div>
+                <div class="air-sc-bar"><div class="air-sc-fill" style="width:${skor}%"></div></div>
+            </div>`;
+        }).join('')}
+    </div>
+    ${(gelirTrend !== null || giderTrend !== null || karTrend !== null) ? `
+    <div class="air-trends">
+        ${[['Gelir',gelirTrend,true],['Gider',giderTrend,false],['Kâr',karTrend,true]].map(([ad,tr,iyiYukari]) => {
+            if (tr === null || !isFinite(tr)) {
+                return `<div class="air-trend is-neutral"><span class="air-trend-lbl">${ad}</span><span class="air-trend-val">—</span></div>`;
+            }
+            const yukari = tr >= 0;
+            const iyi = iyiYukari ? yukari : !yukari;
+            const gosterim = Math.abs(tr) >= 1000 ? '>999' : Math.abs(tr).toFixed(0);
+            return `<div class="air-trend ${iyi ? 'is-up' : 'is-down'}">
+                <span class="air-trend-lbl">${ad}</span>
+                <span class="air-trend-val"><i class="fas fa-arrow-${yukari ? 'up' : 'down'}"></i> %${gosterim}</span>
+            </div>`;
+        }).join('')}
+        <span class="air-trend-note">son 90 gün / önceki 90 gün</span>
+    </div>` : ''}
     ${sections.genel ? `<div class="air-summary">${sections.genel}</div>` : ''}
     <div class="air-sections">
         <div class="air-section air-section--strength">
@@ -1519,6 +1721,19 @@ ${dataSummary}`;
             <ul class="air-list">${renderBulletsNew(sections.anomali)}</ul>
         </div>
     </div>
+    <div class="air-aging">
+        <div class="air-aging-head"><i class="fas fa-hourglass-half"></i><span>Alacak Yaşlandırma</span></div>
+        <div class="air-aging-grid">
+            <div class="air-age-cell"><span class="air-age-lbl">Vadesi gelmemiş</span><span class="air-age-val">${formatShort(aging.gelmemis)} TL</span></div>
+            <div class="air-age-cell is-warn"><span class="air-age-lbl">0–30 gün gecikme</span><span class="air-age-val">${formatShort(aging.g0_30)} TL</span></div>
+            <div class="air-age-cell is-warn2"><span class="air-age-lbl">31–60 gün</span><span class="air-age-val">${formatShort(aging.g31_60)} TL</span></div>
+            <div class="air-age-cell is-danger"><span class="air-age-lbl">60+ gün</span><span class="air-age-val">${formatShort(aging.g60)} TL</span></div>
+        </div>
+        ${topGecikme.length ? `<div class="air-overdue">
+            <div class="air-overdue-title">Vadesi geçmiş en büyük alacaklar</div>
+            ${topGecikme.map(([ad,o]) => `<div class="air-overdue-row"><span class="air-overdue-name">${escHtml(ad)}</span><span class="air-overdue-amt">${formatShort(o.tutar)} TL · ${o.gun} gün</span></div>`).join('')}
+        </div>` : ''}
+    </div>
     <div class="air-bars">
         <div class="airb-row">
             <span class="airb-lbl">Gelir</span>
@@ -1532,6 +1747,7 @@ ${dataSummary}`;
         </div>
         ${totalReturns > 0 ? `<div class="airb-row"><span class="airb-lbl">İade</span><div class="airb-track"><div class="airb-fill is-returns" style="width:${retPct}%"></div></div><span class="airb-amount">${formatShort(totalReturns)} TL</span></div>` : ''}
     </div>
+    <div class="air-meta"><i class="fas fa-circle-info"></i> Bu rapor ${raporTarihi} tarihinde, ${toplamFaturaSayisi.toLocaleString('tr-TR')} fatura üzerinden üretildi.</div>
 </div>`;
     } catch (error) {
         console.error('AI analiz hatası:', error);

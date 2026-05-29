@@ -173,7 +173,7 @@ th.sortable:not(.asc):not(.desc) .sort-icon::after { content: '⇅'; }
 
 {% block extra_js %}
 <script type="module">
-import { init, SatisFaturalari, Musteriler } from '{{ url_for("static", filename="js/db.js") }}';
+import { init, SatisFaturalari, Musteriler, isOnline } from '{{ url_for("static", filename="js/db.js") }}';
 
 let tumFaturalar = [];
 let filtreli    = [];
@@ -199,22 +199,60 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Arama kutusunu temizle (browser autofill'i engelle) — bir kez DOMContentLoaded'da,
     // bir kez de autofill'in geç tetiklenmesine karşı requestAnimationFrame içinde
     const _ai = document.getElementById('aramaInput');
+    // Tarayıcı autofill'ini kesin engelle: yüklemede readonly, ilk etkileşimde aç.
+    _ai.setAttribute('readonly', 'readonly');
+    const _acAra = () => _ai.removeAttribute('readonly');
+    _ai.addEventListener('focus', _acAra);
+    _ai.addEventListener('pointerdown', _acAra);
     _ai.value = '';
     requestAnimationFrame(() => { _ai.value = ''; });
+    // Tarayıcı reload/geri-ileri (bfcache) sonrası eski arama metnini geri
+    // yükleyebiliyor; her gösterimde temizle.
+    window.addEventListener('pageshow', (e) => {
+        _ai.value = '';
+        if (e.persisted) uygula();
+    });
 
+    const ILK_LIMIT = 50;
+    const sirala = arr => arr.sort((a, b) => new Date(b.fatura_tarihi) - new Date(a.fatura_tarihi));
+    const gosterListe = () => {
+        document.getElementById('skeletonCard').classList.add('is-hidden');
+        document.getElementById('listeCard').classList.remove('is-hidden');
+    };
+
+    // 0) Önbellekten anında boya (init/ağ beklemeden)
+    const cMus = Musteriler.onbellek();
+    if (cMus) cMus.forEach(m => { musteriMap[m.id] = m.unvan; });
+    const cSatis = SatisFaturalari.onbellek();
+    const onbellekVar = !!(cSatis && cSatis.length);
+    if (onbellekVar) {
+        tumFaturalar = sirala(cSatis);
+        filtreli = tumFaturalar;
+        gosterListe();
+        renderSayfa();
+    }
+
+    // 1) Bağlantıyı kur + müşteri haritasını tazele
     await init();
-
-    const [mList] = await Promise.all([Musteriler.hepsiniGetir()]);
+    const mList = await Musteriler.hepsiniGetir();
+    musteriMap = {};
     mList.forEach(m => { musteriMap[m.id] = m.unvan; });
 
-    tumFaturalar = (await SatisFaturalari.hepsiniGetir())
-        .sort((a, b) => new Date(b.fatura_tarihi) - new Date(a.fatura_tarihi));
+    // 2) Önbellek yoksa: hızlı ilk 50 fatura ile boya
+    if (!onbellekVar) {
+        tumFaturalar = sirala(await SatisFaturalari.sinirliGetir(ILK_LIMIT, 'fatura_tarihi', 'son'));
+        gosterListe();
+        filtreli = tumFaturalar;
+        renderSayfa();
+    }
 
-    document.getElementById('skeletonCard').classList.add('is-hidden');
-    document.getElementById('listeCard').classList.remove('is-hidden');
-
-    filtreli = tumFaturalar;
-    renderSayfa();
+    // 3) Tam listeyi arka planda getir (önbelleği günceller); mevcut filtre/sayfa korunur.
+    const tamGerekli = isOnline() ? (onbellekVar || tumFaturalar.length >= ILK_LIMIT) : onbellekVar;
+    if (tamGerekli) {
+        SatisFaturalari.hepsiniGetir()
+            .then(tumu => { tumFaturalar = sirala(tumu); uygula(false); })
+            .catch(() => {});
+    }
 
     // Anlık arama
     let timer;
@@ -226,7 +264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ── Filtreleme ──
-function uygula() {
+function uygula(resetPage = true) {
     const q = document.getElementById('aramaInput').value.toLowerCase().trim();
     const d = document.getElementById('durumSelect').value;
     filtreli = tumFaturalar.filter(f => {
@@ -235,7 +273,9 @@ function uygula() {
         const matchD = !d || f.durum === d;
         return matchQ && matchD;
     });
-    currentPage = 1;
+    // resetPage truthy ise başa dön (kullanıcı araması/filtresi). Arka plan
+    // tamamlanınca resetPage=false ile çağrılır → kullanıcının sayfası korunur.
+    if (resetPage) currentPage = 1;
     renderSayfa();
 }
 
