@@ -35,6 +35,38 @@ function kalemleriDuzgunListeyeCevir(fatura) {
     return Object.values(raw);
 }
 
+// ── PDF için Türkçe (Unicode) font ──
+// jsPDF'in varsayılan Helvetica fontu Türkçe karakterleri (ş, ı, ğ, ö, ü, ç)
+// göstermez → "Taşımacılık" yerine "Ta_1mac1l1k" çıkar. DejaVuSans TTF'i CDN'den
+// çekip gömüyoruz; bir kez yüklenince window üzerinde önbelleğe alınır.
+let _pdfFontCache = null;
+
+function _arrayBufferToBase64(buf) {
+    let binary = '';
+    const bytes = new Uint8Array(buf);
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+}
+
+async function _turkceFontYukle() {
+    if (_pdfFontCache) return _pdfFontCache;
+    if (window._emuPdfFont) { _pdfFontCache = window._emuPdfFont; return _pdfFontCache; }
+    const base = 'https://cdn.jsdelivr.net/npm/dejavu-fonts-ttf@2.37.3/ttf/';
+    const [reg, bold] = await Promise.all([
+        fetch(base + 'DejaVuSans.ttf').then(r => r.arrayBuffer()),
+        fetch(base + 'DejaVuSans-Bold.ttf').then(r => r.arrayBuffer()),
+    ]);
+    _pdfFontCache = {
+        normal: _arrayBufferToBase64(reg),
+        bold: _arrayBufferToBase64(bold),
+    };
+    window._emuPdfFont = _pdfFontCache; // sonraki PDF'ler için önbellek
+    return _pdfFontCache;
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // PDF İNDİR
 // ═══════════════════════════════════════════════════════════════════
@@ -44,6 +76,19 @@ export async function faturaPdfIndir(fatura, opts = {}) {
     }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+    // Türkçe karakterler için Unicode font göm; yüklenemezse helvetica'ya düş.
+    let FONT = 'helvetica';
+    try {
+        const f = await _turkceFontYukle();
+        doc.addFileToVFS('DejaVuSans.ttf', f.normal);
+        doc.addFont('DejaVuSans.ttf', 'DejaVuSans', 'normal');
+        doc.addFileToVFS('DejaVuSans-Bold.ttf', f.bold);
+        doc.addFont('DejaVuSans-Bold.ttf', 'DejaVuSans', 'bold');
+        FONT = 'DejaVuSans';
+    } catch (e) {
+        console.warn('PDF Türkçe font yüklenemedi, helvetica kullanılacak:', e);
+    }
 
     const baslik       = opts.baslik       || 'FATURA';
     const cariEtiket   = opts.cariEtiket   || 'Müşteri / Tedarikçi';
@@ -55,7 +100,7 @@ export async function faturaPdfIndir(fatura, opts = {}) {
     doc.setFillColor(accentColor[0], accentColor[1], accentColor[2]);
     doc.rect(0, 0, 210, 22, 'F');
     doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(FONT, 'bold');
     doc.setFontSize(18);
     doc.text(firmaAdi, 14, 14);
     doc.setFontSize(11);
@@ -63,7 +108,7 @@ export async function faturaPdfIndir(fatura, opts = {}) {
 
     // Fatura meta
     doc.setTextColor(15, 23, 42);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(FONT, 'normal');
     doc.setFontSize(10);
     let y = 32;
     const metaSatirlari = [
@@ -74,18 +119,18 @@ export async function faturaPdfIndir(fatura, opts = {}) {
         ['Durum',         (fatura.durum || '-').toUpperCase()],
     ];
     metaSatirlari.forEach(([k, v]) => {
-        doc.setFont('helvetica', 'bold');
+        doc.setFont(FONT, 'bold');
         doc.text(k + ':', 14, y);
-        doc.setFont('helvetica', 'normal');
+        doc.setFont(FONT, 'normal');
         doc.text(String(v), 60, y);
         y += 6;
     });
 
     if (fatura.aciklama) {
         y += 2;
-        doc.setFont('helvetica', 'bold');
+        doc.setFont(FONT, 'bold');
         doc.text('Açıklama:', 14, y);
-        doc.setFont('helvetica', 'normal');
+        doc.setFont(FONT, 'normal');
         const aciklamaLines = doc.splitTextToSize(fatura.aciklama, 130);
         doc.text(aciklamaLines, 60, y);
         y += aciklamaLines.length * 5;
@@ -106,10 +151,10 @@ export async function faturaPdfIndir(fatura, opts = {}) {
             String(i + 1),
             ad,
             String(m),
-            paraFormat(bf) + ' ₺',
+            paraFormat(bf) + ' TL',
             '%' + ko,
-            paraFormat(kdvT) + ' ₺',
-            paraFormat(gt) + ' ₺',
+            paraFormat(kdvT) + ' TL',
+            paraFormat(gt) + ' TL',
         ];
     });
 
@@ -118,8 +163,8 @@ export async function faturaPdfIndir(fatura, opts = {}) {
             head, body,
             startY: y + 4,
             theme: 'striped',
-            headStyles: { fillColor: accentColor, textColor: 255, fontStyle: 'bold' },
-            styles: { fontSize: 9, cellPadding: 2.5 },
+            headStyles: { fillColor: accentColor, textColor: 255, fontStyle: 'bold', font: FONT },
+            styles: { fontSize: 9, cellPadding: 2.5, font: FONT },
             columnStyles: {
                 0: { halign: 'center', cellWidth: 8 },
                 2: { halign: 'right' },
@@ -149,19 +194,19 @@ export async function faturaPdfIndir(fatura, opts = {}) {
     doc.setLineWidth(0.4);
     doc.rect(totBoxX, y, 66, 26);
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(FONT, 'normal');
     doc.text('Ara Toplam:', totBoxX + 3, y + 7);
-    doc.text(paraFormat(araT) + ' ₺', 194, y + 7, { align: 'right' });
+    doc.text(paraFormat(araT) + ' TL', 194, y + 7, { align: 'right' });
     doc.text('KDV Toplam:', totBoxX + 3, y + 14);
-    doc.text(paraFormat(kdvT) + ' ₺', 194, y + 14, { align: 'right' });
-    doc.setFont('helvetica', 'bold');
+    doc.text(paraFormat(kdvT) + ' TL', 194, y + 14, { align: 'right' });
+    doc.setFont(FONT, 'bold');
     doc.setFontSize(11);
     doc.text('Genel Toplam:', totBoxX + 3, y + 22);
-    doc.text(paraFormat(genT) + ' ₺', 194, y + 22, { align: 'right' });
+    doc.text(paraFormat(genT) + ' TL', 194, y + 22, { align: 'right' });
 
     // Footer
     doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(FONT, 'normal');
     doc.setTextColor(100, 116, 139);
     const now = new Date().toLocaleString('tr-TR');
     doc.text(`eMuhasebe Pro tarafından ${now} oluşturuldu.`, 14, 290);

@@ -131,6 +131,11 @@ const urunId = document.getElementById('urunId').value;
 
 // Sayfa yüklendiğinde
 document.addEventListener('DOMContentLoaded', async () => {
+    // ÖNEMLİ: Firebase bağlantısı kurulmadan getir/ekle/guncelle localStorage'a
+    // gider. Sunucuda (Firebase modu) localStorage boş olduğu için düzenleme
+    // formu boş geliyordu. Bu yüzden önce init()'i bekliyoruz.
+    await init();
+
     if (urunId) {
         // Düzenleme modu - mevcut veriyi yükle
         try {

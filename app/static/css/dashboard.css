@@ -1292,6 +1292,60 @@
 .ai-placeholder i { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.7; }
 .ai-placeholder p { font-size: 0.9rem; }
 
+/* ── AI yükleme (Analiz Ediliyor) — temiz, ortalanmış, profesyonel ── */
+.ai-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.9rem;
+    padding: 2.25rem 1rem;
+    text-align: center;
+}
+.ai-loading.is-hidden { display: none; }
+
+.ai-loading-dots { display: inline-flex; gap: 0.45rem; }
+.ai-loading-dots span {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: #60a5fa;
+    animation: aiDotPulse 1.2s infinite ease-in-out both;
+}
+.ai-loading-dots span:nth-child(1) { animation-delay: -0.24s; }
+.ai-loading-dots span:nth-child(2) { animation-delay: -0.12s; }
+@keyframes aiDotPulse {
+    0%, 80%, 100% { transform: scale(0.5); opacity: 0.35; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+.ai-loading > span {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #e2e8f0;
+    letter-spacing: 0.2px;
+}
+
+.ai-loading #aiTimer {
+    margin-top: 0 !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+    font-size: 0.8rem;
+    color: #cbd5e1;
+}
+.ai-loading #aiTimerVal { color: #fff; font-weight: 700; }
+.ai-loading #aiTimerHint {
+    display: block;
+    margin: -0.35rem 0 0;
+    font-size: 0.75rem;
+    opacity: 0.55;
+    color: #94a3b8;
+}
+
 .ai-results { display: none; }
 .ai-results.active { display: block; }
 

@@ -1148,6 +1148,14 @@ a:hover { color: var(--violet-500); text-decoration: none; }
     cursor: not-allowed;
 }
 
+/* Arama kutusu autofill'i engellemek için yüklemede readonly oluyor; bu yüzden
+   normal görünmeli (soluk/engelli imleç değil). İlk tıkta readonly kaldırılır. */
+#aramaInput[readonly] {
+    background: var(--bg-800);
+    color: var(--text-primary);
+    cursor: text;
+}
+
 .form-control::placeholder { color: var(--text-muted); }
 
 .form-help {
@@ -1203,7 +1211,7 @@ textarea.form-control {
     margin-bottom: 1.25rem;
 }
 
-.form-actions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+.form-actions { display: flex; gap: 0.75rem; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 
 /* ════════════════ EXCEL PREVIEW MODAL ════════════════ */
 .excel-modal-overlay {

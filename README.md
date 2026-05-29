@@ -1,21 +1,32 @@
 # eMuhasebe Pro
 
-Gelişmiş, yapay zeka destekli ve gerçek zamanlı (realtime) ön muhasebe yönetim sistemi. Okul projesi amacıyla geliştirilmiştir.
+Yapay zeka destekli, gerçek zamanlı (realtime) ön muhasebe yönetim sistemi. Okul projesi amacıyla geliştirilmiştir.
 
-##  Öne Çıkan Özellikler
+Canlı: https://emuhasebe.onrender.com
 
-- ** Yapay Zeka Asistanı (Gemini API):** Finansal verilerinizi analiz eder, nakit akışı tahmini yapar ve Z-score tabanlı anomali tespiti sunar.
-- **Firebase Gerçek Zamanlı Veritabanı:** Verileriniz Firebase Realtime Database üzerinde eşzamanlı olarak yedeklenir ve birden çok cihaz arasında anlık senkronize olur. Çevrimdışı durumlarda `localStorage` fallback mekanizması devreye girer.
-- **Kapsamlı Muhasebe Modülleri:** Müşteri/Tedarikçi yönetimi, Ürün/Stok takibi, Alış/Satış ve İade Faturası kesimi. Fatura hesaplamaları tam matematiksel hassasiyetle (Numeric KDV/İndirim) çalışır.
-- **Güvenli Mimari (Auth & API):** Flask-JWT-Extended ile JWT tabanlı oturum yönetimi, şifrelenmiş parolalar ve Rate Limiting (Hız Sınırlandırması) korumalı RESTful API endpoints.
-- **Katmanlı Mimari (Layered Architecture):** Blueprint tabanlı yapı, Service katmanı, Repository kalıbı (Repository Pattern) ve SQLAlchemy ORM kullanımı.
+## Öne Çıkan Özellikler
+
+- **Yapay Zeka Finansal Asistan:** Tek tıkla kapsamlı finansal rapor üretir:
+  - 4 sağlık skoru (Kârlılık / Likidite / Büyüme / Risk) ve genel finansal sağlık göstergesi
+  - Güçlü yönler, riskler, öneriler, müşteri & pazar, nakit & likidite, anomali & kontrol başlıklı yorumlar
+  - Aylık ortalama ciro, tahsilat oranı, müşteri konsantrasyonu gibi metrikler
+  - **Alacak yaşlandırma** (0–30 / 31–60 / 60+ gün) ve vadesi geçmiş en büyük cariler
+  - **Z-score tabanlı anomali tespiti** ve **nakit akışı tahmini**
+- **Zengin Dashboard:** KPI kartları, aylık gelir-gider grafiği, fatura dağılımı, kritik stok, son aktiviteler, en çok satan ürünler, **Alacak/Borç özeti** ve **KDV özeti** (hesaplanan / indirilecek / devreden).
+- **Kapsamlı Muhasebe Modülleri:** Müşteri/Tedarikçi yönetimi, Ürün/Stok takibi, Alış / Satış / İade faturaları. Fatura hesaplamaları tam matematiksel hassasiyetle (KDV/indirim) yapılır; satış/alış faturaları stok hareketlerini otomatik günceller.
+- **Fatura Dışa Aktarma:** Türkçe karakter destekli **PDF** çıktısı ve **e-Fatura (UBL-TR) XML** üretimi. Fatura kalemlerini **Excel'den içe aktarma** desteği.
+- **Firebase Gerçek Zamanlı Veritabanı:** Veriler Firebase Realtime Database üzerinde tutulur. Firebase yoksa otomatik olarak `localStorage` moduna düşer. Sayfalar açılışta önbellekten anında boyanır, ardından taze veri arka planda güncellenir (stale-while-revalidate).
+- **Güvenli Mimari (Auth & API):** Flask-JWT-Extended ile JWT tabanlı oturum yönetimi, şifrelenmiş parolalar ve Rate Limiting korumalı RESTful API.
+- **Katmanlı Mimari:** Blueprint tabanlı yapı, Service katmanı, Repository kalıbı, SQLAlchemy ORM; Soft Delete (silinen kayıtlar arşivlenir) ve AuditLog ile izlenebilirlik.
+- **PWA:** `manifest.json` ve service worker ile uygulama gibi yüklenebilir / çevrimdışı destek.
 
 ## Teknolojiler
 
-- **Backend:** Python 3.12+, Flask, SQLAlchemy, Flask-JWT-Extended, Flask-Limiter, Pydantic
-- **Frontend:** Vanilla JS, CSS3, HTML5 (Jinja2)
-- **Veritabanı:** SQLite (Yerel), Firebase Realtime Database (Bulut)
-- **Yapay Zeka:** Google Gemini 1.5/2.5 Flash API & OpenRouter desteği
+- **Backend:** Python 3.11+, Flask 3, SQLAlchemy 2, Flask-Migrate, Flask-JWT-Extended, Flask-Limiter (Redis destekli), Flask-WTF, Pydantic
+- **Frontend:** Vanilla JS (ES Modules), CSS3, HTML5 (Jinja2), Chart.js, jsPDF + AutoTable, SheetJS
+- **Veritabanı:** SQLite (kullanıcı/oturum), Firebase Realtime Database (uygulama verisi)
+- **Yapay Zeka:** Google Gemini (varsayılan `gemini-2.0-flash`; kota dolarsa `gemini-2.5-flash-lite`, `gemini-1.5-flash` gibi alternatiflere otomatik geçer) ve OpenRouter ücretsiz modelleri
+- **Dağıtım:** Gunicorn, Docker / docker-compose, Procfile (Render üzerinde yayında)
 
 ## Kurulum ve Çalıştırma
 
@@ -28,18 +39,20 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-### 2. Ortam Değişkenlerini (Environment Variables) Ayarlayın
-Proje ana dizininde bir `.env` dosyası oluşturun (veya mevcut `.env` dosyasını düzenleyin) ve aşağıdaki alanları kendi bilgilerinizle doldurun:
+### 2. Ortam Değişkenlerini Ayarlayın
+Proje ana dizininde bir `.env` dosyası oluşturun ve alanları kendi bilgilerinizle doldurun:
 
 ```env
-# Flask Ayarları
+# Flask
 FLASK_ENV=development
 SECRET_KEY=gizli-bir-anahtar-belirleyin
 
-# Yapay Zeka (Gemini API)
+# Yapay Zeka (opsiyonel — UI'daki "AI Kurulum" ekranından da girilebilir)
 GEMINI_API_KEY=AIzaSy...
+# veya OpenRouter:
+# OPENROUTER_API_KEY=sk-or-...
 
-# Firebase Konfigürasyonu
+# Firebase (opsiyonel — yoksa localStorage modu çalışır)
 FIREBASE_API_KEY=AIzaSy...
 FIREBASE_AUTH_DOMAIN=projeniz.firebaseapp.com
 FIREBASE_DATABASE_URL=https://projeniz-default-rtdb.firebaseio.com
@@ -49,19 +62,35 @@ FIREBASE_MESSAGING_SENDER_ID=123456789
 FIREBASE_APP_ID=1:123456789:web:abcdef
 ```
 
+> **Not (Gemini ücretsiz katman):** Bazı bölgelerde Gemini ücretsiz kotası 0 olabilir (`limit: 0`). Bu durumda OpenRouter anahtarı kullanmanız önerilir; uygulama `AIzaSy` ile başlamayan anahtarları otomatik olarak OpenRouter'a yönlendirir.
+
 ### 3. Veritabanını Başlatın ve Uygulamayı Çalıştırın
 ```powershell
 flask db upgrade
 python run.py
 ```
-Uygulama `http://127.0.0.1:5000` adresinde çalışmaya başlayacaktır.
+Uygulama `http://127.0.0.1:5000` adresinde çalışır. İlk kayıt olan kullanıcı otomatik olarak admin olur.
 
-## Testleri Çalıştırma
-Projede yer alan kapsamlı test senaryolarını çalıştırmak için:
+### Docker ile (opsiyonel)
+```powershell
+docker compose up --build
+```
+
+## Faydalı CLI Komutları
+`run.py` içinde tanımlı kullanıcı yönetimi komutları:
+
+```powershell
+flask --app run.py list-users
+flask --app run.py reset-password <email> <yeni_sifre>
+flask --app run.py create-admin <kullanici_adi> <email> <sifre>
+```
+
+## Testler
 ```powershell
 python -m pytest tests/ -v --tb=short
 ```
 
 ## Notlar
-- Uygulama ilk kez başlatıldığında sağ alt köşedeki mod butonlarından Firebase ve Yapay Zeka entegrasyonlarınızın durumunu kontrol edebilir, arayüz üzerinden de API anahtarlarınızı güncelleyebilirsiniz.
-- Silinen kayıtlar veritabanından kalıcı olarak silinmez, "Soft Delete" yöntemi ile arşivlenir. Tüm işlemler AuditLog ile kayıt altına alınır.
+- Firebase ve Yapay Zeka entegrasyonlarını arayüzdeki ayarlar / "AI Kurulum" ekranından kontrol edebilir ve API anahtarlarınızı güncelleyebilirsiniz.
+- Silinen kayıtlar kalıcı olarak silinmez; Soft Delete ile arşivlenir ve işlemler AuditLog ile kayıt altına alınır.
+- Yapay zeka çıktısındaki skorlar, yaşlandırma, KDV ve tahsilat metrikleri tamamen gerçek verilerden **istemci tarafında** hesaplanır; metin yorumu için yapay zeka kullanılır.

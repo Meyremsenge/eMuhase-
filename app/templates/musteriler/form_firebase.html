@@ -118,6 +118,11 @@ const musteriId = document.getElementById('musteriId').value;
 
 // Sayfa yüklendiğinde
 document.addEventListener('DOMContentLoaded', async () => {
+    // ÖNEMLİ: Firebase bağlantısı kurulmadan getir/ekle/guncelle localStorage'a
+    // gider. Sunucuda (Firebase modu) localStorage boş olduğu için düzenleme
+    // formu boş geliyordu. Bu yüzden önce init()'i bekliyoruz.
+    await init();
+
     if (musteriId) {
         // Düzenleme modu - mevcut veriyi yükle
         try {

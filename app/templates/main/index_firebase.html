@@ -532,7 +532,8 @@ function renderRecentActivities(satisFaturalari, alisFaturalari, iadeFaturalari,
 
     // Tarihe göre yeniden eskiye sırala ve en son 8 kaydı al
     allActivities.sort((a, b) => b.tarih - a.tarih);
-    const recentActivities = allActivities.slice(0, 8);
+    // 5 kayıt — yandaki "En Çok Satanlar" (5 ürün) kartıyla aynı yükseklikte dursun.
+    const recentActivities = allActivities.slice(0, 5);
     
     const container = document.getElementById('recentActivitiesList');
     
