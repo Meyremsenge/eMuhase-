@@ -357,6 +357,8 @@ def ai_analyze():
                     'erişim yok. AI Kurulum ekranından anahtarı kontrol edin.'
                 ), 'detail': detail}), 401
             if code == 400:
+                if st == 'FAILED_PRECONDITION' and 'location' in (msg or '').lower():
+                    continue      # konum kısıtlaması — sıradaki modeli dene
                 return jsonify({'error': f'Gemini isteği reddedildi: {msg or st or "400"}',
                                 'detail': detail}), 400
             if code == 429:       # 429 ama RESOURCE_EXHAUSTED değil
@@ -369,9 +371,16 @@ def ai_analyze():
                 return jsonify({'error': f'Gemini API\'ye ulaşılamadı: {msg}'}), 502
             return jsonify({'error': f'Gemini API hatası: {code}', 'detail': detail}), 502
 
-        # Tüm modeller kota dışı → ücretsiz katman bu anahtar/bölge için kapalı (limit: 0)
+        # Tüm modeller başarısız → konum kısıtlaması veya kota sorunu
         m, code, st, msg = son or ('', 0, '', '')
         detail = f'{m} | {st} {msg}'.strip()[:400]
+        if st == 'FAILED_PRECONDITION' and 'location' in (msg or '').lower():
+            return jsonify({'error': (
+                'Google Gemini API bu sunucu konumundan erişilemiyor '
+                '(User location is not supported). Çözüm: openrouter.ai adresinden '
+                'ücretsiz bir anahtar alıp AI Kurulum ekranına girin — '
+                'uygulama OpenRouter ücretsiz modellerini otomatik kullanır.'
+            ), 'detail': detail}), 400
         return jsonify({'error': (
             'Bu Gemini anahtarının ücretsiz kotası 0 (free tier bu bölge/hesap için '
             'kapalı). Çözüm: ya Google AI Studio\'da faturalandırma açın, ya da ÜCRETSİZ '
