@@ -289,16 +289,13 @@ def ai_analyze():
         ml = model.lower()
         if 'gemini-2.5' in ml:
             gemini_model = 'gemini-2.5-flash'
-        elif 'gemini-1.5' in ml:
-            gemini_model = 'gemini-1.5-flash'
         elif 'gemini-2.0' in ml:
             gemini_model = 'gemini-2.0-flash'
 
         # Kota sıfır/aşılmış (RESOURCE_EXHAUSTED) durumunda sırayla denenecek
-        # alternatifler — bazı bölgelerde belirli modellerin ücretsiz kotası 0.
+        # alternatifler — gemini-1.5-x modelleri v1beta'dan kaldırıldı, listede yok.
         adaylar = [gemini_model]
-        for alt in ('gemini-2.5-flash-lite', 'gemini-2.0-flash-lite',
-                    'gemini-1.5-flash-8b', 'gemini-1.5-flash'):
+        for alt in ('gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'):
             if alt not in adaylar:
                 adaylar.append(alt)
 
@@ -339,6 +336,7 @@ def ai_analyze():
             return None, (503, '', 'Yanıt alınamadı')
 
         son = None
+        had_location_error = False
         for m in adaylar:
             text_out, err = _gemini_call(m)
             if text_out is not None:
@@ -346,7 +344,6 @@ def ai_analyze():
             code, st, msg = err
             son = (m, code, st, msg)
             detail = f'{m} | {st} {msg}'.strip()[:400]
-            # Kota / model-yok dışındaki hatalarda hemen dur (gerçek sebep bu)
             if code == 429 and st == 'RESOURCE_EXHAUSTED':
                 continue          # sıradaki modeli dene
             if code == 404:
@@ -358,10 +355,11 @@ def ai_analyze():
                 ), 'detail': detail}), 401
             if code == 400:
                 if st == 'FAILED_PRECONDITION' and 'location' in (msg or '').lower():
+                    had_location_error = True
                     continue      # konum kısıtlaması — sıradaki modeli dene
                 return jsonify({'error': f'Gemini isteği reddedildi: {msg or st or "400"}',
                                 'detail': detail}), 400
-            if code == 429:       # 429 ama RESOURCE_EXHAUSTED değil
+            if code == 429:
                 return jsonify({'error': f'Gemini 429: {msg or st}', 'detail': detail}), 429
             if code == 503:
                 return jsonify({'error': (
@@ -371,10 +369,10 @@ def ai_analyze():
                 return jsonify({'error': f'Gemini API\'ye ulaşılamadı: {msg}'}), 502
             return jsonify({'error': f'Gemini API hatası: {code}', 'detail': detail}), 502
 
-        # Tüm modeller başarısız → konum kısıtlaması veya kota sorunu
+        # Tüm modeller başarısız
         m, code, st, msg = son or ('', 0, '', '')
         detail = f'{m} | {st} {msg}'.strip()[:400]
-        if st == 'FAILED_PRECONDITION' and 'location' in (msg or '').lower():
+        if had_location_error:
             return jsonify({'error': (
                 'Google Gemini API bu sunucu konumundan erişilemiyor '
                 '(User location is not supported). Çözüm: openrouter.ai adresinden '
