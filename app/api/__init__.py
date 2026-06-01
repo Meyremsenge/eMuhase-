@@ -195,7 +195,7 @@ def ai_ping():
     aksi takdirde OpenRouter'a doğrulama isteği gönderir.
     """
     client_key = (request.headers.get('X-OpenRouter-Key') or '').strip()
-    api_key = client_key or os.environ.get('GEMINI_API_KEY') or os.environ.get('OPENROUTER_API_KEY')
+    api_key = client_key or os.environ.get('OPENROUTER_API_KEY') or os.environ.get('GEMINI_API_KEY')
     if not api_key:
         return jsonify({'ok': False, 'error': 'Anahtar yok'}), 400
 
@@ -266,7 +266,7 @@ def ai_analyze():
       4) Varsayılan: google/gemini-2.5-flash:free (veya native için gemini-1.5-flash)
     """
     client_key = (request.headers.get('X-OpenRouter-Key') or '').strip()
-    api_key = client_key or os.environ.get('GEMINI_API_KEY') or os.environ.get('OPENROUTER_API_KEY')
+    api_key = client_key or os.environ.get('OPENROUTER_API_KEY') or os.environ.get('GEMINI_API_KEY')
     if not api_key:
         return jsonify({'error': 'AI servisi yapılandırılmamış. AI Kurulum ekranından anahtar ekleyin.'}), 503
 
