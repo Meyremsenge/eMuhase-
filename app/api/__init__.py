@@ -275,27 +275,31 @@ def ai_analyze():
     if not prompt:
         return jsonify({'error': 'prompt zorunludur'}), 400
 
-    # Varsayılan: gemini-2.0-flash — ücretsiz katmanda en cömert kota
-    # (~1500 istek/gün, 15 istek/dk). 2.5-flash çok daha düşük limitli
-    # (~250/gün) olduğu için az kullanımda bile çabuk doluyordu.
+    # Varsayılan: gemini-2.5-flash. Google, 2.0 serisinin ücretsiz kotasını
+    # birçok hesap/bölgede 0'a düşürdü (limit: 0); 2.5 serisi hâlâ ücretsiz
+    # çalışıyor. Bu yüzden artık 2.5 öncelikli denenir.
     model = (data.get('model')
              or request.headers.get('X-OpenRouter-Model')
              or os.environ.get('OPENROUTER_MODEL')
-             or 'google/gemini-2.0-flash-exp:free')
+             or 'google/gemini-2.5-flash:free')
 
     # 1) Google Gemini NATIVE API Çağrısı
     if api_key.startswith('AIzaSy'):
-        gemini_model = 'gemini-2.0-flash'  # varsayılan
+        gemini_model = 'gemini-2.5-flash'  # varsayılan
         ml = model.lower()
-        if 'gemini-2.5' in ml:
+        if 'gemini-2.5-flash-lite' in ml:
+            gemini_model = 'gemini-2.5-flash-lite'
+        elif 'gemini-2.5' in ml:
             gemini_model = 'gemini-2.5-flash'
         elif 'gemini-2.0' in ml:
             gemini_model = 'gemini-2.0-flash'
 
         # Kota sıfır/aşılmış (RESOURCE_EXHAUSTED) durumunda sırayla denenecek
-        # alternatifler — gemini-1.5-x modelleri v1beta'dan kaldırıldı, listede yok.
+        # alternatifler. 2.5 serisi öncelikli — 2.0 serisinin ücretsiz kotası
+        # birçok hesapta 0 olduğu için en sona alındı.
         adaylar = [gemini_model]
-        for alt in ('gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'):
+        for alt in ('gemini-2.5-flash', 'gemini-2.5-flash-lite',
+                    'gemini-2.0-flash', 'gemini-2.0-flash-lite'):
             if alt not in adaylar:
                 adaylar.append(alt)
 
